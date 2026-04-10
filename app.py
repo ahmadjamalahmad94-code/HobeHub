@@ -146,32 +146,92 @@ BASE_TEMPLATE = """
 html{scroll-behavior:smooth}
 body{margin:0;font-family:Arial,sans-serif;background:linear-gradient(135deg,#f6fafd,#eef7fc);color:var(--text)}
 a{text-decoration:none}
-.layout{display:flex;min-height:100vh;transition:.25s}
+.layout{display:flex;min-height:100vh;transition:.25s;position:relative}
 .sidebar{
-  width:290px;background:linear-gradient(180deg,var(--primary),#0d2f57);color:#fff;padding:20px;position:sticky;top:0;height:100vh;
-  overflow-x:hidden;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.12);transition:width .28s ease,padding .28s ease;white-space:nowrap
+  width:290px;
+  background:linear-gradient(180deg,var(--primary),#0d2f57);
+  color:#fff;
+  padding:20px;
+  position:sticky;
+  top:0;
+  height:100vh;
+  overflow-x:hidden;
+  overflow-y:auto;
+  box-shadow:0 8px 24px rgba(0,0,0,.12);
+  transition:width .28s ease,padding .28s ease,transform .28s ease;
+  white-space:nowrap;
+  z-index:1200;
 }
-.layout.sidebar-collapsed .sidebar{width:88px;padding:20px 12px;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.layout.sidebar-collapsed .sidebar{
+  width:88px;
+  padding:20px 12px;
+  box-shadow:0 8px 24px rgba(0,0,0,.12);
+}
 .layout.sidebar-collapsed .main{width:100%}
-.brand{display:flex;align-items:center;gap:12px;font-size:24px;font-weight:bold;margin-bottom:18px;overflow:hidden}
-.brand-badge{width:42px;height:42px;min-width:42px;border-radius:12px;background:var(--accent);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:bold}
-.brand-text{display:flex;flex-direction:column;transition:opacity .2s ease,transform .2s ease,width .2s ease;overflow:hidden}
+.mobile-sidebar-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.35);
+  z-index:1100;
+  display:none;
+}
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  font-size:24px;
+  font-weight:bold;
+  margin-bottom:18px;
+  overflow:hidden;
+}
+.brand-badge{
+  width:42px;
+  height:42px;
+  min-width:42px;
+  border-radius:12px;
+  background:var(--accent);
+  color:var(--primary);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:bold;
+}
+.brand-text{
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  transition:opacity .2s ease, transform .2s ease, width .2s ease;
+}
 .brand small{display:block;font-size:12px;color:#cfe4ff;margin-top:4px}
-.layout.sidebar-collapsed .brand{justify-content:center}
-.layout.sidebar-collapsed .brand-text{opacity:0;transform:translateX(8px);width:0}
 .nav .section{font-size:12px;color:#d8e8ff;margin:16px 0 8px;transition:opacity .2s ease}
-.nav a,.nav details summary{display:flex;align-items:center;gap:10px;color:#fff;padding:12px 14px;border-radius:12px;margin-bottom:8px;background:rgba(255,255,255,.08);cursor:pointer;list-style:none;transition:all .22s ease;overflow:hidden}
+.nav a,.nav details summary{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  color:#fff;
+  padding:12px 14px;
+  border-radius:12px;
+  margin-bottom:8px;
+  background:rgba(255,255,255,.08);
+  cursor:pointer;
+  list-style:none;
+  overflow:hidden;
+  transition:all .22s ease;
+}
 .nav a:hover,.nav details summary:hover,.nav a.active{background:rgba(255,255,255,.18)}
 .nav a i,.nav details summary i{min-width:20px;text-align:center;font-size:16px}
-.nav-label{transition:opacity .2s ease,transform .2s ease,width .2s ease;overflow:hidden}
+.nav-label{transition:opacity .2s ease, transform .2s ease, width .2s ease;overflow:hidden}
 .nav details{margin-bottom:8px}
 .nav details summary::-webkit-details-marker{display:none}
 .nav details .submenu{padding-right:10px}
 .nav details .submenu a{background:rgba(255,255,255,.05);font-size:14px}
+.layout.sidebar-collapsed .brand{justify-content:center}
+.layout.sidebar-collapsed .brand-text{opacity:0;transform:translateX(8px);width:0}
 .layout.sidebar-collapsed .nav-label{opacity:0;transform:translateX(8px);width:0}
-.layout.sidebar-collapsed .nav a,.layout.sidebar-collapsed .nav details summary{justify-content:center;padding:12px 10px}
-.layout.sidebar-collapsed .nav .section,.layout.sidebar-collapsed .nav details .submenu{display:none}
-.layout.sidebar-collapsed .nav details{margin-bottom:8px}
+.layout.sidebar-collapsed .nav a,
+.layout.sidebar-collapsed .nav details summary{justify-content:center;padding:12px 10px}
+.layout.sidebar-collapsed .nav .section,
+.layout.sidebar-collapsed .nav details .submenu{display:none}
 .layout.sidebar-collapsed .nav details[open] summary{margin-bottom:8px}
 .main{flex:1;padding:22px}
 .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
@@ -306,7 +366,41 @@ textarea{min-height:100px}
 .timer-pulse:after{content:'';position:absolute;inset:-6px;border-radius:inherit;border:2px solid currentColor;opacity:0;animation:pulseRing 1.8s infinite}
 @keyframes pulseRing{0%{transform:scale(.92);opacity:.35}70%{transform:scale(1.08);opacity:0}100%{opacity:0}}
 @keyframes timerAlertIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
-@media (max-width:900px){.layout{display:block}.sidebar{width:100%;height:auto;position:relative}.layout.sidebar-collapsed .sidebar{width:72px;height:auto;padding:16px 10px}.main{padding:16px}.modal-card{padding:16px}.bar-row{grid-template-columns:100px 1fr 44px}.timer-big{font-size:36px}.timer-ring{width:230px;height:230px}.timer-big.timer-big-ring{font-size:44px}.topbar{align-items:flex-start}.userbox{width:100%;justify-content:flex-start}}
+@media (max-width:900px){
+  .layout{display:block;position:relative}
+  .sidebar{
+    position:fixed;
+    top:0;
+    right:0;
+    width:260px;
+    height:100vh;
+    padding:18px 14px;
+    border-radius:0;
+    box-shadow:0 12px 30px rgba(0,0,0,.18);
+    transform:translateX(0);
+  }
+  .layout.sidebar-collapsed .sidebar{
+    transform:translateX(100%);
+    width:260px;
+    padding:18px 14px;
+  }
+  .layout:not(.sidebar-collapsed) .mobile-sidebar-overlay{display:block}
+  .layout.sidebar-collapsed .brand-text,
+  .layout.sidebar-collapsed .nav-label,
+  .layout.sidebar-collapsed .nav .section,
+  .layout.sidebar-collapsed .nav details .submenu{display:none}
+  .layout.sidebar-collapsed .nav a,
+  .layout.sidebar-collapsed .nav details summary{justify-content:center;padding:14px 10px}
+  .main{padding:16px;width:100%}
+  .modal-card{padding:16px}
+  .bar-row{grid-template-columns:100px 1fr 44px}
+  .timer-big{font-size:36px}
+  .timer-ring{width:230px;height:230px}
+  .timer-big.timer-big-ring{font-size:44px}
+  .topbar{align-items:flex-start}
+  .topbar-left{width:100%;justify-content:space-between}
+  .userbox{width:100%;justify-content:flex-start}
+}
 </style>
 <script>
 function toggleBeneficiarySections(selectEl, scopeId){
@@ -341,12 +435,15 @@ function applySidebarState(collapsed){
   var layout = document.getElementById('app-layout');
   if(!layout) return;
   layout.classList.toggle('sidebar-collapsed', !!collapsed);
-  try{ localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0'); }catch(e){}
 }
 function toggleSidebar(){
   var layout = document.getElementById('app-layout');
   if(!layout) return false;
   applySidebarState(!layout.classList.contains('sidebar-collapsed'));
+  return false;
+}
+function closeSidebar(){
+  applySidebarState(true);
   return false;
 }
 function showLiveFlash(message, category){
@@ -597,12 +694,7 @@ async function stopPowerTimer(){ if(!confirm('هل تريد إيقاف المؤ�
 
 document.addEventListener('DOMContentLoaded', function(){
   initBeneficiaryForms();
-  try{
-    const saved = localStorage.getItem('sidebar-collapsed');
-    applySidebarState(saved === null ? true : saved === '1');
-  }catch(e){
-    applySidebarState(true);
-  }
+  applySidebarState(true);
   updateLiveClock();
   setInterval(updateLiveClock, 1000);
   requestPowerTimerNotificationPermission();
@@ -652,6 +744,7 @@ document.addEventListener('DOMContentLoaded', function(){
       {% endif %}
     </div>
   </aside>
+  <div class="mobile-sidebar-overlay" onclick="return closeSidebar()"></div>
   <main class="main">
     <div class="topbar">
       <div class="topbar-left"><button class="sidebar-toggle" type="button" onclick="return toggleSidebar()" title="إظهار/إخفاء القائمة الجانبية"><i class="fa-solid fa-bars"></i></button><strong>{{ title }}</strong></div>
