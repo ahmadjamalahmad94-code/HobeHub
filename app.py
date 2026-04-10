@@ -131,8 +131,10 @@ BASE_TEMPLATE = """
 html{scroll-behavior:smooth}
 body{margin:0;font-family:Arial,sans-serif;background:linear-gradient(135deg,#f6fafd,#eef7fc);color:var(--text)}
 a{text-decoration:none}
-.layout{display:flex;min-height:100vh}
-.sidebar{width:290px;background:linear-gradient(180deg,var(--primary),#0d2f57);color:#fff;padding:20px;position:sticky;top:0;height:100vh;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.layout{display:flex;min-height:100vh;transition:.25s}
+.sidebar{width:290px;background:linear-gradient(180deg,var(--primary),#0d2f57);color:#fff;padding:20px;position:sticky;top:0;height:100vh;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.12);transition:.25s}
+.layout.sidebar-collapsed .sidebar{width:0;padding:0;border:0;overflow:hidden;box-shadow:none}
+.layout.sidebar-collapsed .main{width:100%}
 .brand{display:flex;align-items:center;gap:12px;font-size:24px;font-weight:bold;margin-bottom:18px}
 .brand-badge{width:42px;height:42px;border-radius:12px;background:var(--accent);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:bold}
 .brand small{display:block;font-size:12px;color:#cfe4ff;margin-top:4px}
@@ -145,6 +147,8 @@ a{text-decoration:none}
 .nav details .submenu a{background:rgba(255,255,255,.05);font-size:14px}
 .main{flex:1;padding:22px}
 .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.topbar-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sidebar-toggle{width:42px;height:42px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--primary);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px}
 .topbar .userbox{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .badge{display:inline-block;padding:6px 10px;border-radius:999px;background:var(--soft);color:var(--primary);font-size:12px;font-weight:bold}
 .badge-green{background:#ecfdf3;color:#166534}
@@ -177,6 +181,8 @@ textarea{min-height:100px}
 .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 .btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:none;cursor:pointer;padding:11px 16px;border-radius:12px;font-size:14px}
+.btn-icon{width:34px;height:34px;padding:0;border-radius:10px;justify-content:center;font-size:13px}
+.btn-icon i{margin:0}
 .btn-primary{background:var(--primary);color:#fff}
 .btn-secondary{background:var(--secondary);color:#fff}
 .btn-accent{background:var(--accent);color:#213547}
@@ -198,6 +204,8 @@ textarea{min-height:100px}
 .tab-pill{padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--text);font-weight:bold}
 .tab-pill.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 .filter-box{background:#f9fcff;border:1px solid var(--line);border-radius:16px;padding:14px}
+.advanced-filters{margin-top:12px;border-top:1px dashed var(--line);padding-top:12px}
+.advanced-filters summary{cursor:pointer;font-weight:bold;color:var(--primary);margin-bottom:12px}
 .kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:14px}
 .kpi{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px}
 .kpi .label{font-size:12px;color:var(--muted)}
@@ -236,7 +244,41 @@ textarea{min-height:100px}
 .row-complete td{background:#fff1f2 !important}
 .notes-box{min-height:90px}
 .ajax-saving{opacity:.65;pointer-events:none}
-@media (max-width:900px){.layout{display:block}.sidebar{width:100%;height:auto;position:relative}.main{padding:16px}.modal-card{padding:16px}.bar-row{grid-template-columns:100px 1fr 44px}}
+.bulk-toolbar{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap;margin-top:12px}.checkbox-cell{width:44px}.row-select,.select-all{width:18px;height:18px;cursor:pointer}.selected-count{font-size:13px;color:var(--muted)}
+.timer-alert{display:none;position:sticky;top:0;z-index:1200;margin-bottom:12px;padding:14px 16px;border-radius:16px;background:linear-gradient(135deg,#fff7ed,#ffedd5);border:1px solid #fdba74;color:#9a3412;box-shadow:0 8px 24px rgba(0,0,0,.08)}
+.timer-alert.show{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;animation:timerAlertIn .35s ease}
+.timer-mini{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#eef4fb;color:var(--primary);font-weight:700;box-shadow:inset 0 0 0 1px rgba(18,59,109,.08)}
+.timer-status-running{background:#ecfdf3;color:#166534}.timer-status-paused{background:#fff7ed;color:#c2410c}.timer-status-stopped{background:#f8fafc;color:#334155}.timer-status-alarm{background:#fef2f2;color:#b91c1c}
+.timer-big{font-size:48px;font-weight:800;letter-spacing:2px;color:var(--primary);text-align:center;margin:10px 0 18px}
+.timer-state-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;font-weight:700}
+.timer-page-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.topbar-clock{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:14px;background:#fff;border:1px solid var(--line);color:var(--primary);font-weight:800;box-shadow:0 8px 20px rgba(15,23,42,.05)}
+.topbar-clock small{display:block;color:var(--muted);font-weight:600;font-size:11px}
+.userbox .logout-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:14px;background:linear-gradient(135deg,#0f2f56,#1c4f8f);color:#fff;border:none;box-shadow:0 10px 24px rgba(18,59,109,.22)}
+.timer-visual-card{position:relative;overflow:hidden;background:radial-gradient(circle at top right,#eff6ff,transparent 35%),linear-gradient(180deg,#ffffff,#f8fbff);border:1px solid var(--line)}
+.timer-visual-card:before{content:'';position:absolute;inset:-80px auto auto -80px;width:220px;height:220px;border-radius:50%;background:rgba(53,167,232,.10);filter:blur(10px)}
+.timer-ring-wrap{display:flex;align-items:center;justify-content:center;padding:8px 0 2px}
+.timer-ring{position:relative;width:280px;height:280px;display:grid;place-items:center}
+.timer-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.timer-ring .bg{fill:none;stroke:#e6eef8;stroke-width:13}
+.timer-ring .progress{fill:none;stroke:url(#timerRingGradient);stroke-width:13;stroke-linecap:round;stroke-dasharray:816;stroke-dashoffset:816;filter:drop-shadow(0 8px 18px rgba(53,167,232,.28));transition:stroke-dashoffset .8s linear}
+.timer-ring-center{position:absolute;inset:32px;border-radius:50%;background:linear-gradient(180deg,#ffffff,#f7fbff);box-shadow:inset 0 0 0 1px rgba(18,59,109,.06),0 10px 30px rgba(15,23,42,.06);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18px}
+.timer-ring-label{font-size:13px;color:var(--muted);margin-bottom:6px}
+.timer-big.timer-big-ring{margin:0;font-size:56px;line-height:1}
+.timer-ring-phase{margin-top:10px;font-size:13px;color:var(--muted)}
+.timer-progress-strip{margin-top:14px;background:#edf4fb;border-radius:999px;height:14px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(15,23,42,.06)}
+.timer-progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--secondary),var(--purple));border-radius:999px;transition:width .8s linear}
+.timer-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:16px}
+.timer-meta-card{padding:14px;border-radius:18px;background:#fff;border:1px solid var(--line);box-shadow:0 8px 20px rgba(15,23,42,.04)}
+.timer-meta-card h4{margin:0;color:var(--muted);font-size:13px}
+.timer-meta-card .v{margin-top:8px;color:var(--primary);font-size:28px;font-weight:800}
+.dashboard-timer-card{position:relative;overflow:hidden;background:linear-gradient(135deg,#f8fbff,#ffffff)}
+.dashboard-timer-card:after{content:'';position:absolute;inset:auto -30px -40px auto;width:180px;height:180px;border-radius:50%;background:rgba(109,78,232,.07)}
+.timer-pulse{position:relative}
+.timer-pulse:after{content:'';position:absolute;inset:-6px;border-radius:inherit;border:2px solid currentColor;opacity:0;animation:pulseRing 1.8s infinite}
+@keyframes pulseRing{0%{transform:scale(.92);opacity:.35}70%{transform:scale(1.08);opacity:0}100%{opacity:0}}
+@keyframes timerAlertIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@media (max-width:900px){.layout{display:block}.sidebar{width:100%;height:auto;position:relative}.layout.sidebar-collapsed .sidebar{height:0}.main{padding:16px}.modal-card{padding:16px}.bar-row{grid-template-columns:100px 1fr 44px}.timer-big{font-size:36px}.timer-ring{width:230px;height:230px}.timer-big.timer-big-ring{font-size:44px}.topbar{align-items:flex-start}.userbox{width:100%;justify-content:flex-start}}
 </style>
 <script>
 function toggleBeneficiarySections(selectEl, scopeId){
@@ -248,11 +290,36 @@ function toggleBeneficiarySections(selectEl, scopeId){
   var target = container.querySelector('.section-' + value);
   if(target){target.classList.add('active');}
 }
+function syncTypeTabs(scopeId, value){
+  var container = document.getElementById(scopeId);
+  if(!container) return;
+  container.querySelectorAll('.type-tab').forEach(function(btn){ btn.classList.toggle('active', btn.dataset.value === value); });
+}
+function setBeneficiaryType(scopeId, value){
+  var container = document.getElementById(scopeId);
+  if(!container) return false;
+  var input = container.querySelector('select[name="user_type"], input[name="user_type"]');
+  if(input){ input.value = value; toggleBeneficiarySections(input, scopeId); }
+  syncTypeTabs(scopeId, value);
+  return false;
+}
 function initBeneficiaryForms(){
   document.querySelectorAll('[data-beneficiary-scope]').forEach(function(scope){
     var input = scope.querySelector('select[name="user_type"], input[name="user_type"]');
-    if(input){toggleBeneficiarySections(input, scope.id);}
+    if(input){toggleBeneficiarySections(input, scope.id); syncTypeTabs(scope.id, input.value || 'tawjihi');}
   });
+}
+function applySidebarState(collapsed){
+  var layout = document.getElementById('app-layout');
+  if(!layout) return;
+  layout.classList.toggle('sidebar-collapsed', !!collapsed);
+  try{ localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0'); }catch(e){}
+}
+function toggleSidebar(){
+  var layout = document.getElementById('app-layout');
+  if(!layout) return false;
+  applySidebarState(!layout.classList.contains('sidebar-collapsed'));
+  return false;
 }
 function showLiveFlash(message, category){
   var area = document.getElementById('live-flash-area');
@@ -262,6 +329,14 @@ function showLiveFlash(message, category){
   box.textContent = message;
   area.prepend(box);
   setTimeout(function(){ box.remove(); }, 4000);
+}
+function guardSingleSubmit(form){
+  if(form.dataset.submitting === '1') return false;
+  form.dataset.submitting = '1';
+  form.classList.add('ajax-saving');
+  var btn = form.querySelector('button[type="submit"]');
+  if(btn){ btn.disabled = true; }
+  return true;
 }
 async function ajaxPost(url, body){
   const options = {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}};
@@ -305,17 +380,205 @@ async function submitBeneficiaryEdit(form, rowId, modalId){
   }
   return false;
 }
-document.addEventListener('DOMContentLoaded', initBeneficiaryForms);
+
+function updateBulkSelectedCount(){
+  const checks = Array.from(document.querySelectorAll('.row-select'));
+  const count = checks.filter(cb => cb.checked).length;
+  const box = document.getElementById('selected-count');
+  if(box){ box.textContent = String(count); }
+  const master = document.getElementById('select-all');
+  if(master){
+    master.checked = checks.length > 0 && count === checks.length;
+    master.indeterminate = count > 0 && count < checks.length;
+  }
+}
+function toggleSelectAll(master){
+  document.querySelectorAll('.row-select').forEach(function(cb){ cb.checked = !!master.checked; });
+  updateBulkSelectedCount();
+  return true;
+}
+function getSelectedBeneficiaryIds(){
+  return Array.from(document.querySelectorAll('.row-select:checked')).map(cb => cb.value);
+}
+function submitBulkDelete(){
+  const ids = getSelectedBeneficiaryIds();
+  if(!ids.length){ showLiveFlash('حدد مستفيدًا واحدًا على الأقل.', 'error'); return false; }
+  if(!confirm('هل تريد حذف المستفيدين المحددين؟')) return false;
+  const form = document.getElementById('bulk-delete-form');
+  form.querySelector('input[name="ids"]').value = ids.join(',');
+  form.submit();
+  return false;
+}
+function submitBulkExport(){
+  const ids = getSelectedBeneficiaryIds();
+  if(!ids.length){ showLiveFlash('حدد مستفيدًا واحدًا على الأقل.', 'error'); return false; }
+  const form = document.getElementById('bulk-export-form');
+  form.querySelector('input[name="ids"]').value = ids.join(',');
+  form.submit();
+  return false;
+}
+
+let powerTimerPollHandle = null;
+let powerTimerBeepHandle = null;
+let lastPowerTimerAlertKey = null;
+function formatTimerSeconds(total){
+  total = Math.max(0, parseInt(total || 0, 10));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if(h > 0){ return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0'); }
+  return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+function timerStateLabel(state){
+  return ({running:'يعمل الآن', paused:'متوقف مؤقتًا', stopped:'متوقف', alarm:'انتهى الوقت'}[state] || 'غير معروف');
+}
+function timerStateClass(state){
+  return 'timer-status-' + (state || 'stopped');
+}
+function stopPowerTimerSound(){
+  if(powerTimerBeepHandle){ clearInterval(powerTimerBeepHandle); powerTimerBeepHandle = null; }
+  const audio = document.getElementById('power-timer-audio');
+  if(audio){ try{ audio.pause(); audio.currentTime = 0; }catch(e){} }
+}
+function startPowerTimerSound(){
+  const audio = document.getElementById('power-timer-audio');
+  if(!audio) return;
+  if(powerTimerBeepHandle) return;
+  const playNow = function(){ audio.play().catch(function(){}); };
+  playNow();
+  powerTimerBeepHandle = setInterval(playNow, 2500);
+}
+function showPowerTimerAlert(message, sticky){
+  const box = document.getElementById('power-timer-alert');
+  const text = document.getElementById('power-timer-alert-text');
+  if(!box || !text) return;
+  text.textContent = message;
+  box.classList.add('show');
+  if(!sticky){
+    clearTimeout(box._hideTimeout);
+    box._hideTimeout = setTimeout(function(){ box.classList.remove('show'); }, 7000);
+  }
+}
+function dismissPowerTimerAlert(){
+  const box = document.getElementById('power-timer-alert');
+  if(box) box.classList.remove('show');
+  stopPowerTimerSound();
+  return false;
+}
+async function postPowerTimer(url, bodyObj){
+  const fd = new URLSearchParams();
+  Object.keys(bodyObj || {}).forEach(function(k){ fd.append(k, bodyObj[k]); });
+  const res = await fetch(url, {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}, body:fd});
+  const data = await res.json();
+  if(!res.ok || !data.ok){ throw new Error(data.message || 'حدث خطأ'); }
+  return data;
+}
+function requestPowerTimerNotificationPermission(){
+  if(typeof Notification === 'undefined') return;
+  if(Notification.permission === 'default'){ Notification.requestPermission().catch(function(){}); }
+}
+function notifyPowerTimerDone(key){
+  if(lastPowerTimerAlertKey === key) return;
+  lastPowerTimerAlertKey = key;
+  showPowerTimerAlert('انتهى وقت دورة الكهرباء. سيبدأ العد من جديد بعد 10 ثوانٍ.', true);
+  startPowerTimerSound();
+  if(typeof Notification !== 'undefined' && Notification.permission === 'granted'){
+    try{ new Notification('مؤقت الكهرباء', {body:'انتهى الوقت. سيبدأ عد جديد تلقائيًا بعد 10 ثوانٍ.'}); }catch(e){}
+  }
+}
+function updateLiveClock(){
+  const now = new Date();
+  const timeText = now.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const dateText = now.toLocaleDateString('en-GB');
+  const ids = ['global-live-clock-time','timer-page-live-time'];
+  ids.forEach(function(id){ const el = document.getElementById(id); if(el) el.textContent = timeText; });
+  const dates = ['global-live-clock-date','timer-page-live-date'];
+  dates.forEach(function(id){ const el = document.getElementById(id); if(el) el.textContent = dateText; });
+}
+function updateTimerProgressVisual(data){
+  const duration = Math.max(60, parseInt(data.duration_seconds || ((data.duration_minutes || 30) * 60), 10));
+  let progress = 0;
+  if(data.state === 'running'){ progress = ((duration - (data.display_remaining_seconds || 0)) / duration) * 100; }
+  else if(data.state === 'alarm'){ progress = 100; }
+  else if(data.state === 'paused'){ progress = ((duration - (data.display_remaining_seconds || 0)) / duration) * 100; }
+  progress = Math.max(0, Math.min(100, progress));
+  const circle = document.getElementById('timer-ring-progress');
+  if(circle){
+    const radius = 130;
+    const circumference = 2 * Math.PI * radius;
+    circle.style.strokeDasharray = String(circumference);
+    circle.style.strokeDashoffset = String(circumference - (progress / 100) * circumference);
+  }
+  const strip = document.getElementById('timer-progress-fill');
+  if(strip) strip.style.width = progress.toFixed(1) + '%';
+  const mini = document.getElementById('dashboard-timer-progress-fill');
+  if(mini) mini.style.width = progress.toFixed(1) + '%';
+}
+function updatePowerTimerWidgets(data){
+  const badge = document.getElementById('timer-global-badge');
+  const badgeState = document.getElementById('timer-global-badge-state');
+  const badgeRemain = document.getElementById('timer-global-badge-remaining');
+  if(badge && badgeState && badgeRemain){
+    badge.className = 'timer-mini ' + timerStateClass(data.state) + (data.state === 'running' ? ' timer-pulse' : '');
+    badgeState.textContent = timerStateLabel(data.state);
+    badgeRemain.textContent = data.state === 'stopped' ? '--:--' : formatTimerSeconds(data.display_remaining_seconds || 0);
+  }
+  const ids = ['dashboard-timer-remaining','timer-page-remaining'];
+  ids.forEach(function(id){ const el = document.getElementById(id); if(el) el.textContent = data.state === 'stopped' ? '--:--' : formatTimerSeconds(data.display_remaining_seconds || 0); });
+  const states = ['dashboard-timer-state','timer-page-state'];
+  states.forEach(function(id){ const el = document.getElementById(id); if(el){ el.textContent = timerStateLabel(data.state); el.className = 'timer-state-badge ' + timerStateClass(data.state) + (data.state === 'running' ? ' timer-pulse' : ''); } });
+  const cycle = document.getElementById('timer-page-cycle-minutes');
+  if(cycle) cycle.textContent = String(data.duration_minutes || 30);
+  const phase = document.getElementById('timer-page-phase');
+  if(phase) phase.textContent = data.phase_label || '-';
+  const restart = document.getElementById('timer-page-restart');
+  if(restart) restart.textContent = String(data.auto_restart_delay_seconds || 10);
+  const minutesInput = document.getElementById('timer-minutes-input');
+  if(minutesInput && document.activeElement !== minutesInput){ minutesInput.value = String(data.duration_minutes || 30); }
+  const pauseBtn = document.getElementById('timer-pause-btn');
+  const resumeBtn = document.getElementById('timer-resume-btn');
+  const stopBtn = document.getElementById('timer-stop-btn');
+  if(pauseBtn) pauseBtn.style.display = data.state === 'running' ? 'inline-flex' : 'none';
+  if(resumeBtn) resumeBtn.style.display = data.state === 'paused' ? 'inline-flex' : 'none';
+  if(stopBtn) stopBtn.style.display = data.state === 'stopped' ? 'none' : 'inline-flex';
+  updateTimerProgressVisual(data);
+  if(data.state === 'alarm'){
+    notifyPowerTimerDone(data.alert_key || 'alarm');
+  } else {
+    if(lastPowerTimerAlertKey && data.state === 'running'){ dismissPowerTimerAlert(); }
+  }
+}
+async function refreshPowerTimerStatus(){
+  try{
+    const res = await fetch('/api/power-timer/status', {headers:{'X-Requested-With':'XMLHttpRequest'}});
+    const data = await res.json();
+    if(!res.ok || !data.ok){ return; }
+    updatePowerTimerWidgets(data);
+  }catch(e){}
+}
+async function startPowerTimer(){
+  const input = document.getElementById('timer-minutes-input');
+  const minutes = input ? parseInt(input.value || '30', 10) : 30;
+  try{ const data = await postPowerTimer('/api/power-timer/start', {minutes: minutes}); showLiveFlash(data.message || 'تم تشغيل المؤقت.', 'success'); refreshPowerTimerStatus(); }
+  catch(err){ showLiveFlash(err.message || 'تعذر تشغيل المؤقت', 'error'); }
+  return false;
+}
+async function pausePowerTimer(){ try{ const data = await postPowerTimer('/api/power-timer/pause', {}); showLiveFlash(data.message || 'تم الإيقاف المؤقت.', 'success'); refreshPowerTimerStatus(); }catch(err){ showLiveFlash(err.message || 'تعذر الإيقاف المؤقت', 'error'); } return false; }
+async function resumePowerTimer(){ try{ const data = await postPowerTimer('/api/power-timer/resume', {}); showLiveFlash(data.message || 'تم الاستئناف.', 'success'); refreshPowerTimerStatus(); }catch(err){ showLiveFlash(err.message || 'تعذر الاستئناف', 'error'); } return false; }
+async function stopPowerTimer(){ if(!confirm('هل تريد إيقاف المؤقت نهائيًا لهذا اليوم؟')) return false; try{ const data = await postPowerTimer('/api/power-timer/stop', {}); showLiveFlash(data.message || 'تم الإيقاف النهائي.', 'success'); dismissPowerTimerAlert(); refreshPowerTimerStatus(); }catch(err){ showLiveFlash(err.message || 'تعذر الإيقاف النهائي', 'error'); } return false; }
+
+document.addEventListener('DOMContentLoaded', function(){ initBeneficiaryForms(); try{ applySidebarState(localStorage.getItem('sidebar-collapsed') === '1'); }catch(e){} updateLiveClock(); setInterval(updateLiveClock, 1000); requestPowerTimerNotificationPermission(); refreshPowerTimerStatus(); powerTimerPollHandle = setInterval(refreshPowerTimerStatus, 1000); });
 </script>
 </head>
 <body>
 {% if session.get('account_id') %}
-<div class="layout">
+<div class="layout" id="app-layout">
   <aside class="sidebar">
     <div class="brand"><div class="brand-badge">H</div><div>Hobe Hub<small>Professional+ Edition</small></div></div>
     <div class="nav">
       <a href="{{ url_for('dashboard') }}"><i class="fa-solid fa-gauge"></i> لوحة التحكم</a>
       <a href="{{ url_for('beneficiaries_page') }}"><i class="fa-solid fa-users"></i> المستفيدون</a>
+      <a href="{{ url_for('power_timer_page') }}"><i class="fa-solid fa-bolt"></i> مؤقت الكهرباء</a>
       {% if has_permission('add') %}
       <details open>
         <summary><i class="fa-solid fa-user-plus"></i> إضافة مستفيد</summary>
@@ -343,18 +606,23 @@ document.addEventListener('DOMContentLoaded', initBeneficiaryForms);
       {% if has_permission('view_audit_log') %}
       <a href="{{ url_for('audit_log_page') }}"><i class="fa-solid fa-clock-rotate-left"></i> سجل العمليات</a>
       {% endif %}
-      <a href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i> تسجيل الخروج</a>
+
     </div>
   </aside>
   <main class="main">
     <div class="topbar">
-      <div><strong>{{ title }}</strong></div>
+      <div class="topbar-left"><button class="sidebar-toggle" type="button" onclick="return toggleSidebar()" title="إظهار/إخفاء القائمة الجانبية"><i class="fa-solid fa-bars"></i></button><strong>{{ title }}</strong></div>
       <div class="userbox">
+        <div class="topbar-clock"><i class="fa-regular fa-clock"></i><div><div id="global-live-clock-time">--:--:--</div><small id="global-live-clock-date">--/--/----</small></div></div>
+        <a href="{{ url_for('power_timer_page') }}" id="timer-global-badge" class="timer-mini timer-status-stopped" title="مؤقت الكهرباء"><i class="fa-solid fa-bolt"></i> <span id="timer-global-badge-state">متوقف</span> <span id="timer-global-badge-remaining">--:--</span></a>
         <span class="badge">{{ session.get('username','') }}</span>
         {% if session.get('full_name') %}<span class="badge">{{ session.get('full_name') }}</span>{% endif %}
+        <a class="logout-btn" href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i> تسجيل الخروج</a>
       </div>
     </div>
     <div id="live-flash-area"></div>
+    <div id="power-timer-alert" class="timer-alert"><div id="power-timer-alert-text">انتهى الوقت.</div><div class="actions"><button class="btn btn-danger btn-icon" type="button" onclick="return dismissPowerTimerAlert()" title="إيقاف الصوت"><i class="fa-solid fa-volume-xmark"></i></button></div></div>
+    <audio id="power-timer-audio" preload="auto"><source src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" type="audio/ogg"></audio>
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for cat, msg in messages %}
@@ -964,6 +1232,7 @@ def setup_database():
     cur.execute("ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT ''")
     cur.execute("ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS added_by_account_id INTEGER")
     cur.execute("ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS added_by_username TEXT DEFAULT ''")
+    cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS beneficiaries_phone_unique_idx ON beneficiaries (phone) WHERE phone IS NOT NULL AND btrim(phone) <> ''")
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS app_accounts (
@@ -1035,6 +1304,25 @@ def setup_database():
         details TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
+    """)
+
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS power_timer (
+        id INTEGER PRIMARY KEY,
+        duration_minutes INTEGER NOT NULL DEFAULT 30,
+        cycle_started_at TIMESTAMP NULL,
+        paused_remaining_seconds INTEGER NULL,
+        auto_restart_delay_seconds INTEGER NOT NULL DEFAULT 10,
+        state TEXT NOT NULL DEFAULT 'stopped',
+        updated_by_username TEXT DEFAULT '',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cur.execute("""
+        INSERT INTO power_timer (id, duration_minutes, auto_restart_delay_seconds, state, updated_by_username)
+        VALUES (1, 30, 10, 'stopped', '')
+        ON CONFLICT (id) DO NOTHING
     """)
 
     for perm in PERMISSIONS:
@@ -1204,6 +1492,64 @@ def build_chart_rows(items, label_key="label", value_key="value", empty_text="ل
     return html
 
 
+
+
+def get_power_timer_row():
+    row = query_one("SELECT * FROM power_timer WHERE id=1")
+    if row:
+        return row
+    execute_sql("""
+        INSERT INTO power_timer (id, duration_minutes, auto_restart_delay_seconds, state, updated_by_username)
+        VALUES (1, 30, 10, 'stopped', '')
+        ON CONFLICT (id) DO NOTHING
+    """)
+    return query_one("SELECT * FROM power_timer WHERE id=1")
+
+
+def build_power_timer_status(row=None):
+    row = row or get_power_timer_row()
+    duration_minutes = int(row.get('duration_minutes') or 30)
+    duration_seconds = max(60, duration_minutes * 60)
+    restart_delay = int(row.get('auto_restart_delay_seconds') or 10)
+    state = (row.get('state') or 'stopped')
+    paused_remaining = row.get('paused_remaining_seconds')
+    start_at = row.get('cycle_started_at')
+    now = datetime.now()
+    payload = {
+        'ok': True,
+        'state': state,
+        'duration_minutes': duration_minutes,
+        'duration_seconds': duration_seconds,
+        'auto_restart_delay_seconds': restart_delay,
+        'display_remaining_seconds': duration_seconds if state == 'stopped' else 0,
+        'phase_label': 'متوقف',
+        'alert_key': '',
+        'updated_by_username': safe(row.get('updated_by_username')),
+    }
+    if state == 'paused':
+        remaining = max(0, int(paused_remaining or duration_seconds))
+        payload.update({'display_remaining_seconds': remaining, 'phase_label': 'متوقف مؤقتًا'})
+        return payload
+    if state != 'running' or not start_at:
+        return payload
+    if isinstance(start_at, str):
+        try:
+            start_at = datetime.fromisoformat(start_at)
+        except Exception:
+            return payload
+    elapsed = max(0, int((now - start_at).total_seconds()))
+    cycle_total = duration_seconds + restart_delay
+    pos = elapsed % cycle_total
+    cycle_index = elapsed // cycle_total
+    if pos < duration_seconds:
+        remaining = duration_seconds - pos
+        payload.update({'state': 'running', 'display_remaining_seconds': remaining, 'phase_label': 'العد التنازلي يعمل'})
+    else:
+        remaining = cycle_total - pos
+        payload.update({'state': 'alarm', 'display_remaining_seconds': remaining, 'phase_label': 'انتهى الوقت - إعادة التشغيل بعد قليل', 'alert_key': f"{start_at.isoformat()}::{cycle_index}"})
+    return payload
+
+
 @app.route("/dashboard")
 @login_required
 def dashboard():
@@ -1324,9 +1670,21 @@ def dashboard():
       <div class="mini-grid">{''.join(quick_cards)}</div>
     </div>
 
-    <div class="card" style="margin-top:16px">
-      <h3 style="margin-top:0">آخر العمليات</h3>
-      {logs_html}
+    <div class="grid-2" style="margin-top:16px">
+      <div class="card dashboard-timer-card">
+        <h3 style="margin-top:0">مؤقت الكهرباء</h3>
+        <div class="actions" style="justify-content:space-between;align-items:center">
+          <div id="dashboard-timer-state" class="timer-state-badge timer-status-stopped">متوقف</div>
+          <a class="btn btn-secondary" href="{url_for('power_timer_page')}"><i class="fa-solid fa-bolt"></i> فتح صفحة المؤقت</a>
+        </div>
+        <div id="dashboard-timer-remaining" class="timer-big">--:--</div>
+        <div class="timer-progress-strip"><div id="dashboard-timer-progress-fill" class="timer-progress-fill"></div></div>
+        <div class="small" style="margin-top:10px">يُحدَّث تلقائيًا من جميع صفحات النظام مع تنبيه وصوت عند انتهاء الوقت.</div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">آخر العمليات</h3>
+        {logs_html}
+      </div>
     </div>
     """
     return render_page("لوحة التحكم", content)
@@ -1561,16 +1919,16 @@ def build_beneficiary_row_html(r, selected_type, args_dict, page=1):
           </div>
         </div>
         """
-        actions.append(f"<a class='btn btn-secondary' href='#{modal_id}'><i class='fa-solid fa-pen'></i> تعديل</a>")
+        actions.append(f"<a class='btn btn-secondary btn-icon' href='#{modal_id}' title='تعديل'><i class='fa-solid fa-pen'></i></a>")
     if has_permission("delete"):
         delete_url = url_for('delete_beneficiary', beneficiary_id=r['id'])
         actions.append(
-            f"<form class='inline-form' method='POST' action='{delete_url}' onsubmit=\"return confirm('هل أنت متأكد من الحذف؟')\"><button class='btn btn-danger' type='submit'><i class='fa-solid fa-trash'></i> حذف</button></form>"
+            f"<form class='inline-form' method='POST' action='{delete_url}' onsubmit=\"return confirm('هل أنت متأكد من الحذف؟')\"><button class='btn btn-danger btn-icon' type='submit' title='حذف'><i class='fa-solid fa-trash'></i></button></form>"
         )
     if has_permission("usage_counter") and limited and count < 3:
         usage_url = f"{url_for('add_usage', beneficiary_id=r['id'])}?{current_qs}"
         actions.append(
-            f"<button class='btn btn-accent' type='button' onclick=\"return incrementUsageAjax('{usage_url}', {r['id']}, '{modal_id}')\"><i class='fa-solid fa-plus'></i> +1 بطاقة</button>"
+            f"<button class='btn btn-accent btn-icon' type='button' onclick=\"return incrementUsageAjax('{usage_url}', {r['id']}, '{modal_id}')\" title='+1 بطاقة'><i class='fa-solid fa-plus'></i></button>"
         )
 
     type_html = f"<span class='type-badge {get_type_css(r.get('user_type'))}'>{get_type_label(r.get('user_type'))}</span>"
@@ -1725,7 +2083,7 @@ def beneficiaries_page():
             thead += f"<th><a href='{beneficiary_sort_link(args_dict, col)}'>{label}</a></th>"
         else:
             thead += f"<th>{label}</th>"
-    thead += "</tr>"
+    thead += "<th class='checkbox-cell'><input id='select-all' class='select-all' type='checkbox' onchange='toggleSelectAll(this)'></th></tr>"
 
     rows_html = ""
     modals_html = ""
@@ -1776,30 +2134,6 @@ def beneficiaries_page():
               </select>
             </div>
             <div>
-              <label>سنة التوجيهي</label>
-              <select name="tawjihi_year"><option value="">الكل</option>{years_options}</select>
-            </div>
-            <div>
-              <label>فرع التوجيهي</label>
-              <select name="tawjihi_branch"><option value="">الكل</option>{branches_options}</select>
-            </div>
-            <div>
-              <label>الجامعة</label>
-              <select name="university_name"><option value="">الكل</option>{uni_options}</select>
-            </div>
-            <div><label>الكلية</label><input name="university_college" list="colleges-list" value="{safe(args_dict['university_college'])}" placeholder="ابحث حسب الكلية"></div>
-            <div><label>التخصص الجامعي</label><input name="university_specialization" value="{safe(args_dict['university_specialization'])}" placeholder="مثال: هندسة برمجيات"></div>
-            <div><label>تخصص الفري لانسر</label><input name="freelancer_specialization" list="freelancer-specs" value="{safe(args_dict['freelancer_specialization'])}" placeholder="مثال: تصميم جرافيك"></div>
-            <div><label>شركة الفري لانسر</label><input name="freelancer_company" list="freelancer-companies" value="{safe(args_dict['freelancer_company'])}" placeholder="مثال: Upwork"></div>
-            <div>
-              <label>طريقة الإنترنت</label>
-              <select name="internet_method">
-                <option value="">الكل</option>
-                <option value="cards" {"selected" if args_dict['internet_method']=="cards" else ""}>نظام البطاقات / محدود</option>
-                <option value="username" {"selected" if args_dict['internet_method']=="username" else ""}>يمتلك اسم مستخدم</option>
-              </select>
-            </div>
-            <div>
               <label>الترتيب</label>
               <select name="sort_by">
                 <option value="id" {"selected" if args_dict['sort_by']=="id" else ""}>ID</option>
@@ -1818,14 +2152,45 @@ def beneficiaries_page():
             </div>
           </div>
 
+          <details class="advanced-filters" {"open" if any([args_dict['tawjihi_year'], args_dict['tawjihi_branch'], args_dict['university_name'], args_dict['university_college'], args_dict['university_specialization'], args_dict['freelancer_specialization'], args_dict['freelancer_company'], args_dict['internet_method']]) else ""}>
+            <summary><i class="fa-solid fa-sliders"></i> فلاتر متقدمة</summary>
+            <div class="row">
+              <div>
+                <label>سنة التوجيهي</label>
+                <select name="tawjihi_year"><option value="">الكل</option>{years_options}</select>
+              </div>
+              <div>
+                <label>فرع التوجيهي</label>
+                <select name="tawjihi_branch"><option value="">الكل</option>{branches_options}</select>
+              </div>
+              <div>
+                <label>الجامعة</label>
+                <select name="university_name"><option value="">الكل</option>{uni_options}</select>
+              </div>
+              <div><label>الكلية</label><input name="university_college" list="colleges-list" value="{safe(args_dict['university_college'])}" placeholder="ابحث حسب الكلية"></div>
+              <div><label>التخصص الجامعي</label><input name="university_specialization" value="{safe(args_dict['university_specialization'])}" placeholder="مثال: هندسة برمجيات"></div>
+              <div><label>تخصص الفري لانسر</label><input name="freelancer_specialization" list="freelancer-specs" value="{safe(args_dict['freelancer_specialization'])}" placeholder="مثال: تصميم جرافيك"></div>
+              <div><label>شركة الفري لانسر</label><input name="freelancer_company" list="freelancer-companies" value="{safe(args_dict['freelancer_company'])}" placeholder="مثال: Upwork"></div>
+              <div>
+                <label>طريقة الإنترنت</label>
+                <select name="internet_method">
+                  <option value="">الكل</option>
+                  <option value="cards" {"selected" if args_dict['internet_method']=="cards" else ""}>نظام البطاقات / محدود</option>
+                  <option value="username" {"selected" if args_dict['internet_method']=="username" else ""}>يمتلك اسم مستخدم</option>
+                </select>
+              </div>
+            </div>
+          </details>
+
           <datalist id="colleges-list">{college_options}</datalist>
           <datalist id="freelancer-companies">{free_company_options}</datalist>
           <datalist id="freelancer-specs">{free_spec_options}</datalist>
 
           <div class="actions" style="margin-top:14px">
-            <button class="btn btn-primary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> تطبيق البحث والفلترة</button>
+            <button class="btn btn-primary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> تطبيق البحث</button>
             <a class="btn btn-soft" href="{url_for('beneficiaries_page')}"><i class="fa-solid fa-rotate-left"></i> إعادة ضبط</a>
-            {f"<a class='btn btn-secondary' href='{url_for('add_beneficiary_page')}?user_type={selected_type or 'tawjihi'}'><i class='fa-solid fa-user-plus'></i> إضافة مستفيد</a>" if has_permission('add') else ""}
+            {f"<a class='btn btn-secondary' href='#add-beneficiary-modal'><i class='fa-solid fa-user-plus'></i> إضافة مستفيد</a>" if has_permission('add') else ""}
+            {f"<button class='btn btn-outline' type='button' onclick=\"return resetWeeklyUsageAjax('{url_for('reset_weekly_usage')}')\"><i class='fa-solid fa-rotate'></i> تجديد كل البطاقات</button>" if has_permission('usage_counter') else ""}
           </div>
         </form>
       </div>
@@ -1834,6 +2199,13 @@ def beneficiaries_page():
     </div>
 
     <div class="card" style="margin-top:14px">
+      <div class='bulk-toolbar'>
+        <span class='selected-count'>المحدد: <strong id='selected-count'>0</strong></span>
+        <button class='btn btn-soft btn-icon' type='button' onclick='return submitBulkExport()' title='تصدير المحدد'><i class='fa-solid fa-file-export'></i></button>
+        <button class='btn btn-danger btn-icon' type='button' onclick='return submitBulkDelete()' title='حذف المحدد'><i class='fa-solid fa-trash'></i></button>
+      </div>
+      <form id='bulk-delete-form' method='POST' action='{url_for('bulk_delete_beneficiaries')}' style='display:none'><input type='hidden' name='ids' value=''></form>
+      <form id='bulk-export-form' method='POST' action='{url_for('export_selected_beneficiaries')}' style='display:none'><input type='hidden' name='ids' value=''></form>
       <div class="table-wrap">
         <table>
           <thead>{thead}</thead>
@@ -1844,6 +2216,7 @@ def beneficiaries_page():
     </div>
 
     {modals_html}
+    {build_add_beneficiary_modal(selected_type or 'tawjihi')}
     """
     return render_page("المستفيدون", content)
 
@@ -1894,26 +2267,31 @@ def add_beneficiary_page():
             return render_page("إضافة مستفيد", beneficiary_form_html(data, action=url_for("add_beneficiary_page"), title=page_title_map.get(data.get('user_type') or clean_csv_value(request.args.get('user_type', 'tawjihi')) or 'tawjihi', "إضافة مستفيد")))
         data["added_by_account_id"] = session.get("account_id")
         data["added_by_username"] = session.get("username")
-        execute_sql("""
-            INSERT INTO beneficiaries (
-                user_type, first_name, second_name, third_name, fourth_name, full_name, search_name, phone,
-                tawjihi_year, tawjihi_branch, freelancer_specialization, freelancer_company,
-                freelancer_schedule_type, freelancer_internet_method, freelancer_time_mode,
-                freelancer_time_from, freelancer_time_to, university_name, university_college,
-                university_specialization, university_days, university_internet_method,
-                university_time_mode, university_time_from, university_time_to,
-                weekly_usage_count, weekly_usage_week_start, notes, added_by_account_id, added_by_username
-            ) VALUES (
-                %(user_type)s, %(first_name)s, %(second_name)s, %(third_name)s, %(fourth_name)s, %(full_name)s, %(search_name)s, %(phone)s,
-                %(tawjihi_year)s, %(tawjihi_branch)s, %(freelancer_specialization)s, %(freelancer_company)s,
-                %(freelancer_schedule_type)s, %(freelancer_internet_method)s, %(freelancer_time_mode)s,
-                %(freelancer_time_from)s, %(freelancer_time_to)s, %(university_name)s, %(university_college)s,
-                %(university_specialization)s, %(university_days)s, %(university_internet_method)s,
-                %(university_time_mode)s, %(university_time_from)s, %(university_time_to)s,
-                0, %(weekly_usage_week_start)s, %(notes)s, %(added_by_account_id)s, %(added_by_username)s
-            )
-        """, data)
-        log_action("add", "beneficiary", None, f"إضافة مستفيد: {data['full_name']}")
+        try:
+            row = execute_sql("""
+                INSERT INTO beneficiaries (
+                    user_type, first_name, second_name, third_name, fourth_name, full_name, search_name, phone,
+                    tawjihi_year, tawjihi_branch, freelancer_specialization, freelancer_company,
+                    freelancer_schedule_type, freelancer_internet_method, freelancer_time_mode,
+                    freelancer_time_from, freelancer_time_to, university_name, university_college,
+                    university_specialization, university_days, university_internet_method,
+                    university_time_mode, university_time_from, university_time_to,
+                    weekly_usage_count, weekly_usage_week_start, notes, added_by_account_id, added_by_username
+                ) VALUES (
+                    %(user_type)s, %(first_name)s, %(second_name)s, %(third_name)s, %(fourth_name)s, %(full_name)s, %(search_name)s, %(phone)s,
+                    %(tawjihi_year)s, %(tawjihi_branch)s, %(freelancer_specialization)s, %(freelancer_company)s,
+                    %(freelancer_schedule_type)s, %(freelancer_internet_method)s, %(freelancer_time_mode)s,
+                    %(freelancer_time_from)s, %(freelancer_time_to)s, %(university_name)s, %(university_college)s,
+                    %(university_specialization)s, %(university_days)s, %(university_internet_method)s,
+                    %(university_time_mode)s, %(university_time_from)s, %(university_time_to)s,
+                    0, %(weekly_usage_week_start)s, %(notes)s, %(added_by_account_id)s, %(added_by_username)s
+                ) RETURNING id
+            """, data, fetchone=True)
+        except psycopg2.Error:
+            flash("رقم الجوال مستخدم مسبقًا للمستفيد.", "error")
+            return redirect(url_for("beneficiaries_page", user_type=data["user_type"]))
+        new_id = row['id'] if row else None
+        log_action("add", "beneficiary", new_id, f"إضافة مستفيد: {data['full_name']}")
         flash("تمت إضافة المستفيد.", "success")
         return redirect(url_for("beneficiaries_page", user_type=data["user_type"]))
     page_user_type = clean_csv_value(request.args.get("user_type", "tawjihi")) or "tawjihi"
@@ -2027,6 +2405,21 @@ def add_usage(beneficiary_id):
         args_dict = build_request_args_dict()
         row_html, modal_html = build_beneficiary_row_html(updated_row, args_dict.get("user_type", ""), args_dict, page=max(1, int(request.args.get("page", "1") or "1")))
         return jsonify({"ok": True, "row_html": row_html, "modal_html": modal_html, "message": message, "category": category})
+    return redirect(request.referrer or url_for("beneficiaries_page"))
+
+
+@app.route("/beneficiaries/reset-weekly-usage", methods=["POST"])
+@login_required
+@permission_required("usage_counter")
+def reset_weekly_usage():
+    reset_start = get_week_start(date.today() + timedelta(days=1))
+    execute_sql("""
+        UPDATE beneficiaries
+        SET weekly_usage_count = 0, weekly_usage_week_start = %s
+        WHERE weekly_usage_count IS DISTINCT FROM 0 OR weekly_usage_week_start IS DISTINCT FROM %s
+    """, [reset_start, reset_start])
+    log_action("reset_weekly_usage", "beneficiary", None, f"تصفير يدوي لكل البطاقات - week_start={reset_start}")
+    flash("تم تجديد جميع البطاقات يدويًا بنجاح.", "success")
     return redirect(request.referrer or url_for("beneficiaries_page"))
 
 
@@ -2653,6 +3046,146 @@ def profile_page():
     return render_page("صفحتي الشخصية", content)
 
 
+
+
+@app.route("/timer")
+@login_required
+def power_timer_page():
+    content = f"""
+    <div class="hero">
+      <h1>مؤقت الكهرباء</h1>
+      <p>مؤقت واحد للدورة الحالية. عند انتهاء الوقت يظهر تنبيه وصوت، ثم يعيد التشغيل تلقائيًا بعد 10 ثوانٍ لنفس المدة المختارة.</p>
+    </div>
+    <div class="grid-2">
+      <div class="card timer-visual-card">
+        <div class="actions" style="justify-content:space-between;align-items:flex-start;gap:14px">
+          <div>
+            <h3 style="margin:0 0 8px 0">الحالة الحالية</h3>
+            <div id="timer-page-state" class="timer-state-badge timer-status-stopped">متوقف</div>
+          </div>
+          <div class="topbar-clock"><i class="fa-regular fa-clock"></i><div><div id="timer-page-live-time">--:--:--</div><small id="timer-page-live-date">--/--/----</small></div></div>
+        </div>
+        <div class="timer-ring-wrap">
+          <div class="timer-ring">
+            <svg viewBox="0 0 300 300" aria-hidden="true">
+              <defs>
+                <linearGradient id="timerRingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#35a7e8"></stop>
+                  <stop offset="100%" stop-color="#6d4ee8"></stop>
+                </linearGradient>
+              </defs>
+              <circle class="bg" cx="150" cy="150" r="130"></circle>
+              <circle id="timer-ring-progress" class="progress" cx="150" cy="150" r="130"></circle>
+            </svg>
+            <div class="timer-ring-center">
+              <div class="timer-ring-label">الوقت المتبقي</div>
+              <div id="timer-page-remaining" class="timer-big timer-big-ring">--:--</div>
+              <div id="timer-page-phase" class="timer-ring-phase">-</div>
+            </div>
+          </div>
+        </div>
+        <div class="timer-progress-strip"><div id="timer-progress-fill" class="timer-progress-fill"></div></div>
+        <div class="timer-meta">
+          <div class="timer-meta-card"><h4>الدورة الحالية</h4><div class="v" id="timer-page-cycle-minutes">30</div></div>
+          <div class="timer-meta-card"><h4>إعادة التشغيل</h4><div class="v"><span id="timer-page-restart">10</span><span style="font-size:18px">ث</span></div></div>
+          <div class="timer-meta-card"><h4>النمط</h4><div class="v" style="font-size:20px">تلقائي</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">التحكم بالمؤقت</h3>
+        <p class="small" style="margin-top:0">واجهة أنيقة للدور الكهربائي مع إعادة تشغيل تلقائي بعد انتهاء كل دورة.</p>
+        <div class="row">
+          <div><label>مدة الدورة بالدقائق</label><input id="timer-minutes-input" type="number" min="1" step="1" value="30"></div>
+          <div><label>إعادة التشغيل التلقائي</label><input value="10 ثوانٍ بعد انتهاء الوقت" disabled></div>
+        </div>
+        <div class="actions" style="margin-top:14px">
+          <button id="timer-start-btn" class="btn btn-primary" type="button" onclick="return startPowerTimer()"><i class="fa-solid fa-play"></i> بدء / إعادة ضبط</button>
+          <button id="timer-pause-btn" class="btn btn-accent" type="button" onclick="return pausePowerTimer()" style="display:none"><i class="fa-solid fa-pause"></i> إيقاف مؤقت</button>
+          <button id="timer-resume-btn" class="btn btn-secondary" type="button" onclick="return resumePowerTimer()" style="display:none"><i class="fa-solid fa-play"></i> استئناف</button>
+          <button id="timer-stop-btn" class="btn btn-danger" type="button" onclick="return stopPowerTimer()" style="display:none"><i class="fa-solid fa-stop"></i> إيقاف نهائي</button>
+        </div>
+        <div class="info-note" style="margin-top:16px">
+          <strong>آلية العمل</strong>
+          <div class="small" style="margin-top:6px;line-height:1.8">عند انتهاء الوقت يظهر تنبيه مرئي وصوتي داخل الموقع، ثم يبدأ العد تلقائيًا من جديد بعد 10 ثوانٍ على نفس المدة المختارة.</div>
+        </div>
+      </div>
+    </div>
+    """
+    return render_page("مؤقت الكهرباء", content)
+
+
+@app.route("/api/power-timer/status")
+@login_required
+def power_timer_status_api():
+    return jsonify(build_power_timer_status())
+
+
+@app.route("/api/power-timer/start", methods=["POST"])
+@login_required
+def power_timer_start_api():
+    minutes_raw = clean_csv_value(request.form.get("minutes", "30")) or "30"
+    try:
+        minutes = max(1, min(24 * 60, int(minutes_raw)))
+    except ValueError:
+        return jsonify({"ok": False, "message": "قيمة الدقائق غير صحيحة."}), 400
+    execute_sql("""
+        UPDATE power_timer
+        SET duration_minutes=%s, cycle_started_at=CURRENT_TIMESTAMP, paused_remaining_seconds=NULL,
+            state='running', auto_restart_delay_seconds=10, updated_by_username=%s, updated_at=CURRENT_TIMESTAMP
+        WHERE id=1
+    """, [minutes, session.get("username", "")])
+    log_action("power_timer_start", "power_timer", 1, f"تشغيل المؤقت لمدة {minutes} دقيقة")
+    return jsonify({"ok": True, "message": f"تم تشغيل المؤقت لمدة {minutes} دقيقة."})
+
+
+@app.route("/api/power-timer/pause", methods=["POST"])
+@login_required
+def power_timer_pause_api():
+    status = build_power_timer_status()
+    if status["state"] != "running":
+        return jsonify({"ok": False, "message": "المؤقت ليس في حالة تشغيل."}), 400
+    remaining = int(status["display_remaining_seconds"] or 0)
+    execute_sql("""
+        UPDATE power_timer
+        SET paused_remaining_seconds=%s, state='paused', updated_by_username=%s, updated_at=CURRENT_TIMESTAMP
+        WHERE id=1
+    """, [remaining, session.get("username", "")])
+    log_action("power_timer_pause", "power_timer", 1, f"إيقاف مؤقت للمؤقت والمتبقي {remaining} ثانية")
+    return jsonify({"ok": True, "message": "تم إيقاف المؤقت مؤقتًا."})
+
+
+@app.route("/api/power-timer/resume", methods=["POST"])
+@login_required
+def power_timer_resume_api():
+    row = get_power_timer_row()
+    if (row.get("state") or "") != "paused":
+        return jsonify({"ok": False, "message": "المؤقت ليس متوقفًا مؤقتًا."}), 400
+    duration_minutes = int(row.get("duration_minutes") or 30)
+    duration_seconds = max(60, duration_minutes * 60)
+    remaining = int(row.get("paused_remaining_seconds") or duration_seconds)
+    elapsed_before_pause = max(0, duration_seconds - remaining)
+    execute_sql("""
+        UPDATE power_timer
+        SET cycle_started_at=(CURRENT_TIMESTAMP - (%s * INTERVAL '1 second')), paused_remaining_seconds=NULL,
+            state='running', updated_by_username=%s, updated_at=CURRENT_TIMESTAMP
+        WHERE id=1
+    """, [elapsed_before_pause, session.get("username", "")])
+    log_action("power_timer_resume", "power_timer", 1, "استئناف المؤقت")
+    return jsonify({"ok": True, "message": "تم استئناف المؤقت."})
+
+
+@app.route("/api/power-timer/stop", methods=["POST"])
+@login_required
+def power_timer_stop_api():
+    execute_sql("""
+        UPDATE power_timer
+        SET state='stopped', cycle_started_at=NULL, paused_remaining_seconds=NULL, updated_by_username=%s, updated_at=CURRENT_TIMESTAMP
+        WHERE id=1
+    """, [session.get("username", "")])
+    log_action("power_timer_stop", "power_timer", 1, "إيقاف نهائي للمؤقت")
+    return jsonify({"ok": True, "message": "تم إيقاف المؤقت نهائيًا."})
+
+
 @app.route("/audit-log")
 @login_required
 @permission_required("view_audit_log")
@@ -2678,6 +3211,331 @@ def audit_log_page():
     html += "</div></div>"
     return render_page("سجل العمليات", html)
 
+
+# ===== Runtime UI/UX patch =====
+# CSS tweaks
+BASE_TEMPLATE = BASE_TEMPLATE.replace(
+    ".notes-box{min-height:90px}\n.ajax-saving{opacity:.65;pointer-events:none}",
+    ".notes-box{min-height:90px}\n.note-preview{display:inline-flex;align-items:center;gap:6px;max-width:260px}\n.note-text{display:inline-block;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n.type-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}\n.type-tab{padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--text);cursor:pointer;font-weight:700}\n.type-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}\n.ajax-saving{opacity:.65;pointer-events:none}"
+)
+# JS tweaks
+BASE_TEMPLATE = BASE_TEMPLATE.replace(
+"""function initBeneficiaryForms(){
+  document.querySelectorAll('[data-beneficiary-scope]').forEach(function(scope){
+    var input = scope.querySelector('select[name=\"user_type\"], input[name=\"user_type\"]');
+    if(input){toggleBeneficiarySections(input, scope.id);}
+  });
+}
+""",
+"""function syncTypeTabs(scopeId, value){
+  var container = document.getElementById(scopeId);
+  if(!container) return;
+  container.querySelectorAll('.type-tab').forEach(function(btn){ btn.classList.toggle('active', btn.dataset.value === value); });
+}
+function setBeneficiaryType(scopeId, value){
+  var container = document.getElementById(scopeId);
+  if(!container) return false;
+  var input = container.querySelector('select[name=\"user_type\"], input[name=\"user_type\"]');
+  if(input){ input.value = value; toggleBeneficiarySections(input, scopeId); }
+  syncTypeTabs(scopeId, value);
+  return false;
+}
+function initBeneficiaryForms(){
+  document.querySelectorAll('[data-beneficiary-scope]').forEach(function(scope){
+    var input = scope.querySelector('select[name=\"user_type\"], input[name=\"user_type\"]');
+    if(input){toggleBeneficiarySections(input, scope.id); syncTypeTabs(scope.id, input.value || 'tawjihi');}
+  });
+}
+"""
+)
+BASE_TEMPLATE = BASE_TEMPLATE.replace(
+"""async function submitBeneficiaryEdit(form, rowId, modalId){
+  form.classList.add('ajax-saving');
+  try{
+    const data = await ajaxPost(form.action, new FormData(form));
+    replaceRowAndModal(data, rowId, modalId);
+    window.location.hash = '#!';
+  }catch(err){
+    showLiveFlash(err.message || 'تعذر حفظ التعديل', 'error');
+  }finally{
+    form.classList.remove('ajax-saving');
+  }
+  return false;
+}
+""",
+"""async function submitBeneficiaryEdit(form, rowId, modalId){
+  form.classList.add('ajax-saving');
+  try{
+    const data = await ajaxPost(form.action, new FormData(form));
+    replaceRowAndModal(data, rowId, modalId);
+    window.location.hash = '#!';
+  }catch(err){
+    showLiveFlash(err.message || 'تعذر حفظ التعديل', 'error');
+  }finally{
+    form.classList.remove('ajax-saving');
+  }
+  return false;
+}
+function prependRowToTable(rowHtml){
+  const tbody = document.querySelector('.table-wrap table tbody');
+  if(!tbody || !rowHtml) return;
+  const empty = tbody.querySelector('.empty-state');
+  if(empty){ empty.parentElement.remove(); }
+  tbody.insertAdjacentHTML('afterbegin', rowHtml);
+}
+function insertModalHtml(modalHtml){ if(modalHtml){ document.body.insertAdjacentHTML('beforeend', modalHtml); } }
+function submitBeneficiaryAdd(form){ return guardSingleSubmit(form); }
+async function resetWeeklyUsageAjax(url){
+  try{
+    const data = await ajaxPost(url);
+    document.querySelectorAll('tr[id^="beneficiary-row-"]').forEach(function(row){
+      if(row.dataset.limited === '1'){
+        row.classList.remove('row-complete');
+        const cell = row.querySelector('.usage-cell');
+        if(cell){ cell.textContent = '0 / 3'; }
+      }
+    });
+    if(data.message){ showLiveFlash(data.message, data.category || 'success'); }
+  }catch(err){ showLiveFlash(err.message || 'تعذر تجديد البطاقات', 'error'); }
+  return false;
+}
+"""
+)
+
+def truncate_note_words(value, limit=3):
+    text = clean_csv_value(value)
+    if not text:
+        return "-", False, ""
+    words = text.split()
+    if len(words) <= limit:
+        safe_text = safe(text)
+        return safe_text, False, safe_text
+    return safe(" ".join(words[:limit]) + " ..."), True, safe(text)
+
+
+def build_add_beneficiary_modal(selected_type='tawjihi'):
+    selected_type = clean_csv_value(selected_type) or 'tawjihi'
+    modal_form = format_modal_fields(
+        {'user_type': selected_type},
+        action=url_for('add_beneficiary_page'),
+        scope_id='add-beneficiary-scope',
+        submit_label='حفظ المستفيد',
+        show_type_selector=False,
+        fixed_user_type=selected_type,
+    )
+    modal_form = re.sub(
+        r'<div>\s*<label>النوع</label>\s*<input value=".*?" disabled>\s*<input type="hidden" name="user_type" value=".*?">\s*</div>',
+        '',
+        modal_form,
+        count=1,
+        flags=re.DOTALL,
+    )
+    tabs_html = (
+        "<div class='type-tabs'>"
+        + '<button type=\'button\' class=\'type-tab {cls}\' data-value=\'tawjihi\' onclick="return setBeneficiaryType(\'add-beneficiary-scope\',\'tawjihi\')">توجيهي</button>'.format(cls=('active' if selected_type == 'tawjihi' else ''))
+        + '<button type=\'button\' class=\'type-tab {cls}\' data-value=\'university\' onclick="return setBeneficiaryType(\'add-beneficiary-scope\',\'university\')">جامعة</button>'.format(cls=('active' if selected_type == 'university' else ''))
+        + '<button type=\'button\' class=\'type-tab {cls}\' data-value=\'freelancer\' onclick="return setBeneficiaryType(\'add-beneficiary-scope\',\'freelancer\')">فري لانسر</button>'.format(cls=('active' if selected_type == 'freelancer' else ''))
+        + '</div>'
+        + f"<input type='hidden' name='user_type' value='{selected_type}'>"
+    )
+    modal_form = modal_form.replace(
+        '<div id="add-beneficiary-scope" data-beneficiary-scope="1">',
+        '<div id="add-beneficiary-scope" data-beneficiary-scope="1">' + tabs_html,
+        1,
+    )
+    modal_form = modal_form.replace('<form method="POST" action="', '<form method="POST" onsubmit="return submitBeneficiaryAdd(this)" action="', 1)
+    return f'''
+    <div id="add-beneficiary-modal" class="modal">
+      <div class="modal-card">
+        <a href="#!" class="modal-close">×</a>
+        <div class="hero" style="margin-bottom:14px"><h1>إضافة مستفيد</h1><p>اختر النوع من التبويبات أعلى النموذج ثم احفظ بدون إعادة تحميل الصفحة.</p></div>
+        {modal_form}
+      </div>
+    </div>
+    '''
+
+def build_beneficiary_row_html(r, selected_type, args_dict, page=1):
+    usage_label, limited, count = get_usage_label(r)
+    current_qs = build_query_string({**args_dict, "page": page})
+    row_class = f"row-type-{safe(r.get('user_type'))}"
+    if limited and count >= 3:
+        row_class += " row-complete"
+    modal_id = f"edit-{r['id']}"
+    note_modal_id = f"note-{r['id']}"
+    actions = []
+    modal_html = ""
+    if has_permission("edit"):
+        edit_action = f"{url_for('edit_beneficiary_page', beneficiary_id=r['id'])}?current_user_type={selected_type}"
+        modal_body = format_modal_fields(
+            r,
+            action=edit_action,
+            scope_id=f"scope-{r['id']}",
+            submit_label="حفظ التعديلات",
+            show_type_selector=True,
+        )
+        edit_onsubmit = f"<form method=\"POST\" onsubmit=\"return submitBeneficiaryEdit(this, {r['id']}, '{modal_id}')\" action=\""
+        modal_body = modal_body.replace('<form method="POST" action="', edit_onsubmit, 1)
+        modal_html = f"""
+        <div id="{modal_id}" class="modal">
+          <div class="modal-card">
+            <a href="#!" class="modal-close">×</a>
+            <div class="hero" style="margin-bottom:14px"><h1>تعديل المستفيد #{r['id']}</h1><p>{safe(r.get('full_name'))}</p></div>
+            {modal_body}
+          </div>
+        </div>
+        """
+        actions.append(f"<a class='btn btn-secondary btn-icon' href='#{modal_id}' title='تعديل'><i class='fa-solid fa-pen'></i></a>")
+    if has_permission("delete"):
+        delete_url = url_for('delete_beneficiary', beneficiary_id=r['id'])
+        actions.append(f"<form class='inline-form' method='POST' action='{delete_url}' onsubmit=\"return confirm('هل أنت متأكد من الحذف؟')\"><button class='btn btn-danger btn-icon' type='submit' title='حذف'><i class='fa-solid fa-trash'></i></button></form>")
+    if has_permission("usage_counter") and limited and count < 3:
+        usage_url = f"{url_for('add_usage', beneficiary_id=r['id'])}?{current_qs}"
+        actions.append(f"<button class='btn btn-accent btn-icon' type='button' onclick=\"return incrementUsageAjax('{usage_url}', {r['id']}, '{modal_id}')\" title='+1 بطاقة'><i class='fa-solid fa-plus'></i></button>")
+    type_html = f"<span class='type-badge {get_type_css(r.get('user_type'))}'>{get_type_label(r.get('user_type'))}</span>"
+    added_by = safe(r.get('added_by_username')) or '-'
+    created_at = format_dt_short(r.get('created_at'))
+    note_preview, has_note_modal, note_full = truncate_note_words(r.get('notes'))
+    notes_html = note_preview
+    if has_note_modal:
+        notes_html = f"<span class='note-preview'><span class='note-text'>{note_preview}</span><a class='btn btn-soft btn-icon' href='#{note_modal_id}' title='عرض الملاحظة'><i class='fa-solid fa-eye'></i></a></span>"
+        modal_html += f"""
+        <div id="{note_modal_id}" class="modal">
+          <div class="modal-card" style="width:min(650px,100%)">
+            <a href="#!" class="modal-close">×</a>
+            <div class="hero" style="margin-bottom:14px"><h1>ملاحظة المستفيد</h1><p>{safe(r.get('full_name'))}</p></div>
+            <div class="card"><div class='cell-wrap' style='max-width:none'>{note_full}</div></div>
+          </div>
+        </div>
+        """
+    if selected_type == "tawjihi":
+        row_cells = [safe(r['id']), safe(r['full_name']), safe(r['phone']), safe(r['tawjihi_year']), safe(r['tawjihi_branch']), usage_label, added_by, created_at, notes_html, " ".join(actions) if actions else "-"]
+        usage_idx = 5
+    elif selected_type == "university":
+        row_cells = [safe(r['id']), safe(r['full_name']), safe(r['phone']), safe(r['university_name']), safe(r['university_college']), safe(r['university_specialization']), usage_label, added_by, created_at, notes_html, " ".join(actions) if actions else "-"]
+        usage_idx = 6
+    elif selected_type == "freelancer":
+        row_cells = [safe(r['id']), safe(r['full_name']), safe(r['phone']), safe(r['freelancer_specialization']), safe(r['freelancer_company']), usage_label, added_by, created_at, notes_html, " ".join(actions) if actions else "-"]
+        usage_idx = 5
+    else:
+        row_cells = [safe(r['id']), safe(r['full_name']), safe(r['phone']), type_html, usage_label, added_by, created_at, notes_html, " ".join(actions) if actions else "-"]
+        usage_idx = 4
+    cells = []
+    for i, cell in enumerate(row_cells):
+        extra = ' usage-cell' if i == usage_idx else ''
+        cells.append(f"<td class='cell-wrap{extra}'>{cell}</td>")
+    cells.append(f"<td class='checkbox-cell'><input class='row-select' type='checkbox' value='{r['id']}' onchange='updateBulkSelectedCount()'></td>")
+    row_html = f"<tr id='beneficiary-row-{r['id']}' class='{row_class}' data-limited={'1' if limited else '0'}>" + ''.join(cells) + "</tr>"
+    return row_html, modal_html
+
+
+def _patched_add_beneficiary_page():
+    page_title_map = {
+        'tawjihi': 'إضافة طالب توجيهي',
+        'university': 'إضافة طالب جامعي',
+        'freelancer': 'إضافة فري لانسر',
+    }
+    if request.method == 'POST':
+        data = collect_beneficiary_form()
+        duplicate = find_duplicate_phone(data.get('phone'))
+        if duplicate:
+            message = f"رقم الجوال مستخدم مسبقًا للمستفيد: {safe(duplicate.get('full_name'))}."
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'ok': False, 'message': message, 'category': 'error'}), 400
+            flash(message, 'error')
+            return render_page('إضافة مستفيد', beneficiary_form_html(data, action=url_for('add_beneficiary_page'), title=page_title_map.get(data.get('user_type') or clean_csv_value(request.args.get('user_type', 'tawjihi')) or 'tawjihi', 'إضافة مستفيد')))
+        data['added_by_account_id'] = session.get('account_id')
+        data['added_by_username'] = session.get('username')
+        row = execute_sql("""
+            INSERT INTO beneficiaries (
+                user_type, first_name, second_name, third_name, fourth_name, full_name, search_name, phone,
+                tawjihi_year, tawjihi_branch, freelancer_specialization, freelancer_company,
+                freelancer_schedule_type, freelancer_internet_method, freelancer_time_mode,
+                freelancer_time_from, freelancer_time_to, university_name, university_college,
+                university_specialization, university_days, university_internet_method,
+                university_time_mode, university_time_from, university_time_to,
+                weekly_usage_count, weekly_usage_week_start, notes, added_by_account_id, added_by_username
+            ) VALUES (
+                %(user_type)s, %(first_name)s, %(second_name)s, %(third_name)s, %(fourth_name)s, %(full_name)s, %(search_name)s, %(phone)s,
+                %(tawjihi_year)s, %(tawjihi_branch)s, %(freelancer_specialization)s, %(freelancer_company)s,
+                %(freelancer_schedule_type)s, %(freelancer_internet_method)s, %(freelancer_time_mode)s,
+                %(freelancer_time_from)s, %(freelancer_time_to)s, %(university_name)s, %(university_college)s,
+                %(university_specialization)s, %(university_days)s, %(university_internet_method)s,
+                %(university_time_mode)s, %(university_time_from)s, %(university_time_to)s,
+                0, %(weekly_usage_week_start)s, %(notes)s, %(added_by_account_id)s, %(added_by_username)s
+            ) RETURNING id
+        """, data, fetchone=True)
+        new_id = row['id'] if row else None
+        log_action('add', 'beneficiary', new_id, f"إضافة مستفيد: {data['full_name']}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            inserted_row = query_one('SELECT * FROM beneficiaries WHERE id=%s', [new_id]) if new_id else None
+            current_type = clean_csv_value(request.args.get('current_user_type', ''))
+            args_dict = build_request_args_dict()
+            row_html, modal_html = ('', '')
+            if inserted_row and (not current_type or current_type == inserted_row.get('user_type')):
+                row_html, modal_html = build_beneficiary_row_html(inserted_row, current_type, args_dict, page=1)
+            return jsonify({'ok': True, 'row_html': row_html, 'modal_html': modal_html, 'message': 'تمت إضافة المستفيد.', 'category': 'success', 'reset_form_modal': build_add_beneficiary_modal(current_type or (inserted_row.get('user_type') if inserted_row else 'tawjihi'))})
+        flash('تمت إضافة المستفيد.', 'success')
+        return redirect(url_for('beneficiaries_page', user_type=data['user_type']))
+    page_user_type = clean_csv_value(request.args.get('user_type', 'tawjihi')) or 'tawjihi'
+    return render_page('إضافة مستفيد', beneficiary_form_html(action=url_for('add_beneficiary_page'), title=page_title_map.get(page_user_type, 'إضافة مستفيد')))
+
+
+def _patched_reset_weekly_usage():
+    reset_start = get_week_start()
+    execute_sql("UPDATE beneficiaries SET weekly_usage_count = 0, weekly_usage_week_start = %s", [reset_start])
+    log_action('reset_weekly_usage', 'beneficiary', None, f'تصفير يدوي لكل البطاقات - week_start={reset_start}')
+    message = 'تم تجديد جميع البطاقات يدويًا بنجاح.'
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'ok': True, 'message': message, 'category': 'success'})
+    flash(message, 'success')
+    return redirect(request.referrer or url_for('beneficiaries_page'))
+
+
+# monkey-patch flask endpoints
+app.view_functions['add_beneficiary_page'] = login_required(permission_required('add')(_patched_add_beneficiary_page))
+app.view_functions['reset_weekly_usage'] = login_required(permission_required('usage_counter')(_patched_reset_weekly_usage))
+
+
+
+@app.route("/beneficiaries/bulk-delete", methods=["POST"])
+@login_required
+@permission_required("delete")
+def bulk_delete_beneficiaries():
+    ids_raw = clean_csv_value(request.form.get("ids", ""))
+    ids = [int(x) for x in ids_raw.split(',') if x.strip().isdigit()]
+    if not ids:
+        flash("لم يتم تحديد أي مستفيد.", "error")
+        return redirect(request.referrer or url_for("beneficiaries_page"))
+    execute_sql("DELETE FROM beneficiaries WHERE id = ANY(%s)", [ids])
+    log_action("bulk_delete", "beneficiary", None, f"حذف جماعي لعدد {len(ids)} مستفيد")
+    flash(f"تم حذف {len(ids)} مستفيد بنجاح.", "success")
+    return redirect(request.referrer or url_for("beneficiaries_page"))
+
+
+@app.route("/beneficiaries/export-selected", methods=["POST"])
+@login_required
+@permission_required("export")
+def export_selected_beneficiaries():
+    ids_raw = clean_csv_value(request.form.get("ids", ""))
+    ids = [int(x) for x in ids_raw.split(',') if x.strip().isdigit()]
+    if not ids:
+        flash("لم يتم تحديد أي مستفيد.", "error")
+        return redirect(request.referrer or url_for("beneficiaries_page"))
+    rows = query_all("SELECT * FROM beneficiaries WHERE id = ANY(%s) ORDER BY id DESC", [ids])
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Selected Beneficiaries"
+    headers = ["ID","النوع","الاسم الكامل","الجوال","سنة التوجيهي","فرع التوجيهي","الجامعة","الكلية","التخصص الجامعي","تخصص الفري لانسر","شركة الفري لانسر","الاستخدام","أضيف بواسطة","التاريخ","ملاحظات"]
+    ws.append(headers)
+    for r in rows:
+        usage_label, _, _ = get_usage_label(r)
+        ws.append([r.get("id"), get_type_label(r.get("user_type")), r.get("full_name"), r.get("phone"), r.get("tawjihi_year"), r.get("tawjihi_branch"), r.get("university_name"), r.get("university_college"), r.get("university_specialization"), r.get("freelancer_specialization"), r.get("freelancer_company"), usage_label, r.get("added_by_username"), format_dt_short(r.get("created_at")), r.get("notes")])
+    out = io.BytesIO()
+    wb.save(out)
+    out.seek(0)
+    response = Response(out.getvalue(), mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response.headers["Content-Disposition"] = "attachment; filename=selected_beneficiaries.xlsx"
+    return response
 
 
 import os
