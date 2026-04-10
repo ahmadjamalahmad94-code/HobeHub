@@ -101,6 +101,9 @@ UNIVERSITIES_GAZA = ["الجامعة الإسلامية", "جامعة الأزه
 UNIVERSITY_DAYS_OPTIONS = ["عشوائي", "سبت اثنين أربعاء", "أحد ثلاثاء خميس"]
 INTERNET_ACCESS_METHOD_OPTIONS = ["يمتلك اسم مستخدم", "نظام البطاقات"]
 
+USAGE_REASON_OPTIONS = ["تنفيذ تجربة", "تقديم اختبار", "حل واجب", "دراسة", "عمل حر", "تحميل محاضرات", "أخرى"]
+CARD_TYPE_OPTIONS = ["ساعة", "ساعتين", "3 ساعات"]
+
 CSV_IMPORT_COLUMNS = [
     "user_type",
     "first_name",
@@ -287,6 +290,8 @@ textarea{min-height:100px}
 .login-wrap{max-width:480px;margin:70px auto}
 .inline-form{display:inline}
 .permissions-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+.usage-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:16px}
+.usage-log-meta{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .info-note{padding:14px;border:1px solid var(--line);background:#f8fbff;border-radius:14px}
 .tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .tab-pill{padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--text);font-weight:bold}
@@ -714,6 +719,7 @@ document.addEventListener('DOMContentLoaded', function(){
     <div class="nav">
       <a href="{{ url_for('dashboard') }}"><i class="fa-solid fa-gauge"></i><span class="nav-label">لوحة التحكم</span></a>
       <a href="{{ url_for('beneficiaries_page') }}"><i class="fa-solid fa-users"></i><span class="nav-label">المستفيدون</span></a>
+      <a href="{{ url_for('usage_logs_page') }}"><i class="fa-solid fa-ticket"></i><span class="nav-label">سجل البطاقات</span></a>
       <a href="{{ url_for('power_timer_page') }}"><i class="fa-solid fa-bolt"></i><span class="nav-label">مؤقت الكهرباء</span></a>
       {% if has_permission('add') %}
       <details open>
@@ -1294,6 +1300,64 @@ def get_week_start(today=None):
     return today - timedelta(days=delta)
 
 
+def get_month_start(today=None):
+    today = today or date.today()
+    return today.replace(day=1)
+
+
+def get_year_start(today=None):
+    today = today or date.today()
+    return today.replace(month=1, day=1)
+
+
+def parse_date_or_none(value):
+    value = clean_csv_value(value)
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def usage_logs_filters_from_request():
+    return {
+        "q": clean_csv_value(request.args.get("q", "")).strip(),
+        "reason": clean_csv_value(request.args.get("reason", "")).strip(),
+        "card_type": clean_csv_value(request.args.get("card_type", "")).strip(),
+        "user_type": clean_csv_value(request.args.get("user_type", "")).strip(),
+        "date_from": clean_csv_value(request.args.get("date_from", "")).strip(),
+        "date_to": clean_csv_value(request.args.get("date_to", "")).strip(),
+    }
+
+
+def build_usage_logs_where(filters):
+    where = ["1=1"]
+    params = []
+    if filters["q"]:
+        normalized_q = normalize_search_ar(filters["q"])
+        where.append("(b.search_name ILIKE %s OR b.phone ILIKE %s)")
+        params.extend([f"%{normalized_q}%", f"%{filters['q']}%"])
+    if filters["reason"]:
+        where.append("l.usage_reason = %s")
+        params.append(filters["reason"])
+    if filters["card_type"]:
+        where.append("l.card_type = %s")
+        params.append(filters["card_type"])
+    if filters["user_type"]:
+        where.append("b.user_type = %s")
+        params.append(filters["user_type"])
+    date_from = parse_date_or_none(filters["date_from"])
+    date_to = parse_date_or_none(filters["date_to"])
+    if date_from:
+        where.append("l.usage_date >= %s")
+        params.append(date_from)
+    if date_to:
+        where.append("l.usage_date <= %s")
+        params.append(date_to)
+    return " AND ".join(where), params
+
+
 def log_action(action_type, target_type="", target_id=None, details=""):
     if not session.get("account_id"):
         return
@@ -1479,6 +1543,20 @@ def setup_database():
         target_id INTEGER,
         details TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS beneficiary_usage_logs (
+        id SERIAL PRIMARY KEY,
+        beneficiary_id INTEGER NOT NULL REFERENCES beneficiaries(id) ON DELETE CASCADE,
+        usage_reason TEXT NOT NULL DEFAULT '',
+        card_type TEXT NOT NULL DEFAULT 'ساعة',
+        usage_date DATE NOT NULL DEFAULT CURRENT_DATE,
+        usage_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        notes TEXT DEFAULT '',
+        added_by_account_id INTEGER,
+        added_by_username TEXT DEFAULT ''
     )
     """)
 
@@ -2065,15 +2143,19 @@ def find_duplicate_phone(phone, exclude_id=None):
     return query_one(sql, params)
 
 
+
 def build_beneficiary_row_html(r, selected_type, args_dict, page=1, display_index=None):
     usage_label, limited, count = get_usage_label(r)
     current_qs = build_query_string({**args_dict, "page": page})
     row_class = f"row-type-{safe(r.get('user_type'))}"
     if limited and count >= 3:
         row_class += " row-complete"
-    modal_id = f"edit-{r['id']}"
+
+    edit_modal_id = f"edit-{r['id']}"
+    usage_modal_id = f"usage-{r['id']}"
     actions = []
-    modal_html = ""
+    modal_parts = []
+
     if has_permission("edit"):
         edit_action = f"{url_for('edit_beneficiary_page', beneficiary_id=r['id'])}?current_user_type={selected_type}"
         modal_body = format_modal_fields(
@@ -2083,43 +2165,88 @@ def build_beneficiary_row_html(r, selected_type, args_dict, page=1, display_inde
             submit_label="حفظ التعديلات",
             show_type_selector=True,
         )
-        edit_onsubmit = f"<form method=\"POST\" onsubmit=\"return submitBeneficiaryEdit(this, {r['id']}, '{modal_id}')\" action=\""
+        edit_onsubmit = f"<form method=\"POST\" onsubmit=\"return submitBeneficiaryEdit(this, {r['id']}, '{edit_modal_id}')\" action=\""
         modal_body = modal_body.replace('<form method="POST" action="', edit_onsubmit, 1)
-        modal_html = f"""
-        <div id="{modal_id}" class="modal">
+        modal_parts.append(f"""
+        <div id="{edit_modal_id}" class="modal">
           <div class="modal-card">
             <a href="#!" class="modal-close">×</a>
             <div class="hero" style="margin-bottom:14px"><h1>تعديل المستفيد #{r['id']}</h1><p>{safe(r.get('full_name'))}</p></div>
             {modal_body}
           </div>
         </div>
-        """
-        actions.append(f"<a class='btn btn-secondary btn-icon' href='#{modal_id}' title='تعديل'><i class='fa-solid fa-pen'></i></a>")
+        """)
+        actions.append(f"<a class='btn btn-secondary btn-icon' href='#{edit_modal_id}' title='تعديل'><i class='fa-solid fa-pen'></i></a>")
+
     if has_permission("delete"):
         delete_url = url_for('delete_beneficiary', beneficiary_id=r['id'])
         actions.append(
             f"<form class='inline-form' method='POST' action='{delete_url}' onsubmit=\"return confirm('هل أنت متأكد من الحذف؟')\"><button class='btn btn-danger btn-icon' type='submit' title='حذف'><i class='fa-solid fa-trash'></i></button></form>"
         )
+
     if has_permission("usage_counter") and limited and count < 3:
         usage_url = f"{url_for('add_usage', beneficiary_id=r['id'])}?{current_qs}"
-        actions.append(
-            f"<button class='btn btn-accent btn-icon' type='button' onclick=\"return incrementUsageAjax('{usage_url}', {r['id']}, '{modal_id}')\" title='+1 بطاقة'><i class='fa-solid fa-plus'></i></button>"
-        )
+        reason_options = "".join([f"<option value='{safe(x)}'>{safe(x)}</option>" for x in USAGE_REASON_OPTIONS])
+        card_options = "".join([f"<option value='{safe(x)}'>{safe(x)}</option>" for x in CARD_TYPE_OPTIONS])
+        usage_form = f"""
+        <form method="POST" action="{usage_url}">
+          <div class="row">
+            <div>
+              <label>سبب البطاقة</label>
+              <select name="usage_reason" required>
+                <option value="">اختر السبب</option>
+                {reason_options}
+              </select>
+            </div>
+            <div>
+              <label>نوع البطاقة</label>
+              <select name="card_type" required>
+                <option value="">اختر النوع</option>
+                {card_options}
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:12px">
+            <label>ملاحظة إضافية</label>
+            <textarea name="usage_notes" placeholder="اختياري"></textarea>
+          </div>
+          <div class="actions" style="margin-top:14px">
+            <button class="btn btn-accent" type="submit"><i class="fa-solid fa-check"></i> تثبيت البطاقة</button>
+            <a class="btn btn-soft" href="#!">إلغاء</a>
+          </div>
+        </form>
+        """
+        modal_parts.append(f"""
+        <div id="{usage_modal_id}" class="modal">
+          <div class="modal-card">
+            <a href="#!" class="modal-close">×</a>
+            <div class="hero" style="margin-bottom:14px"><h1>إضافة بطاقة</h1><p>{safe(r.get('full_name'))}</p></div>
+            <div class="info-note" style="margin-bottom:14px">
+              <strong>الاستخدام الحالي:</strong> {usage_label}
+            </div>
+            {usage_form}
+          </div>
+        </div>
+        """)
+        actions.append(f"<a class='btn btn-accent btn-icon' href='#{usage_modal_id}' title='+1 بطاقة'><i class='fa-solid fa-plus'></i></a>")
 
     type_html = f"<span class='type-badge {get_type_css(r.get('user_type'))}'>{get_type_label(r.get('user_type'))}</span>"
     added_by = safe(r.get('added_by_username')) or '-'
     created_at = format_dt_short(r.get('created_at'))
     notes = safe(r.get('notes')) or '-'
+    number_cell = safe(display_index if display_index is not None else r['id'])
+
     if selected_type == "tawjihi":
-        row_cells = [safe(r['id']), safe(r['full_name']), safe(r['phone']), safe(r['tawjihi_year']), safe(r['tawjihi_branch']), usage_label, added_by, created_at, notes, " ".join(actions) if actions else "-"]
+        row_cells = [number_cell, safe(r['full_name']), safe(r['phone']), safe(r['tawjihi_year']), safe(r['tawjihi_branch']), usage_label, added_by, created_at, notes, " ".join(actions) if actions else "-"]
     elif selected_type == "university":
-        row_cells = [safe(r['id']), safe(r['full_name']), safe(r['phone']), safe(r['university_name']), safe(r['university_college']), safe(r['university_specialization']), usage_label, added_by, created_at, notes, " ".join(actions) if actions else "-"]
+        row_cells = [number_cell, safe(r['full_name']), safe(r['phone']), safe(r['university_name']), safe(r['university_college']), safe(r['university_specialization']), usage_label, added_by, created_at, notes, " ".join(actions) if actions else "-"]
     elif selected_type == "freelancer":
-        row_cells = [safe(r['id']), safe(r['full_name']), safe(r['phone']), safe(r['freelancer_specialization']), safe(r['freelancer_company']), usage_label, added_by, created_at, notes, " ".join(actions) if actions else "-"]
+        row_cells = [number_cell, safe(r['full_name']), safe(r['phone']), safe(r['freelancer_specialization']), safe(r['freelancer_company']), usage_label, added_by, created_at, notes, " ".join(actions) if actions else "-"]
     else:
-        row_cells = [safe(r['id']), safe(r['full_name']), safe(r['phone']), type_html, usage_label, added_by, created_at, notes, " ".join(actions) if actions else "-"]
+        row_cells = [number_cell, safe(r['full_name']), safe(r['phone']), type_html, usage_label, added_by, created_at, notes, " ".join(actions) if actions else "-"]
+
     row_html = f"<tr id='beneficiary-row-{r['id']}' class='{row_class}'>" + ''.join([f"<td class='cell-wrap'>{cell}</td>" for cell in row_cells]) + "</tr>"
-    return row_html, modal_html
+    return row_html, "".join(modal_parts)
 
 
 @app.route("/beneficiaries")
@@ -2292,6 +2419,7 @@ def beneficiaries_page():
     add_button_html = ""
     if has_permission('add'):
         add_button_html = "<a class='btn btn-secondary' href='#add-beneficiary-modal'><i class='fa-solid fa-user-plus'></i> إضافة مستفيد</a>"
+    usage_logs_button_html = f"<a class='btn btn-soft' href='{url_for('usage_logs_page')}'><i class='fa-solid fa-ticket'></i> سجل البطاقات</a>"
     reset_cards_button_html = ""
     if has_permission('reset_weekly_usage'):
         reset_url = url_for('reset_weekly_usage')
@@ -2376,6 +2504,7 @@ def beneficiaries_page():
             <button class="btn btn-primary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> تطبيق البحث</button>
             <a class="btn btn-soft" href="{url_for('beneficiaries_page')}"><i class="fa-solid fa-rotate-left"></i> إعادة ضبط</a>
             {add_button_html}
+            {usage_logs_button_html}
             {reset_cards_button_html}
           </div>
         </form>
@@ -2560,6 +2689,7 @@ def delete_beneficiary(beneficiary_id):
     return redirect(url_for("beneficiaries_page", user_type=redirect_type))
 
 
+
 @app.route("/beneficiaries/add_usage/<int:beneficiary_id>", methods=["POST"])
 @login_required
 @permission_required("usage_counter")
@@ -2569,28 +2699,53 @@ def add_usage(beneficiary_id):
     if not row:
         flash("المستفيد غير موجود.", "error")
         return redirect(url_for("beneficiaries_page"))
+
     usage_label, limited, count = get_usage_label(row)
     message = ""
     category = "success"
-    if limited:
-        if count >= 3:
-            message = "اكتمل الحد الأسبوعي."
-            category = "error"
-            flash(message, category)
-        else:
-            execute_sql("UPDATE beneficiaries SET weekly_usage_count=COALESCE(weekly_usage_count,0)+1 WHERE id=%s", [beneficiary_id])
-            log_action("usage_counter", "beneficiary", beneficiary_id, f"+1 بطاقة لـ {safe(row['full_name'])}")
-            message = "تمت إضافة استخدام."
-            flash(message, "success")
-    else:
+
+    usage_reason = clean_csv_value(request.form.get("usage_reason"))
+    card_type = clean_csv_value(request.form.get("card_type"))
+    usage_notes = clean_csv_value(request.form.get("usage_notes"))
+
+    if not limited:
         message = "هذا المستفيد غير خاضع لعداد 3 مرات."
         category = "error"
-        flash(message, category)
+    elif count >= 3:
+        message = "اكتمل الحد الأسبوعي."
+        category = "error"
+    elif usage_reason not in USAGE_REASON_OPTIONS:
+        message = "يجب اختيار سبب الحصول على البطاقة."
+        category = "error"
+    elif card_type not in CARD_TYPE_OPTIONS:
+        message = "يجب اختيار نوع البطاقة."
+        category = "error"
+    else:
+        execute_sql("UPDATE beneficiaries SET weekly_usage_count=COALESCE(weekly_usage_count,0)+1 WHERE id=%s", [beneficiary_id])
+        execute_sql("""
+            INSERT INTO beneficiary_usage_logs
+            (beneficiary_id, usage_reason, card_type, usage_date, usage_time, notes, added_by_account_id, added_by_username)
+            VALUES (%s,%s,%s,CURRENT_DATE,CURRENT_TIMESTAMP,%s,%s,%s)
+        """, [
+            beneficiary_id,
+            usage_reason,
+            card_type,
+            usage_notes,
+            session.get("account_id"),
+            session.get("username", ""),
+        ])
+        log_action("usage_counter", "beneficiary", beneficiary_id, f"إضافة بطاقة لـ {safe(row['full_name'])} | السبب: {usage_reason} | النوع: {card_type}")
+        message = "تمت إضافة البطاقة وحفظها في السجل التفصيلي."
+        category = "success"
+
+    flash(message, category)
+
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         updated_row = query_one("SELECT * FROM beneficiaries WHERE id=%s", [beneficiary_id])
         args_dict = build_request_args_dict()
         row_html, modal_html = build_beneficiary_row_html(updated_row, args_dict.get("user_type", ""), args_dict, page=max(1, int(request.args.get("page", "1") or "1")))
-        return jsonify({"ok": True, "row_html": row_html, "modal_html": modal_html, "message": message, "category": category})
+        return jsonify({"ok": category == "success", "row_html": row_html, "modal_html": modal_html, "message": message, "category": category})
+
     return redirect(request.referrer or url_for("beneficiaries_page"))
 
 
@@ -3016,6 +3171,157 @@ def backup_sql():
     resp = Response(data, mimetype="application/sql")
     resp.headers["Content-Disposition"] = "attachment; filename=beneficiaries_backup.sql"
     return resp
+
+
+
+@app.route("/usage-logs")
+@login_required
+@permission_required("view")
+def usage_logs_page():
+    filters = usage_logs_filters_from_request()
+    where, params = build_usage_logs_where(filters)
+
+    rows = query_all(f"""
+        SELECT
+            l.*,
+            b.full_name,
+            b.phone,
+            b.user_type
+        FROM beneficiary_usage_logs l
+        JOIN beneficiaries b ON b.id = l.beneficiary_id
+        WHERE {where}
+        ORDER BY l.usage_time DESC, l.id DESC
+        LIMIT 500
+    """, params)
+
+    today = date.today()
+    week_start = get_week_start(today)
+    month_start = get_month_start(today)
+    year_start = get_year_start(today)
+
+    week_where = f"{where} AND l.usage_date >= %s"
+    month_where = f"{where} AND l.usage_date >= %s"
+    year_where = f"{where} AND l.usage_date >= %s"
+
+    week_total = query_one(f"""
+        SELECT COUNT(*) AS c
+        FROM beneficiary_usage_logs l
+        JOIN beneficiaries b ON b.id = l.beneficiary_id
+        WHERE {week_where}
+    """, params + [week_start])["c"]
+
+    month_total = query_one(f"""
+        SELECT COUNT(*) AS c
+        FROM beneficiary_usage_logs l
+        JOIN beneficiaries b ON b.id = l.beneficiary_id
+        WHERE {month_where}
+    """, params + [month_start])["c"]
+
+    year_total = query_one(f"""
+        SELECT COUNT(*) AS c
+        FROM beneficiary_usage_logs l
+        JOIN beneficiaries b ON b.id = l.beneficiary_id
+        WHERE {year_where}
+    """, params + [year_start])["c"]
+
+    reason_options = "".join([f"<option value='{safe(x)}' {'selected' if filters['reason']==x else ''}>{safe(x)}</option>" for x in USAGE_REASON_OPTIONS])
+    card_options = "".join([f"<option value='{safe(x)}' {'selected' if filters['card_type']==x else ''}>{safe(x)}</option>" for x in CARD_TYPE_OPTIONS])
+
+    row_html = ""
+    for idx, r in enumerate(rows, start=1):
+        row_html += f"""
+        <tr>
+          <td>{idx}</td>
+          <td>{safe(r['full_name'])}</td>
+          <td>{safe(r['phone'])}</td>
+          <td>{get_type_label(r['user_type'])}</td>
+          <td>{safe(r['usage_reason'])}</td>
+          <td>{safe(r['card_type'])}</td>
+          <td>{format_dt_short(r['usage_time'])}</td>
+          <td>{safe(r['added_by_username']) or '-'}</td>
+          <td class='cell-wrap'>{safe(r['notes']) or '-'}</td>
+        </tr>
+        """
+
+    if not row_html:
+        row_html = "<tr><td colspan='9' class='empty-state'>لا توجد بطاقات مطابقة لخيارات البحث الحالية.</td></tr>"
+
+    content = f"""
+    <div class="hero">
+      <h1>سجل البطاقات التفصيلي</h1>
+      <p>بحث شامل في كل البطاقات مع السبب ونوع البطاقة والتاريخ والوقت والموظف الذي قام بالتسجيل.</p>
+    </div>
+
+    <div class="usage-summary-grid">
+      <div class="metric-box"><h4>هذا الأسبوع</h4><div class="num">{week_total}</div></div>
+      <div class="metric-box"><h4>هذا الشهر</h4><div class="num">{month_total}</div></div>
+      <div class="metric-box"><h4>هذه السنة</h4><div class="num">{year_total}</div></div>
+      <div class="metric-box"><h4>إجمالي النتائج المعروضة</h4><div class="num">{len(rows)}</div></div>
+    </div>
+
+    <div class="card">
+      <div class="filter-box">
+        <form method="GET">
+          <div class="row">
+            <div><label>بحث بالاسم أو الجوال</label><input name="q" value="{safe(filters['q'])}" placeholder="مثال: أحمد أحمد أو رقم الجوال"></div>
+            <div>
+              <label>النوع</label>
+              <select name="user_type">
+                <option value="">الكل</option>
+                <option value="tawjihi" {"selected" if filters["user_type"]=="tawjihi" else ""}>توجيهي</option>
+                <option value="university" {"selected" if filters["user_type"]=="university" else ""}>جامعة</option>
+                <option value="freelancer" {"selected" if filters["user_type"]=="freelancer" else ""}>فري لانسر</option>
+              </select>
+            </div>
+            <div>
+              <label>سبب البطاقة</label>
+              <select name="reason">
+                <option value="">الكل</option>
+                {reason_options}
+              </select>
+            </div>
+            <div>
+              <label>نوع البطاقة</label>
+              <select name="card_type">
+                <option value="">الكل</option>
+                {card_options}
+              </select>
+            </div>
+            <div><label>من تاريخ</label><input type="date" name="date_from" value="{safe(filters['date_from'])}"></div>
+            <div><label>إلى تاريخ</label><input type="date" name="date_to" value="{safe(filters['date_to'])}"></div>
+          </div>
+          <div class="actions" style="margin-top:14px">
+            <button class="btn btn-primary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> بحث</button>
+            <a class="btn btn-soft" href="{url_for('usage_logs_page')}">مسح الفلاتر</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>الاسم</th>
+              <th>الجوال</th>
+              <th>النوع</th>
+              <th>سبب البطاقة</th>
+              <th>نوع البطاقة</th>
+              <th>التاريخ والوقت</th>
+              <th>سجلها</th>
+              <th>ملاحظات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {row_html}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    """
+    return render_page("سجل البطاقات", content)
 
 
 @app.route("/accounts")
