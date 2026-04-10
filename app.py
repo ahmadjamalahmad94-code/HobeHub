@@ -2149,6 +2149,13 @@ def beneficiaries_page():
     college_options = "".join([f"<option value='{safe(x)}'>{safe(x)}</option>" for x in universities_colleges])
     free_company_options = "".join([f"<option value='{safe(x)}'>{safe(x)}</option>" for x in freelancer_companies])
     free_spec_options = "".join([f"<option value='{safe(x)}'>{safe(x)}</option>" for x in freelancer_specs])
+    add_button_html = ""
+    if has_permission('add'):
+        add_button_html = "<a class='btn btn-secondary' href='#add-beneficiary-modal'><i class='fa-solid fa-user-plus'></i> إضافة مستفيد</a>"
+    reset_cards_button_html = ""
+    if has_permission('usage_counter'):
+        reset_url = url_for('reset_weekly_usage')
+        reset_cards_button_html = f"<button class='btn btn-outline' type='button' onclick=\"return resetWeeklyUsageAjax('{reset_url}')\"><i class='fa-solid fa-rotate'></i> تجديد كل البطاقات</button>"
 
     content = f"""
     <div class="hero">
@@ -2228,8 +2235,8 @@ def beneficiaries_page():
           <div class="actions" style="margin-top:14px">
             <button class="btn btn-primary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> تطبيق البحث</button>
             <a class="btn btn-soft" href="{url_for('beneficiaries_page')}"><i class="fa-solid fa-rotate-left"></i> إعادة ضبط</a>
-            {f"<a class='btn btn-secondary' href='#add-beneficiary-modal'><i class='fa-solid fa-user-plus'></i> إضافة مستفيد</a>" if has_permission('add') else ""}
-            {f"<button class='btn btn-outline' type='button' onclick=\"return resetWeeklyUsageAjax('{url_for('reset_weekly_usage')}')\"><i class='fa-solid fa-rotate'></i> تجديد كل البطاقات</button>" if has_permission('usage_counter') else ""}
+            {add_button_html}
+            {reset_cards_button_html}
           </div>
         </form>
       </div>
