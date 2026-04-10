@@ -1068,6 +1068,44 @@ def format_dt_short(value):
         return text[:16] if len(text) >= 16 else text
 
 
+def format_dt_compact(value):
+    if not value:
+        return ""
+    try:
+        return value.strftime('%Y-%m-%d %H:%M')
+    except AttributeError:
+        text = str(value).replace('T', ' ')
+        return text[:16] if len(text) >= 16 else text
+
+
+def action_type_label(action_type=None):
+    return {
+        'login': 'تسجيل دخول',
+        'logout': 'تسجيل خروج',
+        'add': 'إضافة',
+        'edit': 'تعديل',
+        'delete': 'حذف',
+        'bulk_delete': 'حذف جماعي',
+        'import': 'استيراد',
+        'usage_counter': 'إضافة بطاقة',
+        'reset_weekly_usage': 'تجديد البطاقات',
+        'power_timer_start': 'تشغيل المؤقت',
+        'power_timer_pause': 'إيقاف مؤقت للمؤقت',
+        'power_timer_resume': 'استئناف المؤقت',
+        'power_timer_stop': 'إيقاف المؤقت',
+        'export': 'تصدير',
+        'backup': 'نسخة احتياطية',
+    }.get(clean_csv_value(action_type), safe(action_type or ''))
+
+
+def target_type_label(target_type=None):
+    return {
+        'beneficiary': 'مستفيد',
+        'account': 'حساب',
+        'power_timer': 'مؤقت الكهرباء',
+    }.get(clean_csv_value(target_type), safe(target_type or ''))
+
+
 def clean_csv_value(v):
     if v is None:
         return ""
@@ -1612,7 +1650,7 @@ def dashboard():
     if recent_logs:
         logs_html = "<div class='table-wrap'><table><thead><tr><th>المستخدم</th><th>العملية</th><th>الهدف</th><th>التفاصيل</th><th>الوقت</th></tr></thead><tbody>"
         for r in recent_logs:
-            logs_html += f"<tr><td>{safe(r['username_snapshot'])}</td><td>{safe(r['action_type'])}</td><td>{safe(r['target_type'])}</td><td class='cell-wrap'>{safe(r['details'])}</td><td>{safe(r['created_at'])}</td></tr>"
+            logs_html += f"<tr><td>{safe(r['username_snapshot'])}</td><td>{action_type_label(r['action_type'])}</td><td>{target_type_label(r['target_type'])}</td><td class='cell-wrap'>{safe(r['details'])}</td><td>{format_dt_compact(r['created_at'])}</td></tr>"
         logs_html += "</tbody></table></div>"
     else:
         logs_html = "<div class='empty-state'>لا توجد عمليات بعد.</div>"
@@ -1890,7 +1928,7 @@ def find_duplicate_phone(phone, exclude_id=None):
     return query_one(sql, params)
 
 
-def build_beneficiary_row_html(r, selected_type, args_dict, page=1):
+def build_beneficiary_row_html(r, selected_type, args_dict, page=1, display_index=None):
     usage_label, limited, count = get_usage_label(r)
     current_qs = build_query_string({**args_dict, "page": page})
     row_class = f"row-type-{safe(r.get('user_type'))}"
@@ -2026,7 +2064,7 @@ def beneficiaries_page():
 
     if selected_type == "tawjihi":
         headers = [
-            ("id", "ID"),
+            (None, "#"),
             ("full_name", "الاسم الكامل"),
             ("phone", "الجوال"),
             ("tawjihi_year", "السنة"),
@@ -2039,7 +2077,7 @@ def beneficiaries_page():
         ]
     elif selected_type == "university":
         headers = [
-            ("id", "ID"),
+            (None, "#"),
             ("full_name", "الاسم الكامل"),
             ("phone", "الجوال"),
             ("university_name", "الجامعة"),
@@ -2053,7 +2091,7 @@ def beneficiaries_page():
         ]
     elif selected_type == "freelancer":
         headers = [
-            ("id", "ID"),
+            (None, "#"),
             ("full_name", "الاسم الكامل"),
             ("phone", "الجوال"),
             ("freelancer_specialization", "التخصص"),
@@ -2066,7 +2104,7 @@ def beneficiaries_page():
         ]
     else:
         headers = [
-            ("id", "ID"),
+            (None, "#"),
             ("full_name", "الاسم الكامل"),
             ("phone", "الجوال"),
             (None, "النوع"),
@@ -2087,8 +2125,9 @@ def beneficiaries_page():
 
     rows_html = ""
     modals_html = ""
-    for r in rows:
-        row_html, modal_html = build_beneficiary_row_html(r, selected_type, args_dict, page=page)
+    start_index = offset + 1
+    for idx, r in enumerate(rows, start=start_index):
+        row_html, modal_html = build_beneficiary_row_html(r, selected_type, args_dict, page=page, display_index=idx)
         rows_html += row_html
         modals_html += modal_html
 
@@ -2694,7 +2733,7 @@ def export_csv():
     rows = query_all(f"SELECT * FROM beneficiaries WHERE {where} ORDER BY id DESC", params)
 
     export_columns = [
-        ("id", "ID"),
+        (None, "#"),
         ("user_type", "نوع المستفيد"),
         ("first_name", "الاسم الأول"),
         ("second_name", "الاسم الثاني"),
@@ -3202,7 +3241,7 @@ def audit_log_page():
     """, [per_page, offset])
     html = "<div class='hero'><h1>سجل العمليات</h1><p>كل العمليات الحساسة داخل النظام.</p></div><div class='card'><table><thead><tr><th>ID</th><th>المستخدم</th><th>العملية</th><th>الهدف</th><th>الهدف ID</th><th>التفاصيل</th><th>الوقت</th></tr></thead><tbody>"
     for r in rows:
-        html += f"<tr><td>{r['id']}</td><td>{safe(r['username_snapshot'])}</td><td>{safe(r['action_type'])}</td><td>{safe(r['target_type'])}</td><td>{safe(r['target_id'])}</td><td>{safe(r['details'])}</td><td>{safe(r['created_at'])}</td></tr>"
+        html += f"<tr><td>{r['id']}</td><td>{safe(r['username_snapshot'])}</td><td>{action_type_label(r['action_type'])}</td><td>{target_type_label(r['target_type'])}</td><td>{safe(r['target_id'])}</td><td>{safe(r['details'])}</td><td>{format_dt_compact(r['created_at'])}</td></tr>"
     html += "</tbody></table>"
     html += "<div class='pagination'>"
     for p in range(1, pages + 1):
@@ -3354,7 +3393,7 @@ def build_add_beneficiary_modal(selected_type='tawjihi'):
     </div>
     '''
 
-def build_beneficiary_row_html(r, selected_type, args_dict, page=1):
+def build_beneficiary_row_html(r, selected_type, args_dict, page=1, display_index=None):
     usage_label, limited, count = get_usage_label(r)
     current_qs = build_query_string({**args_dict, "page": page})
     row_class = f"row-type-{safe(r.get('user_type'))}"
@@ -3407,17 +3446,18 @@ def build_beneficiary_row_html(r, selected_type, args_dict, page=1):
           </div>
         </div>
         """
+    display_no = safe(display_index if display_index is not None else r.get('id'))
     if selected_type == "tawjihi":
-        row_cells = [safe(r['id']), safe(r['full_name']), safe(r['phone']), safe(r['tawjihi_year']), safe(r['tawjihi_branch']), usage_label, added_by, created_at, notes_html, " ".join(actions) if actions else "-"]
+        row_cells = [display_no, safe(r['full_name']), safe(r['phone']), safe(r['tawjihi_year']), safe(r['tawjihi_branch']), usage_label, added_by, created_at, notes_html, " ".join(actions) if actions else "-"]
         usage_idx = 5
     elif selected_type == "university":
-        row_cells = [safe(r['id']), safe(r['full_name']), safe(r['phone']), safe(r['university_name']), safe(r['university_college']), safe(r['university_specialization']), usage_label, added_by, created_at, notes_html, " ".join(actions) if actions else "-"]
+        row_cells = [display_no, safe(r['full_name']), safe(r['phone']), safe(r['university_name']), safe(r['university_college']), safe(r['university_specialization']), usage_label, added_by, created_at, notes_html, " ".join(actions) if actions else "-"]
         usage_idx = 6
     elif selected_type == "freelancer":
-        row_cells = [safe(r['id']), safe(r['full_name']), safe(r['phone']), safe(r['freelancer_specialization']), safe(r['freelancer_company']), usage_label, added_by, created_at, notes_html, " ".join(actions) if actions else "-"]
+        row_cells = [display_no, safe(r['full_name']), safe(r['phone']), safe(r['freelancer_specialization']), safe(r['freelancer_company']), usage_label, added_by, created_at, notes_html, " ".join(actions) if actions else "-"]
         usage_idx = 5
     else:
-        row_cells = [safe(r['id']), safe(r['full_name']), safe(r['phone']), type_html, usage_label, added_by, created_at, notes_html, " ".join(actions) if actions else "-"]
+        row_cells = [display_no, safe(r['full_name']), safe(r['phone']), type_html, usage_label, added_by, created_at, notes_html, " ".join(actions) if actions else "-"]
         usage_idx = 4
     cells = []
     for i, cell in enumerate(row_cells):
