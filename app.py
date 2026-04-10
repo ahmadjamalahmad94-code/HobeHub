@@ -74,9 +74,24 @@ PERMISSIONS = [
     "export",
     "backup",
     "usage_counter",
+    "reset_weekly_usage",
     "manage_accounts",
     "view_audit_log",
 ]
+
+PERMISSION_LABELS = {
+    "view": "عرض البيانات",
+    "add": "إضافة مستفيد",
+    "edit": "تعديل المستفيدين",
+    "delete": "حذف المستفيدين",
+    "import": "استيراد CSV",
+    "export": "تصدير البيانات",
+    "backup": "نسخة احتياطية",
+    "usage_counter": "زر +1 للبطاقات",
+    "reset_weekly_usage": "تجديد كل البطاقات",
+    "manage_accounts": "إدارة المستخدمين والصلاحيات",
+    "view_audit_log": "عرض سجل العمليات",
+}
 
 TAWJIHI_YEARS = ["2006", "2007", "2008", "2009", "2010", "2011"]
 TAWJIHI_BRANCHES = ["علمي", "أدبي", "شرعي", "زراعي", "صناعي", "تجاري", "فندقي"]
@@ -1106,6 +1121,11 @@ def target_type_label(target_type=None):
     }.get(clean_csv_value(target_type), safe(target_type or ''))
 
 
+def permission_label(permission_name=None):
+    key = clean_csv_value(permission_name)
+    return PERMISSION_LABELS.get(key, safe(permission_name or ''))
+
+
 def clean_csv_value(v):
     if v is None:
         return ""
@@ -1187,9 +1207,6 @@ def has_permission(permission_name):
     aid = session.get("account_id")
     if not aid:
         return False
-    cached_permissions = session.get("permissions")
-    if isinstance(cached_permissions, list):
-        return permission_name in cached_permissions
     refresh_session_permissions(aid)
     return permission_name in session.get("permissions", [])
 
@@ -1448,7 +1465,6 @@ def login():
     <div class="login-wrap">
       <div class="hero">
         <h1>تسجيل الدخول</h1>
-        <p>اسم المستخدم الافتراضي لأول تشغيل: admin / 123456</p>
       </div>
       <div class="card">
         <form method="POST">
@@ -2121,7 +2137,10 @@ def beneficiaries_page():
             thead += f"<th><a href='{beneficiary_sort_link(args_dict, col)}'>{label}</a></th>"
         else:
             thead += f"<th>{label}</th>"
-    thead += "<th class='checkbox-cell'><input id='select-all' class='select-all' type='checkbox' onchange='toggleSelectAll(this)'></th></tr>"
+    can_bulk_select = has_permission('delete') or has_permission('export')
+    if can_bulk_select:
+        thead += "<th class='checkbox-cell'><input id='select-all' class='select-all' type='checkbox' onchange='toggleSelectAll(this)'></th>"
+    thead += "</tr>"
 
     rows_html = ""
     modals_html = ""
@@ -2132,7 +2151,7 @@ def beneficiaries_page():
         modals_html += modal_html
 
     if not rows_html:
-        rows_html = f"<tr><td colspan='{len(headers)}' class='empty-state'>لا توجد نتائج مطابقة لخيارات البحث الحالية.</td></tr>"
+        rows_html = f"<tr><td colspan='{len(headers) + (1 if can_bulk_select else 0)}' class='empty-state'>لا توجد نتائج مطابقة لخيارات البحث الحالية.</td></tr>"
 
     pag_html = ""
     if pages > 1:
@@ -2153,7 +2172,7 @@ def beneficiaries_page():
     if has_permission('add'):
         add_button_html = "<a class='btn btn-secondary' href='#add-beneficiary-modal'><i class='fa-solid fa-user-plus'></i> إضافة مستفيد</a>"
     reset_cards_button_html = ""
-    if has_permission('usage_counter'):
+    if has_permission('reset_weekly_usage'):
         reset_url = url_for('reset_weekly_usage')
         reset_cards_button_html = f"<button class='btn btn-outline' type='button' onclick=\"return resetWeeklyUsageAjax('{reset_url}')\"><i class='fa-solid fa-rotate'></i> تجديد كل البطاقات</button>"
 
@@ -2247,8 +2266,8 @@ def beneficiaries_page():
     <div class="card" style="margin-top:14px">
       <div class='bulk-toolbar'>
         <span class='selected-count'>المحدد: <strong id='selected-count'>0</strong></span>
-        <button class='btn btn-soft btn-icon' type='button' onclick='return submitBulkExport()' title='تصدير المحدد'><i class='fa-solid fa-file-export'></i></button>
-        <button class='btn btn-danger btn-icon' type='button' onclick='return submitBulkDelete()' title='حذف المحدد'><i class='fa-solid fa-trash'></i></button>
+        {"<button class='btn btn-soft btn-icon' type='button' onclick='return submitBulkExport()' title='تصدير المحدد'><i class='fa-solid fa-file-export'></i></button>" if has_permission('export') else ""}
+        {"<button class='btn btn-danger btn-icon' type='button' onclick='return submitBulkDelete()' title='حذف المحدد'><i class='fa-solid fa-trash'></i></button>" if has_permission('delete') else ""}
       </div>
       <form id='bulk-delete-form' method='POST' action='{url_for('bulk_delete_beneficiaries')}' style='display:none'><input type='hidden' name='ids' value=''></form>
       <form id='bulk-export-form' method='POST' action='{url_for('export_selected_beneficiaries')}' style='display:none'><input type='hidden' name='ids' value=''></form>
@@ -2456,7 +2475,7 @@ def add_usage(beneficiary_id):
 
 @app.route("/beneficiaries/reset-weekly-usage", methods=["POST"])
 @login_required
-@permission_required("usage_counter")
+@permission_required("reset_weekly_usage")
 def reset_weekly_usage():
     reset_start = get_week_start(date.today() + timedelta(days=1))
     execute_sql("""
@@ -2897,13 +2916,14 @@ def accounts_page():
     <div class="card"><table><thead><tr><th>ID</th><th>اسم المستخدم</th><th>الاسم الكامل</th><th>الحالة</th><th>الصلاحيات</th><th>إجراءات</th></tr></thead><tbody>
     """
     for r in rows:
+        perms_text = "، ".join(permission_label(p.strip()) for p in safe(r['perms']).split(',') if p.strip()) or "-"
         html += f"""
         <tr>
           <td>{r['id']}</td>
           <td>{safe(r['username'])}</td>
           <td>{safe(r['full_name'])}</td>
           <td>{"مفعل" if r['is_active'] else "معطل"}</td>
-          <td style="max-width:300px;white-space:normal">{safe(r['perms'])}</td>
+          <td style="max-width:300px;white-space:normal">{safe(perms_text)}</td>
           <td>
             <a class="btn btn-secondary" href="/accounts/edit/{r['id']}">تعديل</a>
             <form class="inline-form" method="POST" action="/accounts/toggle/{r['id']}"><button class="btn btn-outline" type="submit">تفعيل/تعطيل</button></form>
@@ -2919,7 +2939,7 @@ def permissions_checkboxes(selected=None):
     html = "<div class='permissions-grid'>"
     for p in PERMISSIONS:
         checked = "checked" if p in selected else ""
-        html += f"<label><input type='checkbox' name='permissions' value='{p}' {checked}> {p}</label>"
+        html += f"<label class='info-note' style='display:flex;align-items:center;gap:8px'><input type='checkbox' name='permissions' value='{p}' {checked}> <span>{permission_label(p)}</span></label>"
     html += "</div>"
     return html
 
@@ -3012,6 +3032,10 @@ def edit_account(account_id):
                 SELECT %s, id FROM permissions WHERE name=%s
                 ON CONFLICT DO NOTHING
             """, [account_id, p])
+        if session.get("account_id") == account_id:
+            session["username"] = username
+            session["full_name"] = full_name
+            refresh_session_permissions(account_id)
         log_action("edit_account", "account", account_id, f"تعديل حساب {username}")
         flash("تم تحديث الحساب.", "success")
         return redirect(url_for("accounts_page"))
@@ -3470,7 +3494,9 @@ def build_beneficiary_row_html(r, selected_type, args_dict, page=1, display_inde
     for i, cell in enumerate(row_cells):
         extra = ' usage-cell' if i == usage_idx else ''
         cells.append(f"<td class='cell-wrap{extra}'>{cell}</td>")
-    cells.append(f"<td class='checkbox-cell'><input class='row-select' type='checkbox' value='{r['id']}' onchange='updateBulkSelectedCount()'></td>")
+    can_bulk_select = has_permission('delete') or has_permission('export')
+    if can_bulk_select:
+        cells.append(f"<td class='checkbox-cell'><input class='row-select' type='checkbox' value='{r['id']}' onchange='updateBulkSelectedCount()'></td>")
     row_html = f"<tr id='beneficiary-row-{r['id']}' class='{row_class}' data-limited={'1' if limited else '0'}>" + ''.join(cells) + "</tr>"
     return row_html, modal_html
 
@@ -3540,7 +3566,7 @@ def _patched_reset_weekly_usage():
 
 # monkey-patch flask endpoints
 app.view_functions['add_beneficiary_page'] = login_required(permission_required('add')(_patched_add_beneficiary_page))
-app.view_functions['reset_weekly_usage'] = login_required(permission_required('usage_counter')(_patched_reset_weekly_usage))
+app.view_functions['reset_weekly_usage'] = login_required(permission_required('reset_weekly_usage')(_patched_reset_weekly_usage))
 
 
 
