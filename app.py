@@ -328,16 +328,32 @@ textarea{min-height:100px}
 .permission-chip-wrap{display:flex;flex-wrap:wrap;gap:8px}
 .permission-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:999px;background:#f8fbff;border:1px solid var(--line);font-size:12px;color:var(--primary);font-weight:700}
 .choice-section{margin-bottom:16px}
-.choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;margin-top:10px}
-.choice-card{position:relative;padding:14px 12px;border-radius:18px;text-align:center;cursor:pointer;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease,background .22s ease;border:1px solid var(--line);background:linear-gradient(180deg,#fff,#f8fbff);overflow:hidden}
-.choice-card:before{content:'';position:absolute;inset:auto -20px -20px auto;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.28);transform:scale(0);transition:transform .25s ease}
-.choice-card:hover{transform:translateY(-4px) scale(1.02);box-shadow:0 14px 24px rgba(15,23,42,.10)}
+.choice-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:10px}
+.choice-card{position:relative;min-height:96px;padding:10px 8px;border-radius:16px;text-align:center;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease,background .2s ease;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid var(--line);background:linear-gradient(180deg,#fff,#f8fbff);overflow:hidden}
+.choice-card:before{content:'';position:absolute;inset:auto -20px -20px auto;width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.26);transform:scale(0);transition:transform .22s ease}
+.choice-card:hover{transform:translateY(-3px) scale(1.01);box-shadow:0 12px 22px rgba(15,23,42,.08)}
 .choice-card:hover:before{transform:scale(1)}
-.choice-card i{display:block;font-size:22px;margin-bottom:8px;animation:choiceFloat 3s ease-in-out infinite}
-.choice-card span{font-size:13px;font-weight:800}
-.choice-card small{display:block;font-size:11px;opacity:.8;margin-top:4px}
-.choice-card.active{color:#fff;border-color:transparent;transform:translateY(-2px) scale(1.03);box-shadow:0 18px 32px rgba(15,23,42,.16)}
+.choice-card i{display:block;font-size:19px;margin-bottom:7px;animation:choiceFloat 3s ease-in-out infinite}
+.choice-card span{font-size:12px;font-weight:800;line-height:1.35}
+.choice-card small{display:block;font-size:10px;opacity:.82;margin-top:3px;line-height:1.35}
+.choice-card.active{color:#fff;border-color:transparent;transform:translateY(-1px) scale(1.02);box-shadow:0 16px 28px rgba(15,23,42,.14)}
 .choice-card.active i{animation:choiceBounce .45s ease}
+.choice-section label{display:block;margin-bottom:6px;font-weight:800;color:var(--primary)}
+.archive-ops-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:10px}
+.archive-op-card{background:linear-gradient(180deg,#fff,#f8fbff);border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:0 8px 20px rgba(15,23,42,.05)}
+.archive-op-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.archive-op-title{font-size:16px;font-weight:800;color:var(--primary)}
+.archive-op-desc{font-size:12px;color:var(--muted);line-height:1.7;margin-top:4px}
+.archive-op-icon{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:18px;background:#eef4fb;color:var(--primary)}
+.archive-op-card form,.archive-op-card .single-action{display:flex;flex-direction:column;gap:10px}
+.archive-op-card input[type="date"]{min-height:46px}
+.archive-op-card .btn{justify-content:center}
+.archive-op-card.op-archive .archive-op-icon{background:#fff7ed;color:#c2410c}
+.archive-op-card.op-clean .archive-op-icon{background:#fef2f2;color:#b91c1c}
+.archive-op-card.op-view .archive-op-icon{background:#eff6ff;color:#1d4ed8}
+.archive-op-card.op-restore .archive-op-icon{background:#ecfdf3;color:#166534}
+.archive-op-card.op-export .archive-op-icon{background:#f5f3ff;color:#7c3aed}
+.archive-op-card.op-delete .archive-op-icon{background:#fff7ed;color:#9a3412}
 .choice-blue{color:#1d4ed8;background:linear-gradient(180deg,#eff6ff,#dbeafe)}
 .choice-green{color:#15803d;background:linear-gradient(180deg,#f0fdf4,#dcfce7)}
 .choice-orange{color:#c2410c;background:linear-gradient(180deg,#fff7ed,#ffedd5)}
@@ -388,7 +404,7 @@ textarea{min-height:100px}
 .modal-card{background:#fff;width:min(1100px,100%);max-height:90vh;overflow:auto;border-radius:20px;padding:20px;position:relative}
 .modal-close{position:absolute;left:16px;top:16px;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#f3f6fb;color:var(--text);font-size:20px}
 .modal.show-modal{display:flex}
-.global-usage-modal-card{width:min(560px,100%)}
+.global-usage-modal-card{width:min(660px,100%);max-height:min(88vh,760px);overflow:auto;padding:16px 18px 18px}
 .form-section{display:none}
 .form-section.active{display:block}
 .section-title{margin:18px 0 10px 0;color:var(--primary);font-size:18px}
@@ -443,6 +459,12 @@ textarea{min-height:100px}
 @keyframes pulseRing{0%{transform:scale(.92);opacity:.35}70%{transform:scale(1.08);opacity:0}100%{opacity:0}}
 @keyframes timerAlertIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 @media (max-width:900px){
+  .choice-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .choice-card{min-height:84px;padding:8px 6px;border-radius:14px}
+  .choice-card i{font-size:17px;margin-bottom:5px}
+  .choice-card span{font-size:11px}
+  .choice-card small{font-size:9px}
+  .archive-ops-grid{grid-template-columns:1fr}
   .layout{display:block;position:relative}
   .sidebar{
     position:fixed;
@@ -469,6 +491,7 @@ textarea{min-height:100px}
   .layout.sidebar-collapsed .nav details summary{justify-content:center;padding:14px 10px}
   .main{padding:16px;width:100%}
   .modal-card{padding:16px}
+  .global-usage-modal-card{width:min(96vw,100%);max-height:90vh;padding:14px}
   .bar-row{grid-template-columns:100px 1fr 44px}
   .timer-big{font-size:36px}
   .timer-ring{width:230px;height:230px}
@@ -890,9 +913,9 @@ document.addEventListener('DOMContentLoaded', function(){
     <div id="global-usage-modal" class="modal" onclick="if(event.target===this) closeGlobalUsageModal()">
       <div class="modal-card global-usage-modal-card">
         <button class="modal-close" type="button" onclick="return closeGlobalUsageModal()">×</button>
-        <div class="hero" style="margin-bottom:14px">
-          <h1>إضافة بطاقة</h1>
-          <p>اختر السبب ونوع البطاقة ثم احفظ.</p>
+        <div class="hero" style="margin-bottom:12px;padding:18px 20px;border-radius:22px">
+          <h1 style="font-size:24px;margin-bottom:4px">إضافة بطاقة</h1>
+          <p style="font-size:14px">اختر السبب ونوع البطاقة ثم احفظ.</p>
         </div>
         <form id="global-usage-form" method="POST" onsubmit="return guardSingleSubmit(this)">
           <div class="choice-section">
@@ -3371,16 +3394,43 @@ def usage_logs_page():
     archive_buttons = ""
     if has_permission('archive_logs'):
         archive_buttons += f"""
-        <form method='POST' action='{url_for('archive_usage_logs')}' onsubmit="return confirm('سيتم نقل كل السجل الحالي إلى الأرشيف. متابعة؟')"><button class='btn btn-outline' type='submit'><i class='fa-solid fa-box-archive'></i> أرشفة كاملة</button></form>
-        <form method='POST' action='{url_for('archive_usage_logs_before')}' onsubmit="return confirm('سيتم نقل السجلات الأقدم من التاريخ المحدد إلى الأرشيف. متابعة؟')"><input type='date' name='before_date' required><button class='btn btn-soft' type='submit'><i class='fa-solid fa-calendar-minus'></i> أرشفة ما قبل تاريخ</button></form>
+        <div class='archive-op-card op-archive'>
+          <div class='archive-op-head'><div><div class='archive-op-title'>أرشفة كاملة</div><div class='archive-op-desc'>انقل كل السجل الحالي إلى الأرشيف مع الحفاظ على إمكانية الاسترجاع لاحقًا.</div></div><div class='archive-op-icon'><i class='fa-solid fa-box-archive'></i></div></div>
+          <form method='POST' action='{url_for('archive_usage_logs')}' onsubmit="return confirm('سيتم نقل كل السجل الحالي إلى الأرشيف. متابعة؟')">
+            <button class='btn btn-outline' type='submit'><i class='fa-solid fa-box-archive'></i> أرشفة كاملة</button>
+          </form>
+        </div>
+        <div class='archive-op-card op-archive'>
+          <div class='archive-op-head'><div><div class='archive-op-title'>أرشفة جزئية</div><div class='archive-op-desc'>انقل السجلات الأقدم من التاريخ الذي تحدده فقط.</div></div><div class='archive-op-icon'><i class='fa-solid fa-calendar-minus'></i></div></div>
+          <form method='POST' action='{url_for('archive_usage_logs_before')}' onsubmit="return confirm('سيتم نقل السجلات الأقدم من التاريخ المحدد إلى الأرشيف. متابعة؟')">
+            <input type='date' name='before_date' required>
+            <button class='btn btn-soft' type='submit'><i class='fa-solid fa-calendar-minus'></i> أرشفة ما قبل تاريخ</button>
+          </form>
+        </div>
         """
     if has_permission('backup'):
         archive_buttons += f"""
-        <form method='POST' action='{url_for('clear_usage_logs')}' onsubmit="return confirm('سيتم حذف كل السجل الحالي نهائيًا. متابعة؟')"><button class='btn btn-danger' type='submit'><i class='fa-solid fa-trash'></i> تنظيف كامل</button></form>
-        <form method='POST' action='{url_for('clear_usage_logs_before')}' onsubmit="return confirm('سيتم حذف السجلات الأقدم من التاريخ المحدد. متابعة؟')"><input type='date' name='before_date' required><button class='btn btn-soft' type='submit'><i class='fa-solid fa-filter-circle-xmark'></i> تنظيف جزئي</button></form>
+        <div class='archive-op-card op-clean'>
+          <div class='archive-op-head'><div><div class='archive-op-title'>تنظيف كامل</div><div class='archive-op-desc'>احذف كل السجل الحالي نهائيًا عندما تكون متأكدًا أنك لا تحتاجه.</div></div><div class='archive-op-icon'><i class='fa-solid fa-trash'></i></div></div>
+          <form method='POST' action='{url_for('clear_usage_logs')}' onsubmit="return confirm('سيتم حذف كل السجل الحالي نهائيًا. متابعة؟')">
+            <button class='btn btn-danger' type='submit'><i class='fa-solid fa-trash'></i> تنظيف كامل</button>
+          </form>
+        </div>
+        <div class='archive-op-card op-clean'>
+          <div class='archive-op-head'><div><div class='archive-op-title'>تنظيف جزئي</div><div class='archive-op-desc'>احذف فقط السجلات الأقدم من التاريخ المحدد واترك الباقي كما هو.</div></div><div class='archive-op-icon'><i class='fa-solid fa-filter-circle-xmark'></i></div></div>
+          <form method='POST' action='{url_for('clear_usage_logs_before')}' onsubmit="return confirm('سيتم حذف السجلات الأقدم من التاريخ المحدد. متابعة؟')">
+            <input type='date' name='before_date' required>
+            <button class='btn btn-soft' type='submit'><i class='fa-solid fa-filter-circle-xmark'></i> تنظيف جزئي</button>
+          </form>
+        </div>
         """
     if has_permission('view_archive'):
-        archive_buttons += f"<a class='btn btn-secondary' href='{url_for('usage_archive_page')}'><i class='fa-solid fa-box-archive'></i> فتح الأرشيف ({archive_total})</a>"
+        archive_buttons += f"""
+        <div class='archive-op-card op-view'>
+          <div class='archive-op-head'><div><div class='archive-op-title'>فتح الأرشيف</div><div class='archive-op-desc'>استعرض السجلات المؤرشفة أو صدّرها أو استرجعها حسب صلاحياتك.</div></div><div class='archive-op-icon'><i class='fa-solid fa-box-open'></i></div></div>
+          <div class='single-action'><a class='btn btn-secondary' href='{url_for('usage_archive_page')}'><i class='fa-solid fa-box-archive'></i> فتح الأرشيف ({archive_total})</a></div>
+        </div>
+        """
 
     content = f"""
     <div class="hero">
@@ -3414,7 +3464,7 @@ def usage_logs_page():
     <div class="card" style="margin-top:16px">
       <div class="toolbar-card">
         <div><strong>أدوات السجل</strong><div class="small">نفّذ التنظيف أو الأرشفة أو افتح الأرشيف حسب صلاحياتك.</div></div>
-        <div class="smart-actions">{archive_buttons}</div>
+        <div class="archive-ops-grid">{archive_buttons}</div>
       </div>
     </div>
 
@@ -3529,16 +3579,39 @@ def usage_archive_page():
     actions = ""
     if has_permission('restore_archive'):
         actions += f"""
-        <form method='POST' action='{url_for('restore_archive_logs')}' onsubmit="return confirm('سيتم استرجاع كل الأرشيف إلى السجل الحالي مع حذف النسخ من الأرشيف. متابعة؟')"><button class='btn btn-secondary' type='submit'><i class='fa-solid fa-rotate-left'></i> استرجاع الكل</button></form>
-        <form method='POST' action='{url_for('restore_archive_logs_before')}' onsubmit="return confirm('سيتم استرجاع الأرشيف الأقدم من التاريخ المحدد. متابعة؟')"><input type='date' name='before_date' required><button class='btn btn-soft' type='submit'><i class='fa-solid fa-clock-rotate-left'></i> استرجاع جزئي</button></form>
+        <div class='archive-op-card op-restore'>
+          <div class='archive-op-head'><div><div class='archive-op-title'>استرجاع كامل</div><div class='archive-op-desc'>أعد كل محتوى الأرشيف إلى السجل الحالي ثم أزل النسخ من الأرشيف.</div></div><div class='archive-op-icon'><i class='fa-solid fa-rotate-left'></i></div></div>
+          <form method='POST' action='{url_for('restore_archive_logs')}' onsubmit="return confirm('سيتم استرجاع كل الأرشيف إلى السجل الحالي مع حذف النسخ من الأرشيف. متابعة؟')">
+            <button class='btn btn-secondary' type='submit'><i class='fa-solid fa-rotate-left'></i> استرجاع الكل</button>
+          </form>
+        </div>
+        <div class='archive-op-card op-restore'>
+          <div class='archive-op-head'><div><div class='archive-op-title'>استرجاع جزئي</div><div class='archive-op-desc'>استرجع فقط السجلات الأقدم من التاريخ الذي تختاره.</div></div><div class='archive-op-icon'><i class='fa-solid fa-clock-rotate-left'></i></div></div>
+          <form method='POST' action='{url_for('restore_archive_logs_before')}' onsubmit="return confirm('سيتم استرجاع الأرشيف الأقدم من التاريخ المحدد. متابعة؟')">
+            <input type='date' name='before_date' required>
+            <button class='btn btn-soft' type='submit'><i class='fa-solid fa-clock-rotate-left'></i> استرجاع جزئي</button>
+          </form>
+        </div>
         """
     if has_permission('export_archive'):
-        actions += f"<a class='btn btn-outline' href='{url_for('export_archive_excel')}'><i class='fa-solid fa-file-excel'></i> تصدير Excel</a>"
+        actions += f"""
+        <div class='archive-op-card op-export'>
+          <div class='archive-op-head'><div><div class='archive-op-title'>تصدير الأرشيف</div><div class='archive-op-desc'>نزّل نسخة Excel من كامل الأرشيف لمراجعة خارجية أو حفظ احتياطي.</div></div><div class='archive-op-icon'><i class='fa-solid fa-file-excel'></i></div></div>
+          <div class='single-action'><a class='btn btn-outline' href='{url_for('export_archive_excel')}'><i class='fa-solid fa-file-excel'></i> تصدير Excel</a></div>
+        </div>
+        """
     if has_permission('delete_archive'):
-        actions += f'''<form method="POST" action="{url_for('clear_archive_logs')}" onsubmit="return confirm(\'سيتم حذف كامل الأرشيف نهائيًا. متابعة؟\')"><button class="btn btn-danger" type="submit"><i class="fa-solid fa-trash-can"></i> تنظيف الأرشيف</button></form>'''
+        actions += f"""
+        <div class='archive-op-card op-delete'>
+          <div class='archive-op-head'><div><div class='archive-op-title'>تنظيف الأرشيف</div><div class='archive-op-desc'>احذف كل ما داخل الأرشيف نهائيًا. استخدمه فقط عند التأكد التام.</div></div><div class='archive-op-icon'><i class='fa-solid fa-trash-can'></i></div></div>
+          <form method='POST' action='{url_for('clear_archive_logs')}' onsubmit="return confirm('سيتم حذف كامل الأرشيف نهائيًا. متابعة؟')">
+            <button class='btn btn-danger' type='submit'><i class='fa-solid fa-trash-can'></i> تنظيف الأرشيف</button>
+          </form>
+        </div>
+        """
     content = f"""
     <div class='hero'><h1>أرشيف سجل البطاقات</h1><p>منطقة آمنة لحفظ السجلات القديمة مع صلاحيات منفصلة للاستعراض، التصدير، الاسترجاع، والتنظيف.</p></div>
-    <div class='card glass-card'><div class='toolbar-card'><div><strong>عمليات الأرشيف</strong><div class='small'>كل عملية هنا مرتبطة بصلاحية مستقلة.</div></div><div class='smart-actions'>{actions}</div></div></div>
+    <div class='card glass-card'><div class='toolbar-card'><div><strong>عمليات الأرشيف</strong><div class='small'>كل عملية هنا مرتبطة بصلاحية مستقلة.</div></div></div><div class='archive-ops-grid'>{actions}</div></div>
     <div class='card' style='margin-top:16px'><div class='table-wrap'><table><thead><tr><th>#</th><th>الاسم</th><th>الجوال</th><th>النوع</th><th>السبب</th><th>النوع</th><th>وقت الاستخدام</th><th>أرشفها</th><th>وقت الأرشفة</th><th>ملاحظات</th></tr></thead><tbody>{row_html or "<tr><td colspan='10' class='empty-state'>الأرشيف فارغ حاليًا.</td></tr>"}</tbody></table></div></div>
     """
     return render_page("أرشيف سجل البطاقات", content)
