@@ -317,8 +317,6 @@ textarea{min-height:100px}
 .modal{position:fixed;inset:0;background:rgba(15,23,42,.6);display:none;align-items:center;justify-content:center;padding:18px;z-index:999}
 .modal:target{display:flex}
 .modal-card{background:#fff;width:min(1100px,100%);max-height:90vh;overflow:auto;border-radius:20px;padding:20px;position:relative}
-.modal-card{animation:fadeInScale .22s ease}
-.choice-section{margin-bottom:16px}.choice-group{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}.choice-chip{padding:10px 16px;border-radius:14px;border:1px solid var(--line);background:#fff;cursor:pointer;transition:all .22s ease;font-weight:700;color:var(--text);box-shadow:0 4px 10px rgba(15,23,42,.04)}.choice-chip:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(15,23,42,.08);border-color:var(--secondary)}.choice-chip.active{background:linear-gradient(135deg,var(--secondary),var(--purple));color:#fff;border-color:transparent;transform:translateY(-1px) scale(1.02)}.choice-hint{margin-top:8px;font-size:12px;color:var(--muted)}.smart-highlight{background:linear-gradient(135deg,#ffffff,#f8fbff);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 8px 20px rgba(15,23,42,.05)}.smart-highlight h3{margin:0 0 8px 0;color:var(--primary)}.smart-list{display:flex;flex-direction:column;gap:10px}.smart-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:#fff}.smart-item .meta{color:var(--muted);font-size:12px}.smart-item strong{color:var(--primary)}
 .modal-close{position:absolute;left:16px;top:16px;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#f3f6fb;color:var(--text);font-size:20px}
 .modal.show-modal{display:flex}
 .global-usage-modal-card{width:min(560px,100%)}
@@ -375,7 +373,6 @@ textarea{min-height:100px}
 .timer-pulse:after{content:'';position:absolute;inset:-6px;border-radius:inherit;border:2px solid currentColor;opacity:0;animation:pulseRing 1.8s infinite}
 @keyframes pulseRing{0%{transform:scale(.92);opacity:.35}70%{transform:scale(1.08);opacity:0}100%{opacity:0}}
 @keyframes timerAlertIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
-@keyframes fadeInScale{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
 @media (max-width:900px){
   .layout{display:block;position:relative}
   .sidebar{
@@ -516,19 +513,6 @@ async function submitBeneficiaryEdit(form, rowId, modalId){
   return false;
 }
 
-function resetUsageChoiceGroup(groupId){
-  const group = document.getElementById(groupId);
-  if(!group) return;
-  group.querySelectorAll('.choice-chip').forEach(function(btn){ btn.classList.remove('active'); });
-}
-function selectUsageChoice(hiddenId, groupId, btn, value){
-  const hidden = document.getElementById(hiddenId);
-  if(hidden) hidden.value = value;
-  const group = document.getElementById(groupId);
-  if(group){ group.querySelectorAll('.choice-chip').forEach(function(item){ item.classList.remove('active'); }); }
-  if(btn) btn.classList.add('active');
-  return false;
-}
 function openGlobalUsageModal(rowId, submitUrl){
   const modal = document.getElementById('global-usage-modal');
   const form = document.getElementById('global-usage-form');
@@ -536,14 +520,6 @@ function openGlobalUsageModal(rowId, submitUrl){
   form.action = submitUrl;
   form.dataset.rowId = String(rowId);
   form.reset();
-  const reasonInput = document.getElementById('usage_reason');
-  const cardInput = document.getElementById('card_type');
-  if(reasonInput) reasonInput.value = '';
-  if(cardInput) cardInput.value = 'ساعة';
-  resetUsageChoiceGroup('usage-reason-group');
-  resetUsageChoiceGroup('card-type-group');
-  const defaultCard = document.querySelector('#card-type-group .choice-chip[data-value="ساعة"]');
-  if(defaultCard) defaultCard.classList.add('active');
   modal.classList.add('show-modal');
   return false;
 }
@@ -557,33 +533,24 @@ function closeGlobalUsageModal(){
     form.action = '';
     form.dataset.rowId = '';
   }
-  resetUsageChoiceGroup('usage-reason-group');
-  resetUsageChoiceGroup('card-type-group');
-  const reasonInput = document.getElementById('usage_reason');
-  const cardInput = document.getElementById('card_type');
-  if(reasonInput) reasonInput.value = '';
-  if(cardInput) cardInput.value = 'ساعة';
-  const defaultCard = document.querySelector('#card-type-group .choice-chip[data-value="ساعة"]');
-  if(defaultCard) defaultCard.classList.add('active');
   return false;
 }
-function validateUsageForm(form){
-  const reasonInput = form.querySelector('input[name="usage_reason"]');
-  const cardInput = form.querySelector('input[name="card_type"]');
-  if(!reasonInput || !reasonInput.value){
-    showLiveFlash('يجب اختيار سبب الحصول على البطاقة.', 'error');
-    return false;
-  }
-  if(!cardInput || !cardInput.value){
-    showLiveFlash('يجب اختيار نوع البطاقة.', 'error');
-    return false;
-  }
-  if(form.dataset.submitting === '1') return false;
-  form.dataset.submitting = '1';
+
+async function submitUsageModal(form){
   form.classList.add('ajax-saving');
-  const submitBtn = form.querySelector('button[type="submit"]');
-  if(submitBtn){ submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...'; }
-  return true;
+  try{
+    const data = await ajaxPost(form.action, new FormData(form));
+    const rowId = parseInt(form.dataset.rowId || '0', 10);
+    replaceRowAndModal(data, rowId, '');
+    if(data.ok){
+      closeGlobalUsageModal();
+    }
+  }catch(err){
+    showLiveFlash(err.message || 'تعذر إضافة البطاقة', 'error');
+  }finally{
+    form.classList.remove('ajax-saving');
+  }
+  return false;
 }
 
 function updateBulkSelectedCount(){
@@ -795,6 +762,9 @@ document.addEventListener('DOMContentLoaded', function(){
       <a href="{{ url_for('dashboard') }}"><i class="fa-solid fa-gauge"></i><span class="nav-label">لوحة التحكم</span></a>
       <a href="{{ url_for('beneficiaries_page') }}"><i class="fa-solid fa-users"></i><span class="nav-label">المستفيدون</span></a>
       <a href="{{ url_for('usage_logs_page') }}"><i class="fa-solid fa-ticket"></i><span class="nav-label">سجل البطاقات</span></a>
+      {% if has_permission('backup') %}
+      <a href="{{ url_for('usage_logs_archive_page') }}"><i class="fa-solid fa-box-archive"></i><span class="nav-label">أرشيف البطاقات</span></a>
+      {% endif %}
       <a href="{{ url_for('power_timer_page') }}"><i class="fa-solid fa-bolt"></i><span class="nav-label">مؤقت الكهرباء</span></a>
       {% if has_permission('add') %}
       <details open>
@@ -845,28 +815,28 @@ document.addEventListener('DOMContentLoaded', function(){
           <h1>إضافة بطاقة</h1>
           <p>اختر السبب ونوع البطاقة ثم احفظ.</p>
         </div>
-        <form id="global-usage-form" method="POST" onsubmit="return validateUsageForm(this)">
-          <div class="choice-section">
-            <label>سبب البطاقة</label>
-            <input type="hidden" name="usage_reason" id="usage_reason" value="">
-            <div class="choice-group" id="usage-reason-group">
-              <button class="choice-chip" data-value="تنفيذ تجربة" type="button" onclick="return selectUsageChoice('usage_reason','usage-reason-group',this,'تنفيذ تجربة')">🧪 تنفيذ تجربة</button>
-              <button class="choice-chip" data-value="تقديم اختبار" type="button" onclick="return selectUsageChoice('usage_reason','usage-reason-group',this,'تقديم اختبار')">📝 تقديم اختبار</button>
-              <button class="choice-chip" data-value="حل واجب" type="button" onclick="return selectUsageChoice('usage_reason','usage-reason-group',this,'حل واجب')">📚 حل واجب</button>
-              <button class="choice-chip" data-value="دراسة" type="button" onclick="return selectUsageChoice('usage_reason','usage-reason-group',this,'دراسة')">📖 دراسة</button>
-              <button class="choice-chip" data-value="عمل حر" type="button" onclick="return selectUsageChoice('usage_reason','usage-reason-group',this,'عمل حر')">💻 عمل حر</button>
-              <button class="choice-chip" data-value="تحميل محاضرات" type="button" onclick="return selectUsageChoice('usage_reason','usage-reason-group',this,'تحميل محاضرات')">⬇️ تحميل محاضرات</button>
-              <button class="choice-chip" data-value="أخرى" type="button" onclick="return selectUsageChoice('usage_reason','usage-reason-group',this,'أخرى')">⚙️ أخرى</button>
+        <form id="global-usage-form" method="POST" onsubmit="return submitUsageModal(this)">
+          <div class="row">
+            <div>
+              <label>سبب البطاقة</label>
+              <select name="usage_reason" required>
+                <option value="">اختر السبب</option>
+                <option value="تنفيذ تجربة">تنفيذ تجربة</option>
+                <option value="تقديم اختبار">تقديم اختبار</option>
+                <option value="حل واجب">حل واجب</option>
+                <option value="دراسة">دراسة</option>
+                <option value="عمل حر">عمل حر</option>
+                <option value="تحميل محاضرات">تحميل محاضرات</option>
+                <option value="أخرى">أخرى</option>
+              </select>
             </div>
-            <div class="choice-hint">اختر السبب بنقرة واحدة لتسريع التسجيل.</div>
-          </div>
-          <div class="choice-section">
-            <label>نوع البطاقة</label>
-            <input type="hidden" name="card_type" id="card_type" value="ساعة">
-            <div class="choice-group" id="card-type-group">
-              <button class="choice-chip active" data-value="ساعة" type="button" onclick="return selectUsageChoice('card_type','card-type-group',this,'ساعة')">⏱️ ساعة</button>
-              <button class="choice-chip" data-value="ساعتين" type="button" onclick="return selectUsageChoice('card_type','card-type-group',this,'ساعتين')">⏳ ساعتين</button>
-              <button class="choice-chip" data-value="3 ساعات" type="button" onclick="return selectUsageChoice('card_type','card-type-group',this,'3 ساعات')">🔥 3 ساعات</button>
+            <div>
+              <label>نوع البطاقة</label>
+              <select name="card_type" required>
+                <option value="ساعة">ساعة</option>
+                <option value="ساعتين">ساعتين</option>
+                <option value="3 ساعات">3 ساعات</option>
+              </select>
             </div>
           </div>
           <div style="margin-top:12px">
@@ -1475,6 +1445,125 @@ def build_usage_logs_where(filters):
     return " AND ".join(where), params
 
 
+def build_usage_logs_where_for_alias(filters, log_alias="l", beneficiary_alias="b"):
+    where = ["1=1"]
+    params = []
+    if filters["q"]:
+        normalized_q = normalize_search_ar(filters["q"])
+        where.append(f"({beneficiary_alias}.search_name ILIKE %s OR {beneficiary_alias}.phone ILIKE %s)")
+        params.extend([f"%{normalized_q}%", f"%{filters['q']}%"])
+    if filters["reason"]:
+        where.append(f"{log_alias}.usage_reason = %s")
+        params.append(filters["reason"])
+    if filters["card_type"]:
+        where.append(f"{log_alias}.card_type = %s")
+        params.append(filters["card_type"])
+    if filters["user_type"]:
+        where.append(f"{beneficiary_alias}.user_type = %s")
+        params.append(filters["user_type"])
+    date_from = parse_date_or_none(filters["date_from"])
+    date_to = parse_date_or_none(filters["date_to"])
+    if date_from:
+        where.append(f"{log_alias}.usage_date >= %s")
+        params.append(date_from)
+    if date_to:
+        where.append(f"{log_alias}.usage_date <= %s")
+        params.append(date_to)
+    return " AND ".join(where), params
+
+
+def build_usage_excel_response(rows, filename, sheet_title="السجل"):
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = sheet_title
+    sheet.append(["#", "الاسم", "الجوال", "النوع", "سبب البطاقة", "نوع البطاقة", "التاريخ", "الوقت", "سجلها", "ملاحظات", "تاريخ الأرشفة", "أرشفها"])
+    for idx, r in enumerate(rows, start=1):
+        sheet.append([
+            idx,
+            safe(r.get("full_name")),
+            safe(r.get("phone")),
+            get_type_label(r.get("user_type")),
+            safe(r.get("usage_reason")),
+            safe(r.get("card_type")),
+            str(r.get("usage_date") or ""),
+            format_dt_short(r.get("usage_time")),
+            safe(r.get("added_by_username")),
+            safe(r.get("notes")),
+            format_dt_short(r.get("archived_at")),
+            safe(r.get("archived_by_username")),
+        ])
+    out = io.BytesIO()
+    workbook.save(out)
+    out.seek(0)
+    response = Response(out.getvalue(), mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    return response
+
+
+def move_usage_logs_to_archive(before_date=None):
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        params = [session.get("account_id"), session.get("username", "")]
+        where_clause = ""
+        delete_params = []
+        if before_date:
+            where_clause = "WHERE usage_date < %s"
+            params.append(before_date)
+            delete_params.append(before_date)
+        cur.execute(f"""
+            INSERT INTO beneficiary_usage_logs_archive (
+                original_log_id, beneficiary_id, usage_reason, card_type, usage_date, usage_time,
+                notes, added_by_account_id, added_by_username, archived_by_account_id, archived_by_username
+            )
+            SELECT id, beneficiary_id, usage_reason, card_type, usage_date, usage_time,
+                   notes, added_by_account_id, added_by_username, %s, %s
+            FROM beneficiary_usage_logs
+            {where_clause}
+        """, params)
+        moved = cur.rowcount or 0
+        cur.execute(f"DELETE FROM beneficiary_usage_logs {where_clause}", delete_params)
+        conn.commit()
+        return moved
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
+        release_connection(conn)
+
+
+def restore_usage_logs_from_archive(before_date=None):
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        where_clause = ""
+        params = []
+        if before_date:
+            where_clause = "WHERE usage_date < %s"
+            params.append(before_date)
+        cur.execute(f"""
+            INSERT INTO beneficiary_usage_logs (
+                beneficiary_id, usage_reason, card_type, usage_date, usage_time, notes, added_by_account_id, added_by_username
+            )
+            SELECT beneficiary_id, usage_reason, card_type, COALESCE(usage_date, CURRENT_DATE), COALESCE(usage_time, CURRENT_TIMESTAMP),
+                   notes, added_by_account_id, added_by_username
+            FROM beneficiary_usage_logs_archive
+            {where_clause}
+            ORDER BY id ASC
+        """, params)
+        restored = cur.rowcount or 0
+        cur.execute(f"DELETE FROM beneficiary_usage_logs_archive {where_clause}", params)
+        conn.commit()
+        return restored
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
+        release_connection(conn)
+
+
 def log_action(action_type, target_type="", target_id=None, details=""):
     if not session.get("account_id"):
         return
@@ -1677,6 +1766,23 @@ def setup_database():
     )
     """)
 
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS beneficiary_usage_logs_archive (
+        id SERIAL PRIMARY KEY,
+        original_log_id INTEGER,
+        beneficiary_id INTEGER REFERENCES beneficiaries(id) ON DELETE SET NULL,
+        usage_reason TEXT NOT NULL DEFAULT '',
+        card_type TEXT NOT NULL DEFAULT 'ساعة',
+        usage_date DATE,
+        usage_time TIMESTAMP,
+        notes TEXT DEFAULT '',
+        added_by_account_id INTEGER,
+        added_by_username TEXT DEFAULT '',
+        archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        archived_by_account_id INTEGER,
+        archived_by_username TEXT DEFAULT ''
+    )
+    """)
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS power_timer (
@@ -1938,9 +2044,6 @@ def dashboard():
                OR (user_type='university' AND university_internet_method='نظام البطاقات')
         """)["c"],
         "week_usage_total": query_one("SELECT COALESCE(SUM(weekly_usage_count),0) AS c FROM beneficiaries")["c"],
-        "today_usage_total": query_one("SELECT COUNT(*) AS c FROM beneficiary_usage_logs WHERE usage_date = CURRENT_DATE")["c"],
-        "month_usage_total": query_one("SELECT COUNT(*) AS c FROM beneficiary_usage_logs WHERE usage_date >= %s", [get_month_start()])["c"],
-        "active_this_week": query_one("SELECT COUNT(*) AS c FROM beneficiaries WHERE COALESCE(weekly_usage_count,0) > 0")["c"],
     }
 
     type_distribution = query_all("""
@@ -1974,39 +2077,6 @@ def dashboard():
         LIMIT 6
     """)
 
-    top_reasons = query_all("""
-        SELECT COALESCE(usage_reason, 'غير محدد') AS label, COUNT(*) AS value
-        FROM beneficiary_usage_logs
-        WHERE usage_date >= %s
-        GROUP BY COALESCE(usage_reason, 'غير محدد')
-        ORDER BY value DESC, label
-        LIMIT 6
-    """, [get_month_start()])
-
-    today_by_card = query_all("""
-        SELECT card_type AS label, COUNT(*) AS value
-        FROM beneficiary_usage_logs
-        WHERE usage_date = CURRENT_DATE
-        GROUP BY card_type
-        ORDER BY value DESC, label
-    """)
-
-    most_active_beneficiaries = query_all("""
-        SELECT b.full_name, b.user_type, b.weekly_usage_count
-        FROM beneficiaries b
-        WHERE COALESCE(b.weekly_usage_count, 0) > 0
-        ORDER BY b.weekly_usage_count DESC, b.full_name ASC
-        LIMIT 5
-    """)
-
-    recent_usage = query_all("""
-        SELECT b.full_name, b.user_type, l.usage_reason, l.card_type, l.usage_time
-        FROM beneficiary_usage_logs l
-        JOIN beneficiaries b ON b.id = l.beneficiary_id
-        ORDER BY l.usage_time DESC, l.id DESC
-        LIMIT 6
-    """)
-
     recent_logs = query_all("""
         SELECT username_snapshot, action_type, target_type, details, created_at
         FROM audit_logs
@@ -2031,44 +2101,29 @@ def dashboard():
             f"<a class='menu-card' href='{url_for('add_beneficiary_page')}?user_type=university'><div class='menu-icon'><i class='fa-solid fa-building-columns'></i></div><h3>إضافة طالب جامعي</h3><p>جامعة، كلية، تخصص وأيام الحضور.</p></a>",
         ])
     quick_cards.append(f"<a class='menu-card' href='{url_for('beneficiaries_page')}'><div class='menu-icon'><i class='fa-solid fa-users-viewfinder'></i></div><h3>المستفيدون</h3><p>فلترة متقدمة، تبويبات، ترتيب، وتعديل منبثق.</p></a>")
-    quick_cards.append(f"<a class='menu-card' href='{url_for('usage_logs_page')}'><div class='menu-icon'><i class='fa-solid fa-ticket'></i></div><h3>سجل البطاقات</h3><p>استعراض السجل التفصيلي مع الفلاتر الذكية والإحصائيات.</p></a>")
     if has_permission("manage_accounts"):
         quick_cards.append(f"<a class='menu-card' href='{url_for('accounts_page')}'><div class='menu-icon'><i class='fa-solid fa-user-shield'></i></div><h3>إدارة المستخدمين</h3><p>الحسابات والصلاحيات وحالة كل مستخدم.</p></a>")
 
-    active_people_html = "<div class='empty-state'>لا توجد استفادات هذا الأسبوع حتى الآن.</div>"
-    if most_active_beneficiaries:
-        active_people_html = "<div class='smart-list'>"
-        for person in most_active_beneficiaries:
-            active_people_html += f"<div class='smart-item'><div><strong>{safe(person['full_name'])}</strong><div class='meta'>{get_type_label(person['user_type'])}</div></div><div class='badge'>{safe(person['weekly_usage_count'])} بطاقات</div></div>"
-        active_people_html += "</div>"
-
-    recent_usage_html = "<div class='empty-state'>لا توجد بطاقات مسجلة حتى الآن.</div>"
-    if recent_usage:
-        recent_usage_html = "<div class='smart-list'>"
-        for item in recent_usage:
-            recent_usage_html += f"<div class='smart-item'><div><strong>{safe(item['full_name'])}</strong><div class='meta'>{get_type_label(item['user_type'])} • {safe(item['usage_reason'])} • {safe(item['card_type'])}</div></div><div class='badge'>{format_dt_compact(item['usage_time'])}</div></div>"
-        recent_usage_html += "</div>"
-
     content = f"""
     <div class="hero">
-      <h1>لوحة التحكم الذكية</h1>
-      <p>قراءة لحظية للنظام: حركة البطاقات، أكثر المستفيدين نشاطًا، وأهم المؤشرات التي تحتاجها بسرعة.</p>
+      <h1>لوحة التحكم الاحترافية</h1>
+      <p>إحصائيات مباشرة ورسوم مرئية ووصول سريع لكل أجزاء النظام.</p>
     </div>
 
     <div class="grid">
       <div class="stat"><h3>إجمالي المستفيدين</h3><div class="num">{stats['all_count']}</div></div>
-      <div class="stat"><h3>بطاقات اليوم</h3><div class="num">{stats['today_usage_total']}</div></div>
-      <div class="stat"><h3>بطاقات هذا الأسبوع</h3><div class="num">{stats['week_usage_total']}</div></div>
-      <div class="stat"><h3>بطاقات هذا الشهر</h3><div class="num">{stats['month_usage_total']}</div></div>
-      <div class="stat"><h3>مستفيدون نشطون هذا الأسبوع</h3><div class="num">{stats['active_this_week']}</div></div>
-      <div class="stat"><h3>الخاضعون لنظام البطاقات</h3><div class="num">{stats['card_based_count']}</div></div>
+      <div class="stat"><h3>طلاب التوجيهي</h3><div class="num">{stats['tawjihi_count']}</div></div>
+      <div class="stat"><h3>الطلاب الجامعيون</h3><div class="num">{stats['university_count']}</div></div>
+      <div class="stat"><h3>الفري لانسر</h3><div class="num">{stats['freelancer_count']}</div></div>
+      <div class="stat"><h3>حسابات النظام</h3><div class="num">{stats['accounts_count']}</div></div>
+      <div class="stat"><h3>الحسابات الفعالة</h3><div class="num">{stats['active_accounts']}</div></div>
     </div>
 
     <div class="kpi-strip">
-      <div class="kpi"><div class="label">طلاب التوجيهي</div><div class="value">{stats['tawjihi_count']}</div></div>
-      <div class="kpi"><div class="label">الطلاب الجامعيون</div><div class="value">{stats['university_count']}</div></div>
-      <div class="kpi"><div class="label">الفري لانسر</div><div class="value">{stats['freelancer_count']}</div></div>
-      <div class="kpi"><div class="label">الحسابات الفعالة</div><div class="value">{stats['active_accounts']}/{stats['accounts_count']}</div></div>
+      <div class="kpi"><div class="label">إجمالي الاستفادات هذا الأسبوع</div><div class="value">{stats['week_usage_total']}</div></div>
+      <div class="kpi"><div class="label">الخاضعون لنظام البطاقات / الحد الأسبوعي</div><div class="value">{stats['card_based_count']}</div></div>
+      <div class="kpi"><div class="label">نسبة الجامعات من الإجمالي</div><div class="value">{round((stats['university_count'] / stats['all_count']) * 100) if stats['all_count'] else 0}%</div></div>
+      <div class="kpi"><div class="label">نسبة التوجيهي من الإجمالي</div><div class="value">{round((stats['tawjihi_count'] / stats['all_count']) * 100) if stats['all_count'] else 0}%</div></div>
     </div>
 
     <div class="grid-3" style="margin-top:16px">
@@ -2083,36 +2138,6 @@ def dashboard():
       <div class="chart-card">
         <h3>أكثر الجامعات حضورًا</h3>
         {build_chart_rows(universities_top)}
-      </div>
-    </div>
-
-    <div class="grid-3" style="margin-top:16px">
-      <div class="chart-card">
-        <h3>أكثر أسباب البطاقات هذا الشهر</h3>
-        {build_chart_rows(top_reasons, empty_text='لا توجد أسباب مسجلة هذا الشهر.')}
-      </div>
-      <div class="chart-card">
-        <h3>أنواع بطاقات اليوم</h3>
-        {build_chart_rows(today_by_card, empty_text='لا توجد بطاقات اليوم حتى الآن.')}
-      </div>
-      <div class="smart-highlight">
-        <h3>تنبيه سريع</h3>
-        <p style="margin:0 0 12px 0;color:var(--muted)">لوحة اليوم تعطيك نظرة فورية على الضغط الحالي داخل القاعة وحجم استخدام البطاقات.</p>
-        <div class="metric-grid">
-          <div class="metric-box"><h4>معدل البطاقة اليومي</h4><div class="num">{stats['today_usage_total']}</div></div>
-          <div class="metric-box"><h4>معدل المستفيد النشط</h4><div class="num">{round(stats['week_usage_total'] / stats['active_this_week'], 1) if stats['active_this_week'] else 0}</div></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="grid-2" style="margin-top:16px">
-      <div class="smart-highlight">
-        <h3>أكثر المستفيدين نشاطًا هذا الأسبوع</h3>
-        {active_people_html}
-      </div>
-      <div class="smart-highlight">
-        <h3>آخر البطاقات المسجلة</h3>
-        {recent_usage_html}
       </div>
     </div>
 
@@ -2863,7 +2888,7 @@ def add_usage(beneficiary_id):
     category = "success"
 
     usage_reason = clean_csv_value(request.form.get("usage_reason"))
-    card_type = clean_csv_value(request.form.get("card_type")) or "ساعة"
+    card_type = clean_csv_value(request.form.get("card_type"))
     usage_notes = clean_csv_value(request.form.get("usage_notes"))
 
     if not limited:
@@ -2897,6 +2922,7 @@ def add_usage(beneficiary_id):
         category = "success"
 
     flash(message, category)
+
     return redirect(request.referrer or url_for("beneficiaries_page"))
 
 
@@ -3471,10 +3497,187 @@ def usage_logs_page():
         </table>
       </div>
     </div>
+    
+    <div class="card" style="margin-top:16px">
+      <h3 style="margin-top:0">إدارة السجل</h3>
+      <div class="grid-2">
+        <form method="POST" action="{url_for('usage_logs_clear_all')}" onsubmit="return confirm('سيتم حذف كل السجل الحالي. هل أنت متأكد؟')">
+          <div class="info-note">
+            <strong>تنظيف كامل</strong>
+            <div class="small" style="margin:8px 0 12px">يحذف جميع السجلات الحالية.</div>
+            <button class="btn btn-danger" type="submit"><i class="fa-solid fa-trash"></i> حذف الكل</button>
+          </div>
+        </form>
+        <form method="POST" action="{url_for('usage_logs_clear_before')}" onsubmit="return confirm('سيتم حذف السجلات الأقدم من التاريخ المحدد. هل أنت متأكد؟')">
+          <div class="info-note">
+            <strong>تنظيف جزئي</strong>
+            <div class="small" style="margin:8px 0 12px">يحذف كل ما قبل التاريخ الذي تحدده.</div>
+            <div class="row"><div><label>احذف ما قبل تاريخ</label><input type="date" name="before_date" required></div></div>
+            <div class="actions" style="margin-top:12px"><button class="btn btn-outline" type="submit"><i class="fa-solid fa-filter-circle-xmark"></i> حذف قبل التاريخ</button></div>
+          </div>
+        </form>
+      </div>
+      <div class="grid-2" style="margin-top:14px">
+        <form method="POST" action="{url_for('usage_logs_archive_all')}" onsubmit="return confirm('سيتم أرشفة كل السجلات ثم تنظيفها من السجل الحالي. هل أنت متأكد؟')">
+          <div class="info-note">
+            <strong>أرشفة كاملة</strong>
+            <div class="small" style="margin:8px 0 12px">ينقل كل السجلات إلى الأرشيف ثم يفرغ السجل الحالي.</div>
+            <button class="btn btn-secondary" type="submit"><i class="fa-solid fa-box-archive"></i> أرشفة الكل</button>
+          </div>
+        </form>
+        <form method="POST" action="{url_for('usage_logs_archive_before')}" onsubmit="return confirm('سيتم أرشفة السجلات الأقدم من التاريخ المحدد ثم حذفها من السجل الحالي. هل أنت متأكد؟')">
+          <div class="info-note">
+            <strong>أرشفة جزئية</strong>
+            <div class="small" style="margin:8px 0 12px">ينقل كل ما قبل التاريخ إلى الأرشيف.</div>
+            <div class="row"><div><label>أرشف ما قبل تاريخ</label><input type="date" name="before_date" required></div></div>
+            <div class="actions" style="margin-top:12px"><button class="btn btn-accent" type="submit"><i class="fa-solid fa-box"></i> أرشفة قبل التاريخ</button></div>
+          </div>
+        </form>
+      </div>
+      <div class="actions" style="margin-top:14px">
+        <a class="btn btn-soft" href="{url_for('usage_logs_archive_page')}"><i class="fa-solid fa-box-archive"></i> فتح الأرشيف</a>
+      </div>
+    </div>
     """
     return render_page("سجل البطاقات", content)
 
 
+
+
+@app.route("/usage-logs/archive")
+@login_required
+@permission_required("backup")
+def usage_logs_archive_page():
+    filters = usage_logs_filters_from_request()
+    where, params = build_usage_logs_where_for_alias(filters, log_alias="a", beneficiary_alias="b")
+    rows = query_all(f"""
+        SELECT a.*, b.full_name, b.phone, b.user_type
+        FROM beneficiary_usage_logs_archive a
+        LEFT JOIN beneficiaries b ON b.id = a.beneficiary_id
+        WHERE {where}
+        ORDER BY a.usage_time DESC NULLS LAST, a.id DESC
+        LIMIT 1000
+    """, params)
+    total_archive = query_one("SELECT COUNT(*) AS c FROM beneficiary_usage_logs_archive")["c"]
+    reason_options = "".join([f"<option value='{safe(x)}' {'selected' if filters['reason']==x else ''}>{safe(x)}</option>" for x in USAGE_REASON_OPTIONS])
+    card_options = "".join([f"<option value='{safe(x)}' {'selected' if filters['card_type']==x else ''}>{safe(x)}</option>" for x in CARD_TYPE_OPTIONS])
+    row_html = ""
+    for idx2, r in enumerate(rows, start=1):
+        row_html += f"""
+        <tr>
+          <td>{idx2}</td><td>{safe(r.get('full_name')) or '-'}</td><td>{safe(r.get('phone')) or '-'}</td><td>{get_type_label(r.get('user_type')) or '-'}</td><td>{safe(r.get('usage_reason'))}</td><td>{safe(r.get('card_type'))}</td><td>{format_dt_short(r.get('usage_time'))}</td><td>{safe(r.get('added_by_username')) or '-'}</td><td>{format_dt_short(r.get('archived_at'))}</td><td>{safe(r.get('archived_by_username')) or '-'}</td><td class='cell-wrap'>{safe(r.get('notes')) or '-'}</td>
+        </tr>
+        """
+    if not row_html:
+        row_html = "<tr><td colspan='11' class='empty-state'>الأرشيف فارغ أو لا توجد نتائج مطابقة.</td></tr>"
+    export_query = build_query_string(filters)
+    export_url = url_for('export_usage_logs_archive_excel') + (f"?{export_query}" if export_query else "")
+    content = f"""
+    <div class="hero"><h1>أرشيف سجل البطاقات</h1><p>عرض السجلات المؤرشفة مع إمكانيات التصدير والاسترجاع والإدارة الكاملة.</p></div>
+    <div class="usage-summary-grid">
+      <div class="metric-box"><h4>إجمالي الأرشيف</h4><div class="num">{total_archive}</div></div>
+      <div class="metric-box"><h4>النتائج المعروضة</h4><div class="num">{len(rows)}</div></div>
+      <div class="metric-box"><h4>تصدير</h4><div class="num"><a class='btn btn-accent' href='{export_url}'><i class='fa-solid fa-file-excel'></i> Excel</a></div></div>
+      <div class="metric-box"><h4>السجل الحالي</h4><div class="num"><a class='btn btn-soft' href='{url_for('usage_logs_page')}'>فتح السجل</a></div></div>
+    </div>
+    <div class="card"><div class="filter-box"><form method="GET"><div class="row"><div><label>بحث بالاسم أو الجوال</label><input name="q" value="{safe(filters['q'])}" placeholder="مثال: أحمد أحمد أو رقم الجوال"></div><div><label>النوع</label><select name="user_type"><option value="">الكل</option><option value="tawjihi" {"selected" if filters["user_type"]=="tawjihi" else ""}>توجيهي</option><option value="university" {"selected" if filters["user_type"]=="university" else ""}>جامعة</option><option value="freelancer" {"selected" if filters["user_type"]=="freelancer" else ""}>فري لانسر</option></select></div><div><label>سبب البطاقة</label><select name="reason"><option value="">الكل</option>{reason_options}</select></div><div><label>نوع البطاقة</label><select name="card_type"><option value="">الكل</option>{card_options}</select></div><div><label>من تاريخ</label><input type="date" name="date_from" value="{safe(filters['date_from'])}"></div><div><label>إلى تاريخ</label><input type="date" name="date_to" value="{safe(filters['date_to'])}"></div></div><div class="actions" style="margin-top:14px"><button class="btn btn-primary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> بحث</button><a class="btn btn-soft" href="{url_for('usage_logs_archive_page')}">مسح الفلاتر</a><a class="btn btn-accent" href="{export_url}"><i class="fa-solid fa-file-excel"></i> تصدير Excel</a></div></form></div></div>
+    <div class="card" style="margin-top:16px"><div class="table-wrap"><table><thead><tr><th>#</th><th>الاسم</th><th>الجوال</th><th>النوع</th><th>سبب البطاقة</th><th>نوع البطاقة</th><th>وقت الاستخدام</th><th>سجلها</th><th>وقت الأرشفة</th><th>أرشفها</th><th>ملاحظات</th></tr></thead><tbody>{row_html}</tbody></table></div></div>
+    <div class="card" style="margin-top:16px"><h3 style="margin-top:0">إدارة الأرشيف</h3><div class="grid-2"><form method="POST" action="{url_for('archive_restore_all')}" onsubmit="return confirm('سيتم استرجاع كل سجلات الأرشيف إلى السجل الحالي. هل أنت متأكد؟')"><div class="info-note"><strong>استرجاع كامل</strong><div class="small" style="margin:8px 0 12px">يعيد كل سجلات الأرشيف إلى السجل الحالي ثم يزيلها من الأرشيف.</div><button class="btn btn-primary" type="submit"><i class="fa-solid fa-rotate-left"></i> استرجاع الكل</button></div></form><form method="POST" action="{url_for('archive_restore_before')}" onsubmit="return confirm('سيتم استرجاع السجلات الأقدم من التاريخ المحدد. هل أنت متأكد؟')"><div class="info-note"><strong>استرجاع جزئي</strong><div class="small" style="margin:8px 0 12px">يعيد كل ما قبل التاريخ إلى السجل الحالي.</div><div class="row"><div><label>استرجع ما قبل تاريخ</label><input type="date" name="before_date" required></div></div><div class="actions" style="margin-top:12px"><button class="btn btn-secondary" type="submit"><i class="fa-solid fa-clock-rotate-left"></i> استرجاع قبل التاريخ</button></div></div></form></div><div class="grid-2" style="margin-top:14px"><form method="GET" action="{url_for('export_usage_logs_archive_excel')}"><div class="info-note"><strong>تصدير الأرشيف إلى Excel</strong><div class="small" style="margin:8px 0 12px">ينزل ملف Excel لنتائج الأرشيف.</div><button class="btn btn-accent" type="submit"><i class="fa-solid fa-file-excel"></i> تصدير Excel</button></div></form><form method="POST" action="{url_for('archive_clear_all')}" onsubmit="return confirm('سيتم حذف كل الأرشيف نهائيًا. هل أنت متأكد جدًا؟')"><div class="info-note"><strong>تنظيف الأرشيف بالكامل</strong><div class="small" style="margin:8px 0 12px">يحذف كل السجلات المؤرشفة نهائيًا.</div><button class="btn btn-danger" type="submit"><i class="fa-solid fa-trash-can"></i> حذف الأرشيف</button></div></form></div></div>
+    """
+    return render_page("أرشيف سجل البطاقات", content)
+
+@app.route("/usage-logs/clear-all", methods=["POST"])
+@login_required
+@permission_required("backup")
+def usage_logs_clear_all():
+    deleted = query_one("SELECT COUNT(*) AS c FROM beneficiary_usage_logs")["c"]
+    execute_sql("DELETE FROM beneficiary_usage_logs")
+    log_action("delete", "beneficiary", None, f"تنظيف كامل لسجل البطاقات الحالي ({deleted}) سجل")
+    flash(f"تم حذف {deleted} سجل من السجل الحالي.", "success")
+    return redirect(url_for("usage_logs_page"))
+
+@app.route("/usage-logs/clear-before", methods=["POST"])
+@login_required
+@permission_required("backup")
+def usage_logs_clear_before():
+    before_date = parse_date_or_none(request.form.get("before_date"))
+    if not before_date:
+        flash("الرجاء اختيار تاريخ صحيح.", "error")
+        return redirect(url_for("usage_logs_page"))
+    deleted = query_one("SELECT COUNT(*) AS c FROM beneficiary_usage_logs WHERE usage_date < %s", [before_date])["c"]
+    execute_sql("DELETE FROM beneficiary_usage_logs WHERE usage_date < %s", [before_date])
+    log_action("delete", "beneficiary", None, f"تنظيف جزئي لسجل البطاقات الحالي قبل {before_date} بعدد {deleted}")
+    flash(f"تم حذف {deleted} سجل أقدم من {before_date}.", "success")
+    return redirect(url_for("usage_logs_page"))
+
+@app.route("/usage-logs/archive-all", methods=["POST"])
+@login_required
+@permission_required("backup")
+def usage_logs_archive_all():
+    moved = move_usage_logs_to_archive()
+    log_action("backup", "beneficiary", None, f"أرشفة كاملة لسجل البطاقات الحالي ({moved}) سجل")
+    flash(f"تمت أرشفة {moved} سجل إلى الأرشيف.", "success")
+    return redirect(url_for("usage_logs_page"))
+
+@app.route("/usage-logs/archive-before", methods=["POST"])
+@login_required
+@permission_required("backup")
+def usage_logs_archive_before():
+    before_date = parse_date_or_none(request.form.get("before_date"))
+    if not before_date:
+        flash("الرجاء اختيار تاريخ صحيح.", "error")
+        return redirect(url_for("usage_logs_page"))
+    moved = move_usage_logs_to_archive(before_date=before_date)
+    log_action("backup", "beneficiary", None, f"أرشفة جزئية لسجل البطاقات قبل {before_date} بعدد {moved}")
+    flash(f"تمت أرشفة {moved} سجل أقدم من {before_date}.", "success")
+    return redirect(url_for("usage_logs_page"))
+
+@app.route("/usage-logs/archive/export.xlsx")
+@login_required
+@permission_required("backup")
+def export_usage_logs_archive_excel():
+    filters = usage_logs_filters_from_request()
+    where, params = build_usage_logs_where_for_alias(filters, log_alias="a", beneficiary_alias="b")
+    rows = query_all(f"""
+        SELECT a.*, b.full_name, b.phone, b.user_type
+        FROM beneficiary_usage_logs_archive a
+        LEFT JOIN beneficiaries b ON b.id = a.beneficiary_id
+        WHERE {where}
+        ORDER BY a.usage_time DESC NULLS LAST, a.id DESC
+    """, params)
+    return build_usage_excel_response(rows, "usage_logs_archive.xlsx", sheet_title="أرشيف البطاقات")
+
+@app.route("/usage-logs/archive/restore-all", methods=["POST"])
+@login_required
+@permission_required("backup")
+def archive_restore_all():
+    restored = restore_usage_logs_from_archive()
+    log_action("backup", "beneficiary", None, f"استرجاع كامل من الأرشيف إلى السجل الحالي ({restored}) سجل")
+    flash(f"تم استرجاع {restored} سجل من الأرشيف إلى السجل الحالي.", "success")
+    return redirect(url_for("usage_logs_archive_page"))
+
+@app.route("/usage-logs/archive/restore-before", methods=["POST"])
+@login_required
+@permission_required("backup")
+def archive_restore_before():
+    before_date = parse_date_or_none(request.form.get("before_date"))
+    if not before_date:
+        flash("الرجاء اختيار تاريخ صحيح.", "error")
+        return redirect(url_for("usage_logs_archive_page"))
+    restored = restore_usage_logs_from_archive(before_date=before_date)
+    log_action("backup", "beneficiary", None, f"استرجاع جزئي من الأرشيف قبل {before_date} بعدد {restored}")
+    flash(f"تم استرجاع {restored} سجل أقدم من {before_date} إلى السجل الحالي.", "success")
+    return redirect(url_for("usage_logs_archive_page"))
+
+@app.route("/usage-logs/archive/clear-all", methods=["POST"])
+@login_required
+@permission_required("backup")
+def archive_clear_all():
+    deleted = query_one("SELECT COUNT(*) AS c FROM beneficiary_usage_logs_archive")["c"]
+    execute_sql("DELETE FROM beneficiary_usage_logs_archive")
+    log_action("delete", "beneficiary", None, f"تنظيف كامل لأرشيف البطاقات ({deleted}) سجل")
+    flash(f"تم حذف {deleted} سجل من الأرشيف نهائيًا.", "success")
+    return redirect(url_for("usage_logs_archive_page"))
 @app.route("/accounts")
 @login_required
 @permission_required("manage_accounts")
