@@ -3637,7 +3637,7 @@ def clear_archive_logs():
     return redirect(url_for("usage_archive_page"))
 
 
-@app.route("/accounts")@app.route("/accounts")
+@app.route("/accounts")
 @login_required
 @permission_required("manage_accounts")
 def accounts_page():
