@@ -91,6 +91,8 @@ PERMISSIONS = [
     "restore_archive",
     "export_archive",
     "delete_archive",
+    "manage_bulk_ops",
+    "manage_system_cleanup",
 ]
 
 PERMISSION_LABELS = {
@@ -110,6 +112,8 @@ PERMISSION_LABELS = {
     "restore_archive": "استرجاع من الأرشيف",
     "export_archive": "تصدير الأرشيف",
     "delete_archive": "تنظيف الأرشيف",
+    "manage_bulk_ops": "تعديلات جماعية على المستفيدين",
+    "manage_system_cleanup": "تنظيف وتصفير النظام",
 }
 
 PERMISSION_DESCRIPTIONS = {
@@ -129,6 +133,8 @@ PERMISSION_DESCRIPTIONS = {
     "restore_archive": "استرجاع السجلات المؤرشفة إلى السجل الحالي.",
     "export_archive": "تصدير الأرشيف إلى Excel.",
     "delete_archive": "تنظيف الأرشيف نهائيًا.",
+    "manage_bulk_ops": "تنفيذ تعديلات جماعية على مجموعة مستفيدين أو على الجميع.",
+    "manage_system_cleanup": "تنفيذ عمليات تنظيف، حذف، وتصفير حساسة على بيانات النظام.",
 }
 
 TAWJIHI_YEARS = ["2006", "2007", "2008", "2009", "2010", "2011"]
@@ -944,7 +950,9 @@ function initPhoneCounters(){
     input.insertAdjacentElement('afterend', helper);
     const remaining = helper.querySelector('.remaining');
     const sync = function(){
-      input.value = (input.value || '').replace(/\D/g,'').slice(0,10);
+      input.value = (input.value || '').replace(/\D/g,'');
+      if(input.value.length === 9 && !input.value.startsWith('0')){ input.value = '0' + input.value; }
+      input.value = input.value.slice(0,10);
       const len = input.value.length;
       const left = Math.max(0, 10 - len);
       remaining.textContent = left === 0 ? 'مكتمل 10/10' : ('باقي ' + left + ' أرقام');
@@ -1010,6 +1018,9 @@ document.addEventListener('DOMContentLoaded', function(){
       <a href="{{ url_for('profile_page') }}"><i class="fa-solid fa-id-badge"></i><span class="nav-label">صفحتي الشخصية</span></a>
       {% if has_permission('manage_accounts') %}
       <a href="{{ url_for('accounts_page') }}"><i class="fa-solid fa-user-shield"></i><span class="nav-label">إدارة المستخدمين</span></a>
+      {% endif %}
+      {% if has_permission('manage_bulk_ops') or has_permission('manage_system_cleanup') %}
+      <a href="{{ url_for('ultra_admin_panel') }}"><i class="fa-solid fa-sliders"></i><span class="nav-label">V3 Ultra Admin</span></a>
       {% endif %}
       {% if has_permission('view_audit_log') %}
       <a href="{{ url_for('audit_log_page') }}"><i class="fa-solid fa-clock-rotate-left"></i><span class="nav-label">سجل العمليات</span></a>
@@ -2261,6 +2272,8 @@ def dashboard():
     quick_cards.append(f"<a class='menu-card' href='{url_for('beneficiaries_page')}'><div class='menu-icon'><i class='fa-solid fa-users-viewfinder'></i></div><h3>المستفيدون</h3><p>فلترة متقدمة، تبويبات، ترتيب، وتعديل منبثق.</p></a>")
     if has_permission("manage_accounts"):
         quick_cards.append(f"<a class='menu-card' href='{url_for('accounts_page')}'><div class='menu-icon'><i class='fa-solid fa-user-shield'></i></div><h3>إدارة المستخدمين</h3><p>الحسابات والصلاحيات وحالة كل مستخدم.</p></a>")
+    if has_permission("manage_bulk_ops") or has_permission("manage_system_cleanup"):
+        quick_cards.append(f"<a class='menu-card' href='{url_for('ultra_admin_panel')}'><div class='menu-icon'><i class='fa-solid fa-sliders'></i></div><h3>V3 Ultra Admin</h3><p>تنظيف متقدم، تصفير جداول، وتعديلات جماعية على المستفيدين.</p></a>")
 
     content = f"""
     <div class="hero">
@@ -4653,6 +4666,266 @@ def export_selected_beneficiaries():
 
 
 import os
+
+
+def ultra_admin_filter_values(form):
+    return {
+        "scope": clean_csv_value(form.get("scope", "all")) or "all",
+        "user_type": clean_csv_value(form.get("user_type", "")),
+        "internet_method": clean_csv_value(form.get("internet_method", "")),
+        "tawjihi_year": clean_csv_value(form.get("tawjihi_year", "")),
+        "university_name": clean_csv_value(form.get("university_name", "")),
+        "ids": clean_csv_value(form.get("ids", "")),
+    }
+
+
+def build_beneficiary_target_where(filters: dict):
+    scope = filters.get("scope") or "all"
+    clauses = ["1=1"]
+    params = []
+    if scope == "ids" and filters.get("ids"):
+        raw_ids = [x.strip() for x in filters.get("ids", "").replace('\n', ',').split(',') if x.strip().isdigit()]
+        ids = [int(x) for x in raw_ids]
+        if not ids:
+            return None, None, "لم يتم إدخال معرّفات صحيحة."
+        clauses = ["id = ANY(%s)"]
+        params = [ids]
+    elif scope == "filtered":
+        if filters.get("user_type"):
+            clauses.append("user_type = %s")
+            params.append(filters["user_type"])
+        if filters.get("tawjihi_year"):
+            clauses.append("COALESCE(tawjihi_year,'') = %s")
+            params.append(filters["tawjihi_year"])
+        if filters.get("university_name"):
+            clauses.append("COALESCE(university_name,'') = %s")
+            params.append(filters["university_name"])
+        method = filters.get("internet_method")
+        if method:
+            clauses.append("(CASE WHEN user_type='freelancer' THEN COALESCE(freelancer_internet_method,'') WHEN user_type='university' THEN COALESCE(university_internet_method,'') WHEN user_type='tawjihi' THEN 'نظام البطاقات' ELSE '' END) = %s")
+            params.append(method)
+        if len(clauses) == 1:
+            return None, None, "اختر على الأقل فلترًا واحدًا عند استخدام نطاق مجموعة مفلترة."
+    return " AND ".join(clauses), params, ""
+
+
+def count_target_beneficiaries(filters: dict):
+    where, params, error = build_beneficiary_target_where(filters)
+    if error:
+        return 0, error
+    row = query_one(f"SELECT COUNT(*) AS c FROM beneficiaries WHERE {where}", params)
+    return int((row or {}).get("c", 0) or 0), ""
+
+
+def apply_bulk_update(operation: str, new_value: str, filters: dict):
+    where, params, error = build_beneficiary_target_where(filters)
+    if error:
+        return False, error, 0
+    field_map = {
+        "set_freelancer_internet_method": ("freelancer_internet_method", ["يمتلك اسم مستخدم", "نظام البطاقات"], "user_type='freelancer'"),
+        "set_university_internet_method": ("university_internet_method", ["يمتلك اسم مستخدم", "نظام البطاقات"], "user_type='university'"),
+        "set_freelancer_time_mode": ("freelancer_time_mode", TIME_MODE_OPTIONS, "user_type='freelancer'"),
+        "set_university_time_mode": ("university_time_mode", TIME_MODE_OPTIONS, "user_type='university'"),
+        "set_freelancer_schedule_type": ("freelancer_schedule_type", FREELANCER_SCHEDULE_OPTIONS, "user_type='freelancer'"),
+        "set_university_days": ("university_days", UNIVERSITY_DAYS_OPTIONS, "user_type='university'"),
+    }
+    cfg = field_map.get(operation)
+    if not cfg:
+        return False, "عملية التعديل غير معروفة.", 0
+    field_name, allowed_values, extra_clause = cfg
+    if new_value not in allowed_values:
+        return False, "القيمة الجديدة غير صالحة لهذه العملية.", 0
+    full_where = where if not extra_clause else f"({where}) AND {extra_clause}"
+    count_row = query_one(f"SELECT COUNT(*) AS c FROM beneficiaries WHERE {full_where}", params)
+    affected = int((count_row or {}).get("c", 0) or 0)
+    execute_sql(f"UPDATE beneficiaries SET {field_name}=%s WHERE {full_where}", [new_value] + params)
+    return True, f"تم تحديث {affected} مستفيد/ة.", affected
+
+
+def apply_bulk_clean(operation: str, filters: dict):
+    where, params, error = build_beneficiary_target_where(filters)
+    if error:
+        return False, error, 0
+    operations = {
+        "clear_notes": ["notes = ''"],
+        "clear_phones": ["phone = ''"],
+        "reset_weekly_usage": ["weekly_usage_count = 0", "weekly_usage_week_start = %s"],
+        "clear_times": ["freelancer_time_from = ''", "freelancer_time_to = ''", "university_time_from = ''", "university_time_to = ''"],
+        "clear_internet_methods": ["freelancer_internet_method = ''", "university_internet_method = ''"],
+    }
+    set_parts = operations.get(operation)
+    if not set_parts:
+        return False, "عملية التنظيف غير معروفة.", 0
+    full_params = []
+    if operation == "reset_weekly_usage":
+        full_params.append(get_week_start())
+    full_params += params
+    count_row = query_one(f"SELECT COUNT(*) AS c FROM beneficiaries WHERE {where}", params)
+    affected = int((count_row or {}).get("c", 0) or 0)
+    execute_sql(f"UPDATE beneficiaries SET {', '.join(set_parts)} WHERE {where}", full_params)
+    return True, f"تم تنفيذ العملية على {affected} مستفيد/ة.", affected
+
+
+def apply_system_reset(operation: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        if operation == "truncate_operational":
+            cur.execute("TRUNCATE TABLE beneficiary_usage_logs RESTART IDENTITY CASCADE")
+            cur.execute("TRUNCATE TABLE beneficiary_usage_logs_archive RESTART IDENTITY CASCADE")
+            cur.execute("TRUNCATE TABLE audit_logs RESTART IDENTITY CASCADE")
+            conn.commit()
+            return True, "تم تنظيف السجل الحالي والأرشيف وسجل العمليات.", ""
+        if operation == "truncate_beneficiaries_only":
+            cur.execute("TRUNCATE TABLE beneficiary_usage_logs RESTART IDENTITY CASCADE")
+            cur.execute("TRUNCATE TABLE beneficiary_usage_logs_archive RESTART IDENTITY CASCADE")
+            cur.execute("TRUNCATE TABLE beneficiaries RESTART IDENTITY CASCADE")
+            conn.commit()
+            return True, "تم حذف جميع المستفيدين مع السجل الحالي والأرشيف.", ""
+        if operation == "truncate_everything_except_accounts":
+            cur.execute("TRUNCATE TABLE beneficiary_usage_logs RESTART IDENTITY CASCADE")
+            cur.execute("TRUNCATE TABLE beneficiary_usage_logs_archive RESTART IDENTITY CASCADE")
+            cur.execute("TRUNCATE TABLE audit_logs RESTART IDENTITY CASCADE")
+            cur.execute("TRUNCATE TABLE beneficiaries RESTART IDENTITY CASCADE")
+            conn.commit()
+            return True, "تم تصفير بيانات التشغيل كاملة مع الإبقاء على حسابات النظام وصلاحياتها.", ""
+        return False, "عملية التصفير غير معروفة.", ""
+    except Exception as exc:
+        conn.rollback()
+        return False, f"تعذر تنفيذ العملية: {exc}", str(exc)
+    finally:
+        cur.close()
+        release_connection(conn)
+
+
+@app.route("/ultra-admin")
+@login_required
+def ultra_admin_panel():
+    if not (has_permission('manage_system_cleanup') or has_permission('manage_bulk_ops')):
+        flash('غير مصرح لك بهذه العملية.', 'error')
+        return redirect(url_for('dashboard'))
+    counts = {
+        "beneficiaries": query_one("SELECT COUNT(*) AS c FROM beneficiaries")["c"],
+        "usage_logs": query_one("SELECT COUNT(*) AS c FROM beneficiary_usage_logs")["c"],
+        "archive_logs": query_one("SELECT COUNT(*) AS c FROM beneficiary_usage_logs_archive")["c"],
+        "audit_logs": query_one("SELECT COUNT(*) AS c FROM audit_logs")["c"],
+    }
+    tawjihi_year_options = "".join([f"<option value='{safe(x)}'>{safe(x)}</option>" for x in TAWJIHI_YEARS])
+    university_name_options = "".join([f"<option value='{safe(x)}'>{safe(x)}</option>" for x in UNIVERSITIES_GAZA])
+    user_type_options = "".join([
+        "<option value=''>كل الأنواع</option>",
+        "<option value='tawjihi'>توجيهي</option>",
+        "<option value='university'>جامعة</option>",
+        "<option value='freelancer'>فري لانسر</option>",
+    ])
+    internet_method_options = "".join([f"<option value='{safe(x)}'>{safe(x)}</option>" for x in INTERNET_ACCESS_METHOD_OPTIONS])
+    content = f"""
+    <div class='hero'><h1>V3 Ultra Admin Panel</h1><p>لوحة عمليات متقدمة للتنظيف، التصفير، والتعديلات الجماعية على المستفيدين مع نطاق شامل أو مفلتر أو محدد بالمعرّفات.</p></div>
+    <div class='grid'>
+      <div class='stat live-pulse'><h3>إجمالي المستفيدين</h3><div class='num'>{counts['beneficiaries']}</div></div>
+      <div class='stat'><h3>سجل البطاقات الحالي</h3><div class='num'>{counts['usage_logs']}</div></div>
+      <div class='stat'><h3>أرشيف البطاقات</h3><div class='num'>{counts['archive_logs']}</div></div>
+      <div class='stat'><h3>سجل العمليات</h3><div class='num'>{counts['audit_logs']}</div></div>
+    </div>
+    <div class='grid-2' style='margin-top:16px'>
+      <div class='card glass-card'>
+        <h3 style='margin-top:0'>نطاق العملية</h3>
+        <p class='small'>يمكنك تطبيق أي عملية على الجميع، على مجموعة مفلترة، أو على قائمة IDs محددة.</p>
+        <form method='POST' action='{url_for('ultra_admin_bulk_update')}' class='row'>
+          <input type='hidden' name='op_kind' value='update'>
+          <div><label>النطاق</label><select name='scope'><option value='all'>الكل</option><option value='filtered'>مجموعة مفلترة</option><option value='ids'>IDs محددة</option></select></div>
+          <div><label>النوع</label><select name='user_type'>{user_type_options}</select></div>
+          <div><label>طريقة الاتصال</label><select name='internet_method'><option value=''>أي قيمة</option>{internet_method_options}</select></div>
+          <div><label>سنة التوجيهي</label><select name='tawjihi_year'><option value=''>كل السنوات</option>{tawjihi_year_options}</select></div>
+          <div><label>الجامعة</label><select name='university_name'><option value=''>كل الجامعات</option>{university_name_options}</select></div>
+          <div style='grid-column:1/-1'><label>IDs (اختياري)</label><textarea name='ids' placeholder='مثال: 12,15,19'></textarea></div>
+          <div><label>عملية التعديل</label><select name='operation'><option value='set_freelancer_internet_method'>تعديل إنترنت الفري لانسر</option><option value='set_university_internet_method'>تعديل إنترنت الجامعة</option><option value='set_freelancer_time_mode'>تعديل وضع وقت الفري لانسر</option><option value='set_university_time_mode'>تعديل وضع وقت الجامعة</option><option value='set_freelancer_schedule_type'>تعديل دوام الفري لانسر</option><option value='set_university_days'>تعديل أيام الجامعة</option></select></div>
+          <div><label>القيمة الجديدة</label><input name='new_value' placeholder='القيمة الجديدة حسب العملية' required></div>
+          <div class='actions' style='align-items:flex-end'><button class='btn btn-primary' type='submit'><i class='fa-solid fa-wand-magic-sparkles'></i> تنفيذ تعديل جماعي</button></div>
+        </form>
+      </div>
+      <div class='card glass-card'>
+        <h3 style='margin-top:0'>تنظيف جماعي للمستفيدين</h3>
+        <p class='small'>تنظيف حقول محددة فقط دون حذف السجل نفسه.</p>
+        <form method='POST' action='{url_for('ultra_admin_bulk_clean')}' class='row'>
+          <div><label>النطاق</label><select name='scope'><option value='all'>الكل</option><option value='filtered'>مجموعة مفلترة</option><option value='ids'>IDs محددة</option></select></div>
+          <div><label>النوع</label><select name='user_type'>{user_type_options}</select></div>
+          <div><label>طريقة الاتصال</label><select name='internet_method'><option value=''>أي قيمة</option>{internet_method_options}</select></div>
+          <div><label>سنة التوجيهي</label><select name='tawjihi_year'><option value=''>كل السنوات</option>{tawjihi_year_options}</select></div>
+          <div><label>الجامعة</label><select name='university_name'><option value=''>كل الجامعات</option>{university_name_options}</select></div>
+          <div style='grid-column:1/-1'><label>IDs (اختياري)</label><textarea name='ids' placeholder='مثال: 1,2,3'></textarea></div>
+          <div><label>عملية التنظيف</label><select name='operation'><option value='clear_notes'>مسح كل الملاحظات</option><option value='clear_phones'>مسح كل أرقام الجوالات</option><option value='reset_weekly_usage'>تصفير العدادات الأسبوعية</option><option value='clear_times'>مسح كل أوقات الدوام</option><option value='clear_internet_methods'>مسح كل أنظمة الاتصال</option></select></div>
+          <div class='actions' style='align-items:flex-end'><button class='btn btn-outline' type='submit'><i class='fa-solid fa-eraser'></i> تنفيذ التنظيف</button></div>
+        </form>
+      </div>
+    </div>
+    <div class='grid-3' style='margin-top:16px'>
+      <div class='archive-action-card archive-card-orange'>
+        <div class='icon'><i class='fa-solid fa-broom'></i></div>
+        <h4>تنظيف الجداول التشغيلية</h4>
+        <p>يحذف سجل البطاقات الحالي والأرشيف وسجل العمليات فقط، دون حذف المستفيدين أو الحسابات.</p>
+        <form method='POST' action='{url_for('ultra_admin_reset')}' onsubmit="return confirm('سيتم تنظيف السجلات التشغيلية بالكامل. متابعة؟')">
+          <input type='hidden' name='operation' value='truncate_operational'>
+          <button class='btn btn-soft' type='submit'><i class='fa-solid fa-broom'></i> تنظيف السجلات</button>
+        </form>
+      </div>
+      <div class='archive-action-card archive-card-red'>
+        <div class='icon'><i class='fa-solid fa-users-slash'></i></div>
+        <h4>حذف كل المستفيدين</h4>
+        <p>يحذف المستفيدين مع سجل البطاقات الحالي والأرشيف المرتبط بهم، مع الإبقاء على حسابات النظام.</p>
+        <form method='POST' action='{url_for('ultra_admin_reset')}' onsubmit="return confirm('سيتم حذف كل المستفيدين والسجلات المرتبطة. متابعة؟')">
+          <input type='hidden' name='operation' value='truncate_beneficiaries_only'>
+          <button class='btn btn-danger' type='submit'><i class='fa-solid fa-trash-can'></i> حذف المستفيدين</button>
+        </form>
+      </div>
+      <div class='archive-action-card archive-card-blue'>
+        <div class='icon'><i class='fa-solid fa-skull-crossbones'></i></div>
+        <h4>تصفير النظام</h4>
+        <p>يحذف كل بيانات التشغيل كاملة: المستفيدون، سجل البطاقات، الأرشيف، وسجل العمليات. تبقى فقط حسابات الدخول والصلاحيات.</p>
+        <form method='POST' action='{url_for('ultra_admin_reset')}' onsubmit="return confirm('هذه أقوى عملية في النظام وستصفر كل بيانات التشغيل. متابعة؟')">
+          <input type='hidden' name='operation' value='truncate_everything_except_accounts'>
+          <button class='btn btn-danger' type='submit'><i class='fa-solid fa-biohazard'></i> تصفير النظام</button>
+        </form>
+      </div>
+    </div>
+    """
+    return render_page("V3 Ultra Admin", content)
+
+
+@app.route("/ultra-admin/bulk-update", methods=["POST"])
+@login_required
+@permission_required("manage_bulk_ops")
+def ultra_admin_bulk_update():
+    filters = ultra_admin_filter_values(request.form)
+    operation = clean_csv_value(request.form.get("operation", ""))
+    new_value = clean_csv_value(request.form.get("new_value", ""))
+    ok, message, affected = apply_bulk_update(operation, new_value, filters)
+    log_action("edit", "beneficiary", None, f"Ultra bulk update | op={operation} | affected={affected} | scope={filters.get('scope')}")
+    flash(message, "success" if ok else "error")
+    return redirect(url_for("ultra_admin_panel"))
+
+
+@app.route("/ultra-admin/bulk-clean", methods=["POST"])
+@login_required
+@permission_required("manage_system_cleanup")
+def ultra_admin_bulk_clean():
+    filters = ultra_admin_filter_values(request.form)
+    operation = clean_csv_value(request.form.get("operation", ""))
+    ok, message, affected = apply_bulk_clean(operation, filters)
+    log_action("edit", "beneficiary", None, f"Ultra bulk clean | op={operation} | affected={affected} | scope={filters.get('scope')}")
+    flash(message, "success" if ok else "error")
+    return redirect(url_for("ultra_admin_panel"))
+
+
+@app.route("/ultra-admin/reset", methods=["POST"])
+@login_required
+@permission_required("manage_system_cleanup")
+def ultra_admin_reset():
+    operation = clean_csv_value(request.form.get("operation", ""))
+    ok, message, _ = apply_system_reset(operation)
+    log_action("backup", "beneficiary", None, f"Ultra reset | op={operation}")
+    flash(message, "success" if ok else "error")
+    return redirect(url_for("ultra_admin_panel"))
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
