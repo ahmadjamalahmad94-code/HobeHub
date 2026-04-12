@@ -91,6 +91,8 @@ PERMISSIONS = [
     "restore_archive",
     "export_archive",
     "delete_archive",
+    "manage_bulk_ops",
+    "manage_system_cleanup",
 ]
 
 PERMISSION_LABELS = {
@@ -110,6 +112,8 @@ PERMISSION_LABELS = {
     "restore_archive": "استرجاع من الأرشيف",
     "export_archive": "تصدير الأرشيف",
     "delete_archive": "تنظيف الأرشيف",
+    "manage_bulk_ops": "التعديلات الجماعية",
+    "manage_system_cleanup": "لوحة التنظيف والتصفير",
 }
 
 PERMISSION_DESCRIPTIONS = {
@@ -129,6 +133,8 @@ PERMISSION_DESCRIPTIONS = {
     "restore_archive": "استرجاع السجلات المؤرشفة إلى السجل الحالي.",
     "export_archive": "تصدير الأرشيف إلى Excel.",
     "delete_archive": "تنظيف الأرشيف نهائيًا.",
+    "manage_bulk_ops": "تنفيذ تعديلات جماعية على مجموعات المستفيدين أو على الجميع.",
+    "manage_system_cleanup": "تنفيذ مسح وتنظيف وتصفير متقدم على مجموعات أو على النظام.",
 }
 
 TAWJIHI_YEARS = ["2006", "2007", "2008", "2009", "2010", "2011"]
@@ -987,6 +993,9 @@ document.addEventListener('DOMContentLoaded', function(){
       <a href="{{ url_for('usage_archive_page') }}"><i class="fa-solid fa-box-archive"></i><span class="nav-label">أرشيف البطاقات</span></a>
       {% endif %}
       <a href="{{ url_for('power_timer_page') }}"><i class="fa-solid fa-bolt"></i><span class="nav-label">مؤقت الكهرباء</span></a>
+      {% if has_permission('manage_bulk_ops') or has_permission('manage_system_cleanup') %}
+      <a href="{{ url_for('admin_control_panel') }}"><i class="fa-solid fa-sliders"></i><span class="nav-label">لوحة التحكم المتقدم</span></a>
+      {% endif %}
       {% if has_permission('add') %}
       <details open>
         <summary><i class="fa-solid fa-user-plus"></i><span class="nav-label">إضافة مستفيد</span></summary>
@@ -1219,8 +1228,6 @@ def _normalize_import_row(row: dict) -> dict:
     data["full_name"] = full_name_from_parts(data["first_name"], data["second_name"], data["third_name"], data["fourth_name"])
     data["search_name"] = normalize_search_ar(data["full_name"])
     data["user_type"] = _infer_user_type(data)
-    data["freelancer_internet_method"] = normalize_internet_method(data.get("freelancer_internet_method", ""), "freelancer")
-    data["university_internet_method"] = normalize_internet_method(data.get("university_internet_method", ""), "university")
     data["weekly_usage_week_start"] = get_week_start()
     return data
 
@@ -1597,45 +1604,6 @@ def normalize_phone(phone):
     if len(digits) == 9 and not digits.startswith("0"):
         digits = "0" + digits
     return digits
-
-
-def normalize_internet_method(value, user_type=""):
-    value = clean_csv_value(value)
-    if not value:
-        return ""
-    normalized = normalize_search_ar(value)
-    user_type = clean_csv_value(user_type)
-
-    card_aliases = {
-        "نظام البطاقات",
-        "بطاقات",
-        "بطاقه",
-        "بطاقه حسب الحاجه",
-        "بطاقة حسب الحاجة",
-        "بطاقات حسب الحاجة",
-        "كرت",
-        "كروت",
-        "cards",
-        "card",
-    }
-    username_aliases = {
-        "يمتلك اسم مستخدم",
-        "اسم مستخدم",
-        "يوزر",
-        "username",
-        "user name",
-        "login",
-    }
-
-    if normalized in {normalize_search_ar(x) for x in card_aliases}:
-        return "نظام البطاقات"
-    if normalized in {normalize_search_ar(x) for x in username_aliases}:
-        return "يمتلك اسم مستخدم"
-
-    if user_type == "tawjihi":
-        return "نظام البطاقات"
-
-    return "يمتلك اسم مستخدم"
 
 
 def normalize_search_ar(text):
@@ -2965,8 +2933,6 @@ def collect_beneficiary_form():
         data[col] = val
     data["full_name"] = full_name_from_parts(data["first_name"], data["second_name"], data["third_name"], data["fourth_name"])
     data["search_name"] = normalize_search_ar(data["full_name"])
-    data["freelancer_internet_method"] = normalize_internet_method(data.get("freelancer_internet_method", ""), "freelancer")
-    data["university_internet_method"] = normalize_internet_method(data.get("university_internet_method", ""), "university")
     data["weekly_usage_week_start"] = get_week_start()
     return data
 
@@ -4696,6 +4662,359 @@ def export_selected_beneficiaries():
     response = Response(out.getvalue(), mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     response.headers["Content-Disposition"] = "attachment; filename=selected_beneficiaries.xlsx"
     return response
+
+
+def admin_target_summary(filters: dict) -> str:
+    parts = []
+    if filters.get("user_type"):
+        parts.append(get_type_label(filters["user_type"]))
+    if filters.get("tawjihi_year"):
+        parts.append(f"سنة {filters['tawjihi_year']}")
+    if filters.get("university_name"):
+        parts.append(filters["university_name"])
+    if filters.get("freelancer_company"):
+        parts.append(filters["freelancer_company"])
+    if filters.get("ids"):
+        parts.append(f"IDs محددة ({len(filters['ids'])})")
+    return " / ".join(parts) if parts else "الكل"
+
+def admin_scope_values(src=None) -> dict:
+    src = src or request.form
+    ids_raw = clean_csv_value(src.get("ids", ""))
+    ids = [int(x) for x in re.split(r"[,\s]+", ids_raw) if x.strip().isdigit()]
+    return {
+        "user_type": clean_csv_value(src.get("user_type", "")),
+        "tawjihi_year": clean_csv_value(src.get("tawjihi_year", "")),
+        "university_name": clean_csv_value(src.get("university_name", "")),
+        "freelancer_company": clean_csv_value(src.get("freelancer_company", "")),
+        "ids": ids,
+    }
+
+def build_admin_target_where(filters: dict):
+    where = ["1=1"]
+    params = []
+    if filters.get("user_type"):
+        where.append("user_type = %s")
+        params.append(filters["user_type"])
+    if filters.get("tawjihi_year"):
+        where.append("tawjihi_year = %s")
+        params.append(filters["tawjihi_year"])
+    if filters.get("university_name"):
+        where.append("university_name = %s")
+        params.append(filters["university_name"])
+    if filters.get("freelancer_company"):
+        where.append("freelancer_company ILIKE %s")
+        params.append(f"%{filters['freelancer_company']}%")
+    if filters.get("ids"):
+        where.append("id = ANY(%s)")
+        params.append(filters["ids"])
+    return " AND ".join(where), params
+
+def count_admin_targets(filters: dict) -> int:
+    where_sql, params = build_admin_target_where(filters)
+    row = query_one(f"SELECT COUNT(*) AS c FROM beneficiaries WHERE {where_sql}", params)
+    return int((row or {}).get("c") or 0)
+
+def execute_admin_update(filters: dict, set_sql: str, values: list):
+    where_sql, params = build_admin_target_where(filters)
+    row = execute_sql(f"UPDATE beneficiaries SET {set_sql} WHERE {where_sql} RETURNING COUNT(*) OVER() AS c", values + params, fetchone=True)
+    return int((row or {}).get("c") or 0)
+
+def execute_admin_sql(sql: str, params=None):
+    return execute_sql(sql, params or [])
+
+def admin_section_card(title, icon, color_class, filters_html, edit_html, clean_html):
+    return f"""
+    <div class='card glass-card'>
+      <div class='toolbar-card' style='margin-bottom:12px'>
+        <div style='display:flex;align-items:center;gap:10px'>
+          <div class='menu-icon' style='margin-bottom:0;width:48px;height:48px'><i class='{icon}'></i></div>
+          <div><h3 style='margin:0'>{title}</h3><div class='small'>تعديل وتنظيف خاص بهذا القسم فقط.</div></div>
+        </div>
+        <span class='badge {color_class}'>{title}</span>
+      </div>
+      <div class='grid-2'>
+        <div class='archive-action-card archive-card-blue'>
+          <div class='icon'><i class='fa-solid fa-pen-ruler'></i></div>
+          <h4>تعديل جماعي</h4>
+          <p>اختر الفلتر والقيمة الجديدة ثم نفّذ.</p>
+          {edit_html}
+        </div>
+        <div class='archive-action-card archive-card-orange'>
+          <div class='icon'><i class='fa-solid fa-soap'></i></div>
+          <h4>تنظيف جماعي</h4>
+          <p>امسح الحقول المحددة لهذا القسم فقط.</p>
+          {clean_html}
+        </div>
+      </div>
+    </div>
+    """
+
+def build_common_clean_options(include_internet=True, include_times=True):
+    opts = ["<option value='clear_notes'>مسح الملاحظات</option>", "<option value='clear_phones'>مسح أرقام الجوالات</option>"]
+    if include_internet:
+        opts.append("<option value='clear_internet_methods'>مسح نظام الاتصال</option>")
+    if include_times:
+        opts.append("<option value='clear_times'>مسح الوقت</option>")
+    opts.append("<option value='reset_weekly_usage'>تصفير العدادات الأسبوعية</option>")
+    return "".join(opts)
+
+@app.route("/admin-control")
+@login_required
+def admin_control_panel():
+    if not (has_permission('manage_bulk_ops') or has_permission('manage_system_cleanup')):
+        flash("غير مصرح لك بهذه الصفحة.", "error")
+        return redirect(url_for("dashboard"))
+    tawjihi_year_options = "".join([f"<option value='{safe(x)}'>{safe(x)}</option>" for x in TAWJIHI_YEARS])
+    university_options = "".join([f"<option value='{safe(x)}'>{safe(x)}</option>" for x in UNIVERSITIES_GAZA])
+    internet_options = "".join([f"<option value='{safe(x)}'>{safe(x)}</option>" for x in INTERNET_ACCESS_METHOD_OPTIONS])
+    time_mode_options = "".join([f"<option value='{safe(x)}'>{safe(x)}</option>" for x in TIME_MODE_OPTIONS])
+    freelancer_schedule_options = "".join([f"<option value='{safe(x)}'>{safe(x)}</option>" for x in FREELANCER_SCHEDULE_OPTIONS])
+    university_days_options = "".join([f"<option value='{safe(x)}'>{safe(x)}</option>" for x in UNIVERSITY_DAYS_OPTIONS])
+
+    tawjihi_filters = f"""
+      <div class='row'>
+        <input type='hidden' name='user_type' value='tawjihi'>
+        <div><label>سنة التوجيهي</label><select name='tawjihi_year'><option value=''>كل السنوات</option>{tawjihi_year_options}</select></div>
+        <div><label>IDs محددة</label><input name='ids' placeholder='مثال: 1,2,3'></div>
+      </div>
+    """
+    tawjihi_edit = f"""
+      <form method='POST' action='{url_for('admin_control_apply_update')}'>
+        {tawjihi_filters}
+        <div class='row'>
+          <div><label>التعديل</label><select name='operation'><option value='set_notes'>وضع ملاحظة موحدة</option></select></div>
+          <div><label>القيمة الجديدة</label><input name='new_value' placeholder='مثال: تم تحديث البيانات' required></div>
+        </div>
+        <div class='actions'><button class='btn btn-primary' type='submit'><i class='fa-solid fa-check'></i> تنفيذ التعديل</button></div>
+      </form>
+    """
+    tawjihi_clean = f"""
+      <form method='POST' action='{url_for('admin_control_apply_clean')}'>
+        {tawjihi_filters}
+        <div class='row'>
+          <div><label>التنظيف</label><select name='operation'>{build_common_clean_options(include_internet=False, include_times=False)}</select></div>
+        </div>
+        <div class='actions'><button class='btn btn-outline' type='submit'><i class='fa-solid fa-broom'></i> تنفيذ التنظيف</button></div>
+      </form>
+    """
+
+    university_filters = f"""
+      <div class='row'>
+        <input type='hidden' name='user_type' value='university'>
+        <div><label>الجامعة</label><select name='university_name'><option value=''>كل الجامعات</option>{university_options}</select></div>
+        <div><label>IDs محددة</label><input name='ids' placeholder='مثال: 4,8,9'></div>
+      </div>
+    """
+    university_edit = f"""
+      <form method='POST' action='{url_for('admin_control_apply_update')}'>
+        {university_filters}
+        <div class='row'>
+          <div><label>التعديل</label><select name='operation'>
+            <option value='set_university_internet_method'>نظام الاتصال بالإنترنت</option>
+            <option value='set_university_time_mode'>وضع الوقت</option>
+            <option value='set_university_days'>أيام الجامعة</option>
+            <option value='set_university_time_from'>وقت من</option>
+            <option value='set_university_time_to'>وقت إلى</option>
+            <option value='set_notes'>وضع ملاحظة موحدة</option>
+          </select></div>
+          <div><label>القيمة الجديدة</label><input name='new_value' list='admin-values-university' placeholder='اختر أو اكتب قيمة' required></div>
+        </div>
+        <datalist id='admin-values-university'>
+          {''.join([f"<option value='{safe(x)}'></option>" for x in INTERNET_ACCESS_METHOD_OPTIONS + TIME_MODE_OPTIONS + UNIVERSITY_DAYS_OPTIONS])}
+        </datalist>
+        <div class='actions'><button class='btn btn-primary' type='submit'><i class='fa-solid fa-check'></i> تنفيذ التعديل</button></div>
+      </form>
+    """
+    university_clean = f"""
+      <form method='POST' action='{url_for('admin_control_apply_clean')}'>
+        {university_filters}
+        <div class='row'>
+          <div><label>التنظيف</label><select name='operation'>{build_common_clean_options(include_internet=True, include_times=True)}<option value='clear_days'>مسح الأيام</option></select></div>
+        </div>
+        <div class='actions'><button class='btn btn-outline' type='submit'><i class='fa-solid fa-broom'></i> تنفيذ التنظيف</button></div>
+      </form>
+    """
+
+    freelancer_filters = f"""
+      <div class='row'>
+        <input type='hidden' name='user_type' value='freelancer'>
+        <div><label>الشركة</label><input name='freelancer_company' placeholder='فلترة حسب الشركة'></div>
+        <div><label>IDs محددة</label><input name='ids' placeholder='مثال: 10,11,12'></div>
+      </div>
+    """
+    freelancer_edit = f"""
+      <form method='POST' action='{url_for('admin_control_apply_update')}'>
+        {freelancer_filters}
+        <div class='row'>
+          <div><label>التعديل</label><select name='operation'>
+            <option value='set_freelancer_internet_method'>نظام الاتصال بالإنترنت</option>
+            <option value='set_freelancer_time_mode'>وضع الوقت</option>
+            <option value='set_freelancer_schedule_type'>نوع الدوام</option>
+            <option value='set_freelancer_time_from'>وقت من</option>
+            <option value='set_freelancer_time_to'>وقت إلى</option>
+            <option value='set_notes'>وضع ملاحظة موحدة</option>
+          </select></div>
+          <div><label>القيمة الجديدة</label><input name='new_value' list='admin-values-freelancer' placeholder='اختر أو اكتب قيمة' required></div>
+        </div>
+        <datalist id='admin-values-freelancer'>
+          {''.join([f"<option value='{safe(x)}'></option>" for x in INTERNET_ACCESS_METHOD_OPTIONS + TIME_MODE_OPTIONS + FREELANCER_SCHEDULE_OPTIONS])}
+        </datalist>
+        <div class='actions'><button class='btn btn-primary' type='submit'><i class='fa-solid fa-check'></i> تنفيذ التعديل</button></div>
+      </form>
+    """
+    freelancer_clean = f"""
+      <form method='POST' action='{url_for('admin_control_apply_clean')}'>
+        {freelancer_filters}
+        <div class='row'>
+          <div><label>التنظيف</label><select name='operation'>{build_common_clean_options(include_internet=True, include_times=True)}<option value='clear_schedule'>مسح نوع الدوام</option></select></div>
+        </div>
+        <div class='actions'><button class='btn btn-outline' type='submit'><i class='fa-solid fa-broom'></i> تنفيذ التنظيف</button></div>
+      </form>
+    """
+
+    advanced_clean = f"""
+    <div class='card glass-card' style='margin-top:16px'>
+      <h3 style='margin-top:0'>تصفير وتنظيف متقدم للنظام</h3>
+      <div class='archive-actions-grid'>
+        <div class='archive-action-card archive-card-orange'>
+          <div class='icon'><i class='fa-solid fa-file-lines'></i></div>
+          <h4>تنظيف السجلات التشغيلية</h4>
+          <p>يمسح سجل البطاقات الحالي والأرشيف وسجل العمليات فقط.</p>
+          <form method='POST' action='{url_for('admin_control_system_reset')}' onsubmit="return confirm('سيتم تنظيف السجلات التشغيلية. متابعة؟')">
+            <input type='hidden' name='operation' value='truncate_operational'>
+            <button class='btn btn-soft' type='submit'>تنظيف السجلات</button>
+          </form>
+        </div>
+        <div class='archive-action-card archive-card-red'>
+          <div class='icon'><i class='fa-solid fa-users-slash'></i></div>
+          <h4>حذف كل المستفيدين</h4>
+          <p>يحذف المستفيدين وكل السجلات المرتبطة بهم فقط.</p>
+          <form method='POST' action='{url_for('admin_control_system_reset')}' onsubmit="return confirm('سيتم حذف كل المستفيدين والسجلات المرتبطة. متابعة؟')">
+            <input type='hidden' name='operation' value='truncate_beneficiaries_only'>
+            <button class='btn btn-danger' type='submit'>حذف المستفيدين</button>
+          </form>
+        </div>
+        <div class='archive-action-card archive-card-blue'>
+          <div class='icon'><i class='fa-solid fa-biohazard'></i></div>
+          <h4>تصفير النظام</h4>
+          <p>يحذف كل بيانات التشغيل ويُبقي الحسابات والصلاحيات فقط.</p>
+          <form method='POST' action='{url_for('admin_control_system_reset')}' onsubmit="return confirm('سيتم تصفير النظام بالكامل. متابعة؟')">
+            <input type='hidden' name='operation' value='truncate_everything_except_accounts'>
+            <button class='btn btn-danger' type='submit'>تصفير النظام</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    """
+
+    content = f"""
+    <div class='hero'><h1>لوحة التحكم المتقدم</h1><p>3 أقسام أساسية: توجيهي، جامعة، فري لانسر. كل قسم فيه تعديل جماعي + تنظيف جماعي بشكل مرتب وواضح.</p></div>
+    {admin_section_card('توجيهي', 'fa-solid fa-user-graduate', 'badge-green', tawjihi_filters, tawjihi_edit, tawjihi_clean)}
+    <div style='height:16px'></div>
+    {admin_section_card('جامعة', 'fa-solid fa-building-columns', 'badge-purple', university_filters, university_edit, university_clean)}
+    <div style='height:16px'></div>
+    {admin_section_card('فري لانسر', 'fa-solid fa-laptop-code', 'badge-orange', freelancer_filters, freelancer_edit, freelancer_clean)}
+    {advanced_clean}
+    """
+    return render_page("لوحة التحكم المتقدم", content)
+
+@app.route("/admin-control/apply-update", methods=["POST"])
+@login_required
+@permission_required("manage_bulk_ops")
+def admin_control_apply_update():
+    filters = admin_scope_values(request.form)
+    operation = clean_csv_value(request.form.get("operation", ""))
+    new_value = clean_csv_value(request.form.get("new_value", ""))
+    if not operation:
+        flash("اختر نوع التعديل أولًا.", "error")
+        return redirect(url_for("admin_control_panel"))
+    mapping = {
+        "set_university_internet_method": ("university_internet_method = %s", [new_value]),
+        "set_university_time_mode": ("university_time_mode = %s", [new_value]),
+        "set_university_days": ("university_days = %s", [new_value]),
+        "set_university_time_from": ("university_time_from = %s", [new_value]),
+        "set_university_time_to": ("university_time_to = %s", [new_value]),
+        "set_freelancer_internet_method": ("freelancer_internet_method = %s", [new_value]),
+        "set_freelancer_time_mode": ("freelancer_time_mode = %s", [new_value]),
+        "set_freelancer_schedule_type": ("freelancer_schedule_type = %s", [new_value]),
+        "set_freelancer_time_from": ("freelancer_time_from = %s", [new_value]),
+        "set_freelancer_time_to": ("freelancer_time_to = %s", [new_value]),
+        "set_notes": ("notes = %s", [new_value]),
+    }
+    if operation not in mapping:
+        flash("عملية التعديل غير مدعومة.", "error")
+        return redirect(url_for("admin_control_panel"))
+    affected = count_admin_targets(filters)
+    if affected == 0:
+        flash("لا يوجد مستفيدون مطابقون لهذا القسم/الفلتر.", "error")
+        return redirect(url_for("admin_control_panel"))
+    set_sql, values = mapping[operation]
+    execute_admin_update(filters, set_sql, values)
+    summary = admin_target_summary(filters)
+    log_action("edit", "beneficiary", None, f"Admin control update | op={operation} | target={summary} | affected={affected}")
+    flash(f"تم تنفيذ التعديل على {affected} مستفيد ({summary}).", "success")
+    return redirect(url_for("admin_control_panel"))
+
+@app.route("/admin-control/apply-clean", methods=["POST"])
+@login_required
+@permission_required("manage_system_cleanup")
+def admin_control_apply_clean():
+    filters = admin_scope_values(request.form)
+    operation = clean_csv_value(request.form.get("operation", ""))
+    if not operation:
+        flash("اختر نوع التنظيف أولًا.", "error")
+        return redirect(url_for("admin_control_panel"))
+    mapping = {
+        "clear_notes": ("notes = ''", []),
+        "clear_phones": ("phone = ''", []),
+        "reset_weekly_usage": ("weekly_usage_count = 0, weekly_usage_week_start = %s", [get_week_start()]),
+        "clear_times": ("freelancer_time_from = '', freelancer_time_to = '', university_time_from = '', university_time_to = ''", []),
+        "clear_internet_methods": ("freelancer_internet_method = '', university_internet_method = ''", []),
+        "clear_days": ("university_days = ''", []),
+        "clear_schedule": ("freelancer_schedule_type = ''", []),
+    }
+    if operation not in mapping:
+        flash("عملية التنظيف غير مدعومة.", "error")
+        return redirect(url_for("admin_control_panel"))
+    affected = count_admin_targets(filters)
+    if affected == 0:
+        flash("لا يوجد مستفيدون مطابقون لهذا القسم/الفلتر.", "error")
+        return redirect(url_for("admin_control_panel"))
+    set_sql, values = mapping[operation]
+    execute_admin_update(filters, set_sql, values)
+    summary = admin_target_summary(filters)
+    log_action("edit", "beneficiary", None, f"Admin control clean | op={operation} | target={summary} | affected={affected}")
+    flash(f"تم تنفيذ التنظيف على {affected} مستفيد ({summary}).", "success")
+    return redirect(url_for("admin_control_panel"))
+
+@app.route("/admin-control/system-reset", methods=["POST"])
+@login_required
+@permission_required("manage_system_cleanup")
+def admin_control_system_reset():
+    operation = clean_csv_value(request.form.get("operation", ""))
+    if operation == "truncate_operational":
+        execute_admin_sql("TRUNCATE TABLE beneficiary_usage_logs RESTART IDENTITY CASCADE")
+        execute_admin_sql("TRUNCATE TABLE beneficiary_usage_logs_archive RESTART IDENTITY CASCADE")
+        execute_admin_sql("TRUNCATE TABLE audit_logs RESTART IDENTITY")
+        message = "تم تنظيف السجلات التشغيلية بنجاح."
+    elif operation == "truncate_beneficiaries_only":
+        execute_admin_sql("TRUNCATE TABLE beneficiary_usage_logs RESTART IDENTITY CASCADE")
+        execute_admin_sql("TRUNCATE TABLE beneficiary_usage_logs_archive RESTART IDENTITY CASCADE")
+        execute_admin_sql("TRUNCATE TABLE beneficiaries RESTART IDENTITY CASCADE")
+        message = "تم حذف كل المستفيدين والسجلات المرتبطة بهم."
+    elif operation == "truncate_everything_except_accounts":
+        execute_admin_sql("TRUNCATE TABLE beneficiary_usage_logs RESTART IDENTITY CASCADE")
+        execute_admin_sql("TRUNCATE TABLE beneficiary_usage_logs_archive RESTART IDENTITY CASCADE")
+        execute_admin_sql("TRUNCATE TABLE beneficiaries RESTART IDENTITY CASCADE")
+        execute_admin_sql("TRUNCATE TABLE audit_logs RESTART IDENTITY")
+        message = "تم تصفير كل بيانات التشغيل مع الإبقاء على الحسابات والصلاحيات."
+    else:
+        flash("عملية التصفير غير معروفة.", "error")
+        return redirect(url_for("admin_control_panel"))
+    log_action("backup", "beneficiary", None, f"Admin system reset | op={operation}")
+    flash(message, "success")
+    return redirect(url_for("admin_control_panel"))
 
 
 import os
