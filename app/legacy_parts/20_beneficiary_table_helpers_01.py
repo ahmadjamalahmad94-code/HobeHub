@@ -118,6 +118,7 @@ def build_request_args_dict():
         "freelancer_specialization": clean_csv_value(request.args.get("freelancer_specialization", "")).strip(),
         "freelancer_company": clean_csv_value(request.args.get("freelancer_company", "")).strip(),
         "internet_method": clean_csv_value(request.args.get("internet_method", "")).strip(),
+        "segment": clean_csv_value(request.args.get("segment", "")).strip(),
         "sort_by": clean_csv_value(request.args.get("sort_by", "id")).strip() or "id",
         "sort_order": clean_csv_value(request.args.get("sort_order", "desc")).strip() or "desc",
     }

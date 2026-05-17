@@ -278,12 +278,6 @@ def admin_beneficiary_add_ajax():
     except Exception:
         return jsonify({"ok": False, "message": "تعذّر حفظ المستفيد. ربما رقم الجوال مكرّر."}), 400
     new_id = row["id"] if row else None
-    if new_id:
-        try:
-            from app.services.portal_account_lifecycle import ensure_portal_account_for_beneficiary
-            ensure_portal_account_for_beneficiary(int(new_id), is_active=False, source="admin_add_ajax")
-        except Exception:
-            pass
     log_action("add_ajax", "beneficiary", new_id, f"إضافة مستفيد (modal): {data.get('full_name')}")
     try:
         from app.services.notification_service import notify_beneficiary_created

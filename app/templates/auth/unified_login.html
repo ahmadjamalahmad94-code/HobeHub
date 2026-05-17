@@ -5,200 +5,267 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1E1E1E">
   <title>الدخول — Hobe Hub</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
-    :root{
-      --ink:#1E1E1E;--ink-2:#2b2b2b;--muted:#6f6758;--line:#e8e2d5;
-      --cream:#f7f5ef;--cream-2:#fbfaf7;--gold:#F4BA2A;--gold-soft:#fff7df;
-      --ok:#166534;--ok-bg:#e8f6ee;--warn:#92400e;--warn-bg:#fef3c7;
-      --err:#b91c1c;--err-bg:#fde2e2;--shadow:0 18px 50px rgba(30,30,30,.10);
-    }
-    *{box-sizing:border-box}
-    html,body{margin:0;padding:0}
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{min-height:100%}
     body{
-      min-height:100vh;background:
-        radial-gradient(1200px 600px at 80% -10%,#fff7df 0%,transparent 60%),
-        radial-gradient(900px 500px at -10% 110%,#f7f5ef 0%,transparent 55%),
-        #f7f5ef;
-      color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;
-      display:grid;place-items:center;padding:24px;
+      font-family:'Cairo','Tajawal',system-ui,sans-serif;
+      background:linear-gradient(135deg,#FAFAF8 0%,#F4F3EF 100%);
+      color:#1E1E1E;-webkit-font-smoothing:antialiased;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      padding:24px 16px;
     }
-    .shell{width:min(520px,100%);}
-    .brand{display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:18px}
-    .brand-mark{
-      width:44px;height:44px;border-radius:12px;display:grid;place-items:center;
-      background:var(--ink);color:var(--gold);font-weight:900;font-size:22px;
-      box-shadow:0 10px 24px rgba(30,30,30,.18)
-    }
-    .brand b{font-size:18px;font-weight:900;letter-spacing:.2px}
-    .brand small{display:block;color:var(--muted);font-size:12px;font-weight:700}
 
+    /* ─── Brand strip ─── */
+    .brand-strip{display:flex;align-items:center;gap:14px;margin-bottom:24px}
+    .brand-logo{
+      width:54px;height:54px;border-radius:15px;
+      background:linear-gradient(135deg,#F4BA2A,#FFD96A);color:#1E1E1E;
+      display:grid;place-items:center;font-size:24px;font-weight:900;
+      box-shadow:0 10px 24px rgba(244,186,42,.35);
+    }
+    .brand-strip h1.brand-name{font-size:18px;font-weight:900;margin:0}
+    .brand-strip h1.brand-name span{color:#F4BA2A}
+    .brand-strip p.brand-tag{font-size:11.5px;color:#7a7368;font-weight:700;margin-top:2px}
+
+    /* ─── Steps indicator ─── */
+    .steps{display:flex;gap:12px;align-items:center;justify-content:center;margin-bottom:24px;flex-wrap:wrap}
+    .step-dot{
+      display:flex;align-items:center;gap:8px;
+      padding:6px 14px;border-radius:999px;
+      background:#fff;border:1.5px solid #e8e2d5;
+      font-size:12px;font-weight:800;color:#7a7368;
+      transition:.25s ease;
+    }
+    .step-dot.is-on{background:#1E1E1E;color:#fff;border-color:#1E1E1E;box-shadow:0 8px 18px -6px rgba(30,30,30,.35)}
+    .step-dot.is-done{background:rgba(31,143,81,.12);color:#166534;border-color:rgba(31,143,81,.30)}
+    .step-dot i{font-size:11px}
+    .step-num{
+      width:18px;height:18px;border-radius:50%;background:#e8e2d5;color:#7a7368;
+      display:grid;place-items:center;font-size:10px;font-weight:900;
+    }
+    .step-dot.is-on .step-num{background:linear-gradient(135deg,#F4BA2A,#FFD96A);color:#1E1E1E}
+    .step-dot.is-done .step-num{background:#22c55e;color:#fff}
+    .steps-sep{width:30px;height:2px;background:#e8e2d5;border-radius:2px}
+
+    /* ─── Card ─── */
     .card{
-      background:#fff;border:1px solid var(--line);border-radius:18px;
-      box-shadow:var(--shadow);overflow:hidden;
+      width:min(580px,100%);
+      background:#fff;border:1px solid #efe9da;
+      border-radius:22px;padding:30px 32px;
+      box-shadow:0 24px 48px -16px rgba(30,30,30,.15);
     }
-    .card-head{
-      padding:22px 24px 0 24px;
+    .card-head{text-align:center;margin-bottom:20px;padding-bottom:18px;border-bottom:1px dashed #efe9da}
+    .card-head h2{font-size:20px;font-weight:900;margin-bottom:8px;letter-spacing:-.3px}
+    .card-head p{font-size:13px;color:#7a7368;line-height:1.7;font-weight:600}
+    .head-badge{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:5px 12px;border-radius:999px;
+      background:rgba(244,186,42,.14);border:1px solid rgba(244,186,42,.30);
+      color:#7c2d12;font-size:11px;font-weight:800;letter-spacing:.4px;
+      margin-bottom:10px;
     }
-    .eyebrow{
-      display:inline-flex;align-items:center;gap:8px;
-      background:var(--gold-soft);color:#7a5310;font-weight:800;font-size:12px;
-      padding:6px 10px;border-radius:999px;border:1px solid #f1d993;
-    }
-    h1{margin:10px 0 6px;font-size:24px;font-weight:900;letter-spacing:.2px}
-    .lede{margin:0;color:var(--muted);font-size:14px;line-height:1.8}
+    .head-badge i{font-size:10px;color:#d97706}
 
-    .card-body{padding:18px 24px 24px 24px}
-
-    /* steps indicator */
-    .steps{display:flex;align-items:center;gap:6px;margin:14px 0 14px}
-    .steps .dot{
-      flex:1;height:6px;border-radius:6px;background:#eee5d2;
-      transition:background .2s ease;
-    }
-    .steps .dot.is-on{background:var(--gold)}
-    .steps .dot.is-done{background:var(--ink)}
-
-    label{display:block;margin:10px 0 6px;font-size:12px;font-weight:800;color:var(--muted)}
-    .input{
-      position:relative;display:flex;align-items:center;
-      background:var(--cream-2);border:1.5px solid #d8d0c1;border-radius:12px;
-      transition:border-color .15s ease, box-shadow .15s ease;
-    }
-    .input:focus-within{border-color:var(--ink);box-shadow:0 0 0 4px rgba(244,186,42,.18)}
-    .input i.fa-solid{padding:0 12px;color:var(--muted)}
-    .input input{
-      flex:1;border:0;background:transparent;
-      padding:13px 8px 13px 0;font:inherit;font-weight:700;color:var(--ink);
-      outline:none;
-    }
-    .input input::placeholder{color:#b8ad99;font-weight:600}
-
-    .row{display:grid;grid-template-columns:1fr;gap:0}
-    @media (min-width:520px){ .row.two{grid-template-columns:1fr 1fr;gap:12px} }
-
-    .btn{
-      display:inline-flex;align-items:center;justify-content:center;gap:8px;
-      border:0;border-radius:12px;padding:13px 16px;font:inherit;
-      font-weight:900;cursor:pointer;width:100%;
-      transition:transform .06s ease, background .15s ease, color .15s ease;
-    }
-    .btn:active{transform:translateY(1px)}
-    .btn--primary{background:var(--ink);color:#fff}
-    .btn--primary:hover{background:#000}
-    .btn--ghost{
-      background:#fff;color:var(--ink);border:1.5px solid var(--line);
-    }
-    .btn--ghost:hover{background:var(--cream-2)}
-    .btn--gold{background:var(--gold);color:var(--ink)}
-    .btn--gold:hover{background:#e9ad17}
-
-    .actions{display:grid;grid-template-columns:1fr;gap:8px;margin-top:14px}
-    .actions.two{grid-template-columns:120px 1fr}
-
-    .msg{
-      display:none;margin-top:12px;border-radius:12px;padding:11px 14px;
-      font-size:13px;font-weight:800;border:1px solid transparent;
-    }
-    .msg.show{display:flex;align-items:center;gap:8px}
-    .msg.ok{background:var(--ok-bg);color:var(--ok);border-color:#bce5cb}
-    .msg.err{background:var(--err-bg);color:var(--err);border-color:#fbc2c2}
-    .msg.warn{background:var(--warn-bg);color:var(--warn);border-color:#fde68a}
-    .msg.info{background:#eef4ff;color:#1d4ed8;border-color:#c7d8ff}
-
-    .identity{
-      display:flex;align-items:center;gap:10px;
-      background:var(--cream-2);border:1px solid var(--line);border-radius:12px;
-      padding:10px 12px;margin-bottom:6px;
-    }
-    .identity .avatar{
-      width:36px;height:36px;border-radius:50%;
-      background:var(--ink);color:var(--gold);display:grid;place-items:center;
-      font-weight:900;
-    }
-    .identity .meta{flex:1;min-width:0}
-    .identity .meta b{display:block;font-size:14px;font-weight:900}
-    .identity .meta small{color:var(--muted);font-weight:700}
-    .identity button{
-      background:transparent;border:0;color:var(--muted);font-weight:800;
-      cursor:pointer;font-size:12px;text-decoration:underline;text-underline-offset:3px;
-    }
-
-    .footer{
-      margin-top:14px;text-align:center;font-size:12px;color:var(--muted);font-weight:700
-    }
-    .footer a{color:var(--ink);font-weight:900;text-decoration:none}
-    .footer a:hover{text-decoration:underline}
-
+    /* ─── Forms (multi-step) ─── */
+    .step-form{display:none}
+    .step-form.is-on{display:block;animation:formIn .35s ease}
+    @keyframes formIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
     .hidden{display:none !important}
 
-    /* spinner */
-    .spin{
-      width:16px;height:16px;border-radius:50%;
-      border:2px solid rgba(255,255,255,.4);border-top-color:#fff;
-      animation:spin .8s linear infinite;
-    }
-    @keyframes spin{to{transform:rotate(360deg)}}
+    .field{margin-bottom:14px}
+    .field label{display:block;font-size:12px;font-weight:800;color:#5b5246;margin-bottom:6px}
 
+    .input{
+      position:relative;display:flex;align-items:center;
+      background:#fbfaf7;border:1.5px solid #e8e2d5;border-radius:12px;
+      transition:.2s ease;
+    }
+    .input:focus-within{border-color:#F4BA2A;background:#fff;box-shadow:0 0 0 3px rgba(244,186,42,.22)}
+    .input i.fa-solid{padding:0 12px;color:#aea596;font-size:13px;transition:color .15s}
+    .input:focus-within i.fa-solid{color:#F4BA2A}
+    .input input{
+      flex:1;border:0;background:transparent;outline:0;
+      padding:13px 14px 13px 0;
+      font-family:inherit;font-size:14px;font-weight:700;color:#1E1E1E;
+    }
+    .input input::placeholder{color:#bdb4a6;font-weight:600}
+
+    /* ─── Phone-style big input for step 1 ─── */
+    .phone-block{margin-bottom:14px}
+    .phone-wrap{
+      display:flex;align-items:center;gap:10px;
+      padding:6px;background:#FAFAF8;border:2px solid #e8e2d5;border-radius:15px;
+      transition:.2s ease;
+    }
+    .phone-wrap:focus-within{border-color:#F4BA2A;background:#fff;box-shadow:0 0 0 4px rgba(244,186,42,.20)}
+    .phone-icon{
+      width:42px;height:42px;flex-shrink:0;border-radius:11px;
+      background:linear-gradient(135deg,#1E1E1E,#2a2724);color:#F4BA2A;
+      display:grid;place-items:center;font-size:18px;
+    }
+    .phone-wrap input{
+      flex:1;border:0;background:transparent;outline:0;
+      font-family:inherit;font-size:16px;font-weight:800;color:#1E1E1E;
+      letter-spacing:.5px;text-align:center;padding:8px 12px;
+    }
+    .phone-wrap input::placeholder{color:#bdb4a6;font-weight:600}
+
+    /* ─── Password input + eye toggle ─── */
     .pwd-wrap{position:relative}
     .pwd-toggle{
       position:absolute;left:8px;top:50%;transform:translateY(-50%);
-      border:0;background:transparent;color:var(--muted);cursor:pointer;
-      padding:6px 8px;font-size:14px;
+      border:0;background:transparent;color:#aea596;cursor:pointer;
+      padding:6px 8px;font-size:13px;border-radius:8px;transition:.15s;
     }
-    .pwd-toggle:hover{color:var(--ink)}
+    .pwd-toggle:hover{color:#F4BA2A;background:rgba(244,186,42,.10)}
+
+    /* ─── Buttons ─── */
+    .btn{
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      padding:13px 22px;border-radius:12px;border:0;cursor:pointer;
+      font-family:inherit;font-size:14px;font-weight:900;letter-spacing:.3px;
+      transition:.25s ease;width:100%;
+    }
+    .btn--primary{
+      background:linear-gradient(135deg,#F4BA2A,#FFD96A);color:#1E1E1E;
+      box-shadow:0 12px 26px -8px rgba(244,186,42,.50);
+    }
+    .btn--primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 16px 36px -8px rgba(244,186,42,.70)}
+    .btn--primary:disabled{opacity:.5;cursor:wait;transform:none}
+    .btn--ghost{background:#fff;color:#5b5246;border:1.5px solid #e8e2d5}
+    .btn--ghost:hover{background:#FAFAF8;border-color:#F4BA2A;color:#1E1E1E}
+    .btn--gold{
+      background:linear-gradient(135deg,#1E1E1E,#2a2724);color:#F4BA2A;
+      box-shadow:0 12px 26px -8px rgba(30,30,30,.40);
+    }
+    .btn--gold:hover{transform:translateY(-2px);box-shadow:0 16px 36px -8px rgba(30,30,30,.55)}
+
+    .actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+    .actions .btn{flex:1;min-width:160px}
+    .actions.two{display:grid;grid-template-columns:auto 1fr;gap:10px}
+    .actions.two .btn{min-width:auto}
+
+    /* ─── Messages ─── */
+    .msg{display:none;margin-top:14px;padding:13px 16px;border-radius:12px;font-size:13px;font-weight:700;line-height:1.7}
+    .msg.show{display:flex;align-items:flex-start;gap:10px;animation:msgIn .35s ease}
+    @keyframes msgIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+    .msg i{font-size:18px;margin-top:1px;flex-shrink:0}
+    .msg.err{background:#fde2e2;color:#991b1b;border:1px solid rgba(185,28,28,.20)}
+    .msg.err i{color:#b91c1c}
+    .msg.warn{background:#FFFBEA;color:#7c2d12;border:1px solid rgba(217,119,6,.30)}
+    .msg.warn i{color:#d97706}
+    .msg.ok{background:#e8f6ee;color:#166534;border:1px solid rgba(31,143,81,.25)}
+    .msg.ok i{color:#1f8f51}
+    .msg.info{background:#eef4ff;color:#1e3a8a;border:1px solid rgba(29,78,216,.20)}
+    .msg.info i{color:#1d4ed8}
+
+    /* ─── Identity card (step 2) ─── */
+    .identity{
+      display:flex;align-items:center;gap:12px;
+      background:#FAFAF8;border:1px solid #e8e2d5;border-radius:13px;
+      padding:12px 14px;margin-bottom:14px;
+    }
+    .identity .avatar{
+      width:42px;height:42px;border-radius:50%;
+      background:linear-gradient(135deg,#1E1E1E,#2a2724);color:#F4BA2A;
+      display:grid;place-items:center;font-size:16px;font-weight:900;
+      flex-shrink:0;
+    }
+    .identity .meta{flex:1;min-width:0}
+    .identity .meta b{display:block;font-size:14px;font-weight:900;color:#1E1E1E;line-height:1.4}
+    .identity .meta small{color:#7a7368;font-weight:700;font-size:11.5px}
+    .identity button{
+      background:transparent;border:1px solid #e8e2d5;color:#5b5246;font-weight:800;
+      cursor:pointer;font-size:11.5px;padding:6px 12px;border-radius:8px;
+      transition:.15s;font-family:inherit;
+    }
+    .identity button:hover{border-color:#F4BA2A;color:#1E1E1E;background:#fff}
+
+    /* ─── Footer ─── */
+    .foot{text-align:center;margin-top:18px;font-size:12px;color:#7a7368}
+    .foot a{
+      color:#1E1E1E;font-weight:800;text-decoration:none;
+      border-bottom:1.5px solid #F4BA2A;padding-bottom:1px;
+    }
+    .foot a:hover{color:#F4BA2A}
+
+    /* ─── Loading spinner ─── */
+    .spin{
+      display:inline-block;width:14px;height:14px;
+      border:2.5px solid rgba(30,30,30,.20);border-top-color:#1E1E1E;
+      border-radius:50%;animation:spin .55s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    @media (max-width:480px){
+      .card{padding:24px 20px;border-radius:18px}
+      .actions.two{grid-template-columns:1fr}
+    }
   </style>
 </head>
 <body>
 
-<div class="shell">
-  <div class="brand">
-    <span class="brand-mark">H</span>
-    <div>
-      <b>Hobe Hub</b>
-      <small>دخول موحّد ذكي</small>
-    </div>
+<!-- Brand strip -->
+<div class="brand-strip">
+  <div class="brand-logo">H</div>
+  <div>
+    <h1 class="brand-name">Hobe<span>Hub</span></h1>
+    <p class="brand-tag">دخول موحّد ذكي</p>
   </div>
+</div>
 
-  <main class="card">
-    <header class="card-head">
-      <span class="eyebrow" id="eyebrow">
-        <i class="fa-solid fa-circle-user" aria-hidden="true"></i>
-        <span id="eyebrow-text">سجّل دخولك</span>
-      </span>
-      <h1 id="title">تسجيل الدخول</h1>
-      <p class="lede" id="lede">أدخل رقم الجوال أو اسم المستخدم، وسنحوّلك إلى بوابتك المناسبة تلقائيًا.</p>
-      <div class="steps" aria-hidden="true">
-        <span class="dot is-on" id="dot1"></span>
-        <span class="dot" id="dot2"></span>
-        <span class="dot" id="dot3"></span>
-      </div>
-    </header>
+<!-- Steps indicator -->
+<div class="steps" aria-hidden="true">
+  <span class="step-dot is-on" id="dot1">
+    <span class="step-num">١</span><i class="fa-solid fa-mobile-screen"></i>الحساب
+  </span>
+  <span class="steps-sep"></span>
+  <span class="step-dot" id="dot2">
+    <span class="step-num">٢</span><i class="fa-solid fa-key"></i>التحقق
+  </span>
+  <span class="steps-sep"></span>
+  <span class="step-dot" id="dot3">
+    <span class="step-num">٣</span><i class="fa-solid fa-circle-check"></i>دخول
+  </span>
+</div>
 
-    <div class="card-body">
+<main class="card">
+  <header class="card-head">
+    <span class="head-badge" id="eyebrow">
+      <i class="fa-solid fa-circle-user" aria-hidden="true"></i>
+      <span id="eyebrow-text">سجّل دخولك</span>
+    </span>
+    <h2 id="title">تسجيل الدخول</h2>
+    <p id="lede">أدخل رقم الجوال أو اسم المستخدم، وسنحوّلك إلى بوابتك المناسبة تلقائيًا.</p>
+  </header>
+
+  <div class="card-body">
 
       {# ─── STEP 1: identifier ───────────────────────────── #}
-      <section id="step1">
+      <section id="step1" class="step-form is-on">
         <form id="form-check" autocomplete="on">
           {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
-          <label for="identifier">رقم الجوال أو اسم المستخدم</label>
-          <div class="input">
-            <i class="fa-solid fa-mobile-screen-button" aria-hidden="true"></i>
-            <input id="identifier" name="identifier" type="text"
-                   inputmode="tel" autocomplete="username"
-                   placeholder="05xxxxxxxx" required>
+          <div class="phone-block">
+            <div class="phone-wrap">
+              <span class="phone-icon"><i class="fa-solid fa-mobile-screen-button"></i></span>
+              <input id="identifier" name="identifier" type="text"
+                     inputmode="tel" autocomplete="username"
+                     placeholder="05XXXXXXXX" required>
+            </div>
           </div>
           <div class="actions">
             <button class="btn btn--primary" type="submit" id="btn-check">
+              <i class="fa-solid fa-magnifying-glass"></i>
               <span>متابعة</span>
-              <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
             </button>
           </div>
         </form>
       </section>
 
       {# ─── STEP 2: password (active accounts) ──────────── #}
-      <section id="step2-password" class="hidden">
+      <section id="step2-password" class="step-form hidden">
         <div class="identity">
           <div class="avatar"><i class="fa-solid fa-user"></i></div>
           <div class="meta">
@@ -228,9 +295,9 @@
       </section>
 
       {# ─── STEP 2: reset (activation code + new password) ─ #}
-      <section id="step2-reset" class="hidden">
+      <section id="step2-reset" class="step-form hidden">
         <div class="identity">
-          <div class="avatar" style="background:var(--gold);color:var(--ink)">
+          <div class="avatar" style="background:linear-gradient(135deg,#F4BA2A,#FFD96A);color:#1E1E1E">
             <i class="fa-solid fa-rotate"></i>
           </div>
           <div class="meta">
@@ -266,9 +333,9 @@
       </section>
 
       {# ─── STEP 2: no_account (request activation) ──────── #}
-      <section id="step2-noaccount" class="hidden">
+      <section id="step2-noaccount" class="step-form hidden">
         <div class="identity">
-          <div class="avatar" style="background:var(--warn-bg);color:var(--warn)">
+          <div class="avatar" style="background:linear-gradient(135deg,#FFB454,#FFD96A);color:#5b2c08">
             <i class="fa-solid fa-exclamation"></i>
           </div>
           <div class="meta">
@@ -290,9 +357,9 @@
       </section>
 
       {# ─── STEP 2: not_found (register link) ────────────── #}
-      <section id="step2-notfound" class="hidden">
+      <section id="step2-notfound" class="step-form hidden">
         <div class="identity">
-          <div class="avatar" style="background:var(--err-bg);color:var(--err)">
+          <div class="avatar" style="background:#fde2e2;color:#b91c1c">
             <i class="fa-solid fa-question"></i>
           </div>
           <div class="meta">
@@ -315,9 +382,9 @@
     </div>
   </main>
 
-  <p class="footer">
-    منصة Hobe Hub — للاستفسارات تواصل مع إدارة الموقع.
-  </p>
+<div class="foot">
+  ليس لديك حساب؟
+  <a href="{{ url_for('user_register') }}"><i class="fa-solid fa-user-plus"></i> تسجيل اشتراك جديد</a>
 </div>
 
 <script>
@@ -343,9 +410,11 @@
 
   function show(id){
     ['step1','step2-password','step2-reset','step2-noaccount','step2-notfound'].forEach(function(s){
-      document.getElementById(s).classList.add('hidden');
+      var el = document.getElementById(s);
+      if(el){ el.classList.remove('is-on'); el.classList.add('hidden'); }
     });
-    document.getElementById(id).classList.remove('hidden');
+    var target = document.getElementById(id);
+    if(target){ target.classList.remove('hidden'); target.classList.add('is-on'); }
   }
 
   function setHeader(state){

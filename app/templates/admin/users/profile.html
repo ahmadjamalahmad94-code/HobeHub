@@ -365,6 +365,23 @@
 .up-card--username{border-color:#c7d8ff;background:linear-gradient(180deg,#f5f9ff,#fff)}
 .up-card--cards h3{border-bottom-color:#f1d993}
 .up-card--username h3{border-bottom-color:#c7d8ff}
+.tm-tier-opt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 8px;border-radius:12px;background:#FAFAF8;border:2px solid var(--d-border);cursor:pointer;font-family:inherit;transition:.18s ease;text-align:center;width:100%}
+.tm-tier-opt:hover{border-color:var(--d-gold);background:#fff}
+.tm-tier-opt.is-sel[data-color="muted"]{border-color:#9ca3af;background:#f3f4f6}
+.tm-tier-opt.is-sel[data-color="blue"] {border-color:#2563eb;background:#eff6ff}
+.tm-tier-opt.is-sel[data-color="green"]{border-color:#16a34a;background:#f0fdf4}
+.tm-tier-opt.is-sel[data-color="gold"] {border-color:#F4BA2A;background:#fffbeb}
+.tm-tier-ico{width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;background:var(--d-border);color:var(--d-text-muted);transition:.18s}
+.tm-tier-opt.is-sel[data-color="muted"] .tm-tier-ico{background:#9ca3af;color:#fff}
+.tm-tier-opt.is-sel[data-color="blue"]  .tm-tier-ico{background:#2563eb;color:#fff}
+.tm-tier-opt.is-sel[data-color="green"] .tm-tier-ico{background:#16a34a;color:#fff}
+.tm-tier-opt.is-sel[data-color="gold"]  .tm-tier-ico{background:#F4BA2A;color:#1E1E1E}
+.tm-tier-lbl{font-size:13px;font-weight:800;color:var(--d-black)}
+.tm-tier-sub{font-size:10.5px;color:var(--d-text-muted);font-weight:600}
+.pt-msg{border-radius:9px;padding:8px 13px;font-size:12.5px;font-weight:700;margin-bottom:10px;display:none}
+.pt-msg.is-show{display:block}
+.pt-msg.success{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+.pt-msg.error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
 </style>
 
 <!-- المرفقات -->
@@ -635,26 +652,53 @@
   </div>
 </div>
 
-<!-- Modal: card allowance level -->
+<!-- Modal: card allowance level — نظام التوثيق المتدرج -->
 <div class="up-backdrop" id="tier-modal">
-  <div class="up-modal">
-    <h3><i class="fa-solid fa-medal"></i>تغيير صلاحية البطاقات</h3>
-    <form id="tier-form">
-      {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
-      <div class="row">
-        <label>اختر مستوى السماح</label>
-        <select name="tier">
-          <option value="basic" {% if tier=='basic' %}selected{% endif %}>أساسي — نصف ساعة فقط</option>
-          <option value="standard" {% if tier=='standard' %}selected{% endif %}>موسّع — نصف ساعة، ساعة، ساعتان</option>
-          <option value="complete" {% if tier=='complete' %}selected{% endif %}>متقدم — حتى 3 ساعات</option>
-          <option value="super" {% if tier=='super' %}selected{% endif %}>خاص — يشمل 4 ساعات للحالات الخاصة</option>
-        </select>
-      </div>
-      <div class="actions">
-        <button type="button" class="btn btn-cancel" onclick="document.getElementById('tier-modal').classList.remove('is-open')">إلغاء</button>
-        <button type="submit" class="btn btn-save">حفظ</button>
-      </div>
-    </form>
+  <div class="up-modal" style="max-width:560px">
+    <h3><i class="fa-solid fa-shield-halved"></i>مستوى التوثيق — <span id="pt-name"></span></h3>
+    <div id="pt-msg" class="pt-msg"></div>
+    <div style="margin-bottom:14px;font-size:12.5px;color:var(--d-text-soft)">
+      المستوى الحالي: <strong id="pt-cur-lbl" style="color:var(--d-black)">…</strong>
+      <span id="pt-cur-unt" style="color:var(--d-text-muted);margin-right:4px"></span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <button type="button" class="tm-tier-opt" data-tier="0" data-color="muted">
+        <span class="tm-tier-ico"><i class="fa-solid fa-circle"></i></span>
+        <span class="tm-tier-lbl">افتراضي</span>
+        <span class="tm-tier-sub">نصف ساعة + ساعة</span>
+      </button>
+      <button type="button" class="tm-tier-opt" data-tier="1" data-color="blue">
+        <span class="tm-tier-ico"><i class="fa-solid fa-shield"></i></span>
+        <span class="tm-tier-lbl">معتمد</span>
+        <span class="tm-tier-sub">+ ساعتين</span>
+      </button>
+      <button type="button" class="tm-tier-opt" data-tier="2" data-color="green">
+        <span class="tm-tier-ico"><i class="fa-solid fa-shield-halved"></i></span>
+        <span class="tm-tier-lbl">مؤكد</span>
+        <span class="tm-tier-sub">+ 3 ساعات</span>
+      </button>
+      <button type="button" class="tm-tier-opt" data-tier="3" data-color="gold">
+        <span class="tm-tier-ico"><i class="fa-solid fa-star-of-life"></i></span>
+        <span class="tm-tier-lbl">سوبر</span>
+        <span class="tm-tier-sub">+ 4 ساعات</span>
+      </button>
+    </div>
+    <div class="row">
+      <label>صالح حتى <span style="color:var(--d-text-muted);font-size:10.5px;font-weight:600">(اختياري — اتركه فارغاً للدوام)</span></label>
+      <input type="date" id="pt-valid-until">
+    </div>
+    <div class="row" id="pt-fallback-wrap" style="display:none">
+      <label>المستوى بعد انتهاء التاريخ</label>
+      <select id="pt-fallback">
+        <option value="0">افتراضي (نصف ساعة + ساعة)</option>
+        <option value="1">معتمد (+ ساعتين)</option>
+        <option value="2">مؤكد (+ 3 ساعات)</option>
+      </select>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn btn-cancel" id="pt-cancel">إلغاء</button>
+      <button type="button" class="btn btn-save"   id="pt-save" disabled>حفظ</button>
+    </div>
   </div>
 </div>
 
@@ -693,7 +737,95 @@
     t.textContent = text; document.body.appendChild(t);
     setTimeout(()=>{ try{ document.body.removeChild(t); }catch(e){} }, 2200);
   }
-  document.getElementById('set-tier-btn').addEventListener('click', function(){ document.getElementById('tier-modal').classList.add('is-open'); });
+  // ─── Tier Modal (نظام التوثيق المتدرج) ───
+  (function(){
+    var ptModal   = document.getElementById('tier-modal');
+    var ptCancel  = document.getElementById('pt-cancel');
+    var ptSave    = document.getElementById('pt-save');
+    var ptMsg     = document.getElementById('pt-msg');
+    var ptCurLbl  = document.getElementById('pt-cur-lbl');
+    var ptCurUnt  = document.getElementById('pt-cur-unt');
+    var ptDate    = document.getElementById('pt-valid-until');
+    var ptFbWrap  = document.getElementById('pt-fallback-wrap');
+    var ptFbSel   = document.getElementById('pt-fallback');
+    var ptName    = document.getElementById('pt-name');
+    var ptOpts    = ptModal ? ptModal.querySelectorAll('.tm-tier-opt') : [];
+    var _bid      = '{{ bio.id }}';
+    var _selTier  = null;
+
+    function ptShowMsg(t,txt){ if(ptMsg){ ptMsg.className='pt-msg is-show '+t; ptMsg.textContent=txt; } }
+    function ptClearMsg(){ if(ptMsg){ ptMsg.className='pt-msg'; ptMsg.textContent=''; } }
+    function ptClose(){ if(ptModal) ptModal.classList.remove('is-open'); _selTier=null; }
+
+    function ptOpen(){
+      if(ptName) ptName.textContent = '{{ bio.full_name or "" }}';
+      if(ptCurLbl) ptCurLbl.textContent = '…';
+      if(ptCurUnt) ptCurUnt.textContent = '';
+      ptClearMsg();
+      if(ptDate) ptDate.value = '';
+      if(ptFbWrap) ptFbWrap.style.display = 'none';
+      if(ptSave) ptSave.disabled = true;
+      _selTier = null;
+      ptOpts.forEach(function(o){ o.classList.remove('is-sel'); });
+      if(ptModal) ptModal.classList.add('is-open');
+
+      fetch('/admin/beneficiaries/'+_bid+'/tier-info', {credentials:'same-origin'})
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if(!d.ok){ ptShowMsg('error', d.message||'تعذّر تحميل البيانات'); return; }
+          if(ptCurLbl) ptCurLbl.textContent = d.effective_tier_label || 'افتراضي';
+          var top = (d.policies||[]).find(function(p){ return !p.expired; });
+          if(ptCurUnt) ptCurUnt.textContent = (top&&top.valid_until) ? '(حتى '+top.valid_until+')' : '';
+          var et = d.effective_tier;
+          ptOpts.forEach(function(o){
+            if(parseInt(o.dataset.tier)===et){
+              o.classList.add('is-sel'); _selTier=et; if(ptSave) ptSave.disabled=false;
+            }
+          });
+        }).catch(function(){ ptShowMsg('error','فشل الاتصال'); });
+    }
+
+    document.getElementById('set-tier-btn') && document.getElementById('set-tier-btn').addEventListener('click', ptOpen);
+    ptCancel && ptCancel.addEventListener('click', ptClose);
+    ptModal  && ptModal.addEventListener('click', function(e){ if(e.target===ptModal) ptClose(); });
+
+    ptOpts.forEach(function(opt){
+      opt.addEventListener('click', function(){
+        ptOpts.forEach(function(o){ o.classList.remove('is-sel'); });
+        opt.classList.add('is-sel');
+        _selTier = parseInt(opt.dataset.tier);
+        if(ptSave) ptSave.disabled = false;
+        ptClearMsg();
+      });
+    });
+
+    ptDate && ptDate.addEventListener('input', function(){
+      if(ptFbWrap) ptFbWrap.style.display = this.value ? 'block' : 'none';
+    });
+
+    ptSave && ptSave.addEventListener('click', function(){
+      if(_selTier===null) return;
+      ptSave.disabled = true; ptClearMsg();
+      var payload = {
+        tier: _selTier,
+        valid_until: ptDate ? (ptDate.value||'') : '',
+        fallback_tier: (ptDate&&ptDate.value&&ptFbSel) ? parseInt(ptFbSel.value||'0') : 0,
+      };
+      fetch('/admin/beneficiaries/'+_bid+'/set-tier', {
+        method:'POST',
+        credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload),
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){
+          ptShowMsg('success', d.message);
+          if(ptCurLbl) ptCurLbl.textContent = d.tier_label||'افتراضي';
+          if(ptCurUnt) ptCurUnt.textContent = payload.valid_until?'(حتى '+payload.valid_until+')':'';
+          setTimeout(function(){ ptClose(); location.reload(); }, 900);
+        } else { ptShowMsg('error', d.message||'حدث خطأ.'); ptSave.disabled=false; }
+      }).catch(function(){ ptShowMsg('error','فشل الاتصال'); ptSave.disabled=false; });
+    });
+  })();
   document.getElementById('set-verify-btn').addEventListener('click', function(){ document.getElementById('verify-modal').classList.add('is-open'); });
 
   // ── Issue activation code (two-step modal) ──
@@ -801,14 +933,7 @@
   document.querySelectorAll('.up-backdrop').forEach(function(b){
     b.addEventListener('click', function(e){ if(e.target === b) b.classList.remove('is-open'); });
   });
-  document.getElementById('tier-form').addEventListener('submit', function(e){
-    e.preventDefault();
-    fetch('/admin/users/{{ bio.id }}/set-tier', {method:'POST', credentials:'same-origin', body:new FormData(this)})
-      .then(r=>r.json()).then(d=>{
-        showToast(d.message, d.ok ? 'success' : 'error');
-        if(d.ok) setTimeout(()=>location.reload(), 600);
-      });
-  });
+
   document.getElementById('verify-form').addEventListener('submit', function(e){
     e.preventDefault();
     fetch('/admin/users/{{ bio.id }}/set-verification', {method:'POST', credentials:'same-origin', body:new FormData(this)})

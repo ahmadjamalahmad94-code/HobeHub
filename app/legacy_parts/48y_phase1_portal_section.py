@@ -87,7 +87,6 @@ def _fetch_portal_accounts(search=""):
         like = "%" + search + "%"
         where.append("(b.full_name ILIKE %s OR b.phone ILIKE %s OR pa.username ILIKE %s)")
         params.extend([like, like, like])
-    where.append("pa.is_active=TRUE")
     if where:
         sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY pa.id DESC LIMIT 500"
@@ -95,14 +94,13 @@ def _fetch_portal_accounts(search=""):
 
 
 def _fetch_outside_beneficiaries(search=""):
-    """مستفيدون لديهم حساب بوابة غير فعال (خارج البوابة)."""
+    """مستفيدون لم يتم تفعيل حساب بوابة لهم بعد."""
     sql = (
         "SELECT b.id, b.full_name, b.phone, b.user_type, b.verification_status, b.tier, "
-        "pa.id AS portal_account_id, pa.username AS portal_username, pa.is_active, "
         "b.university_internet_method, b.freelancer_internet_method "
         "FROM beneficiaries b "
-        "JOIN beneficiary_portal_accounts pa ON pa.beneficiary_id = b.id "
-        "WHERE pa.is_active=FALSE"
+        "LEFT JOIN beneficiary_portal_accounts pa ON pa.beneficiary_id = b.id "
+        "WHERE pa.id IS NULL"
     )
     params = []
     if search:
@@ -113,6 +111,46 @@ def _fetch_outside_beneficiaries(search=""):
     return _with_access_mode(query_all(sql, params))
 
 
+def _portal_account_counts(search=""):
+    portal_sql = (
+        "SELECT "
+        "COUNT(*) AS total, "
+        "SUM(CASE WHEN pa.is_active=TRUE THEN 1 ELSE 0 END) AS active, "
+        "SUM(CASE WHEN pa.is_active=TRUE THEN 0 ELSE 1 END) AS inactive "
+        "FROM beneficiary_portal_accounts pa "
+        "JOIN beneficiaries b ON b.id = pa.beneficiary_id"
+    )
+    portal_params = []
+    where = []
+    if search:
+        like = "%" + search + "%"
+        where.append("(b.full_name ILIKE %s OR b.phone ILIKE %s OR pa.username ILIKE %s)")
+        portal_params.extend([like, like, like])
+    if where:
+        portal_sql += " WHERE " + " AND ".join(where)
+    portal = query_one(portal_sql, portal_params) or {}
+
+    outside_sql = (
+        "SELECT COUNT(*) AS total "
+        "FROM beneficiaries b "
+        "LEFT JOIN beneficiary_portal_accounts pa ON pa.beneficiary_id = b.id "
+        "WHERE pa.id IS NULL"
+    )
+    outside_params = []
+    if search:
+        like = "%" + search + "%"
+        outside_sql += " AND (b.full_name ILIKE %s OR b.phone ILIKE %s)"
+        outside_params.extend([like, like])
+    outside = query_one(outside_sql, outside_params) or {}
+
+    return {
+        "inside": int(portal.get("total") or 0),
+        "active": int(portal.get("active") or 0),
+        "inactive": int(portal.get("inactive") or 0),
+        "outside": int(outside.get("total") or 0),
+    }
+
+
 # ────────────────────────────────────────────────────────────────
 # GET /admin/portal-accounts — override الـ view القديم
 # ────────────────────────────────────────────────────────────────
@@ -120,16 +158,15 @@ def _portal_accounts_phase1_view():
     q = clean_csv_value(request.args.get("q")) if "clean_csv_value" in globals() else (request.args.get("q") or "").strip()
     inside = _fetch_portal_accounts(q) or []
     outside = _fetch_outside_beneficiaries(q) or []
-    active_count = len(inside)
-    inactive_count = len(outside)
+    counts = _portal_account_counts(q)
     return render_template(
         "admin/portal_accounts/list.html",
         inside=inside,
         outside=outside,
-        active_count=active_count,
-        inactive_count=inactive_count,
-        inside_count=len(inside),
-        outside_count=len(outside),
+        active_count=counts["active"],
+        inactive_count=counts["inactive"],
+        inside_count=counts["inside"],
+        outside_count=counts["outside"],
         q=q,
         # backward compat — لو فيه أماكن لسا تستخدم accounts/beneficiaries
         accounts=inside,
@@ -165,16 +202,16 @@ def admin_portal_accounts_list_ajax():
         "admin/portal_accounts/_outside_rows.html",
         outside=outside,
     )
-    active_count = len(inside)
+    counts = _portal_account_counts(q)
     return jsonify({
         "ok": True,
         "inside_html": inside_html,
         "outside_html": outside_html,
         "counts": {
-            "inside": len(inside),
-            "outside": len(outside),
-            "active": active_count,
-            "inactive": len(outside),
+            "inside": counts["inside"],
+            "outside": counts["outside"],
+            "active": counts["active"],
+            "inactive": counts["inactive"],
         },
     })
 
@@ -304,7 +341,7 @@ def admin_portal_account_delete(portal_id):
 
 
 # ────────────────────────────────────────────────────────────────
-# POST /admin/portal-accounts/move-in — نقل مستفيد من خارج للبوابة
+# POST /admin/portal-accounts/move-in — تفعيل حساب بوابة لمستفيد
 # ────────────────────────────────────────────────────────────────
 @app.route("/admin/portal-accounts/move-in", methods=["POST"])
 @login_required
@@ -347,7 +384,7 @@ def admin_portal_account_move_in():
             )
         final_username = existing.get("username") or username or ben.get("phone") or ""
         log_action(
-            "portal_move_in", "beneficiary_portal_account", existing["id"],
+            "portal_enable", "beneficiary_portal_account", existing["id"],
             f"تفعيل بوابة {ben.get('full_name')} (يوزر {final_username})",
         )
         return jsonify({
@@ -384,8 +421,8 @@ def admin_portal_account_move_in():
     )
     new_id = row["id"] if row else None
     log_action(
-        "portal_move_in", "beneficiary_portal_account", new_id,
-        f"نقل {ben.get('full_name')} للبوابة (يوزر {username})",
+        "portal_enable", "beneficiary_portal_account", new_id,
+        f"تفعيل حساب بوابة {ben.get('full_name')} (يوزر {username})",
     )
     return jsonify({
         "ok": True,

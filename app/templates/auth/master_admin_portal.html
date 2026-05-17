@@ -263,8 +263,6 @@ body{
       <p>أدخل اسم المستخدم أو رقم الجوال للمتابعة. صفحتك المخصصة ستظهر تلقائياً.</p>
     </div>
 
-    <div class="msg" id="msg-check"></div>
-
     <form id="form-check" autocomplete="on">
       <div class="field">
         <label class="field-label" for="username">اسم المستخدم أو الجوال</label>
@@ -278,6 +276,7 @@ body{
         <i class="fa-solid fa-arrow-left"></i>
       </button>
     </form>
+    <div class="msg" id="msg-check"></div>
   </section>
 
   <!-- Step 2: Password -->
@@ -287,8 +286,6 @@ body{
       <h1 id="welcome-name">أهلاً</h1>
       <p>أدخل كلمة المرور لإكمال تسجيل الدخول.</p>
     </div>
-
-    <div class="msg" id="msg-password"></div>
 
     <form id="form-password">
       <div class="field">
@@ -306,6 +303,7 @@ body{
         <i class="fa-solid fa-arrow-left"></i>
       </button>
     </form>
+    <div class="msg" id="msg-password"></div>
   </section>
 
   <div class="foot">
@@ -361,7 +359,7 @@ body{
     const fd = new FormData();
     fd.append('username', v);
 
-    fetch('/login/check', { method:'POST', body:fd, credentials:'same-origin' })
+    fetch('/admin-auth/check', { method:'POST', body:fd, credentials:'same-origin' })
       .then(r => r.json())
       .then(d => {
         setLoading(btnCheck, 'متابعة', false);
@@ -400,7 +398,7 @@ body{
     fd.append('username', u);
     fd.append('password', p);
 
-    fetch('/login/submit', { method:'POST', body:fd, credentials:'same-origin' })
+    fetch('/admin-auth/submit', { method:'POST', body:fd, credentials:'same-origin' })
       .then(r => r.json())
       .then(d => {
         if(d && d.ok){

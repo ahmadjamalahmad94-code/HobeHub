@@ -132,18 +132,18 @@ _LEGACY_PARTS = [
     '48af_cards_categories_ajax.py', '48ag_full_exports.py', '48ah_portal_import.py', '48ai_unified_login.py',
     '48aj_user_type_card_rules.py', '48ak_admin_cards_subscribers.py', '48al_system_cleanup_v2.py',
     '48am_sms_module.py', '48an_portal_documents.py', '48ao_subscriber_api_explorer.py', '48ap_radius_features.py',
-    '48aq_master_admin_portal.py', '48ar_signup_phone_check.py',
+    '48aq_master_admin_portal.py', '48aq2_admin_auth_endpoints.py', '48ar_signup_phone_check.py',
+    '48as_portal_redirect.py', '48at_segment_redirects.py', '48au_auto_card_fulfill.py',
+    '48av_verification_tiers.py', '48aw_portal_filter.py', '48ax_portal_list_route.py',
     '49_main_entrypoint.py',
 ]
 def _legacy_template_text(filename: str) -> str:
     return (_LEGACY_TEMPLATES_DIR / filename).read_text(encoding="utf-8")
 
-
 def _load_legacy_part(filename: str, parts_dir=_LEGACY_PARTS_DIR) -> None:
     part_path = parts_dir / filename
     source = part_path.read_text(encoding="utf-8")
     exec(compile(source, str(part_path), "exec"), globals())
-
 
 for _legacy_part in _LEGACY_PARTS:
     _load_legacy_part(_legacy_part)

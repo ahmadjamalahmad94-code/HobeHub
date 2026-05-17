@@ -1,0 +1,62 @@
+{# Partial: portal accounts rows #}
+{% for r in rows %}
+<tr class="beneficiary-row" data-bid="{{ r.id }}">
+  <td><input type="checkbox" class="row-cb" data-bid="{{ r.id }}"></td>
+  <td style="white-space:nowrap"><strong>{{ r.full_name or '—' }}</strong></td>
+  <td style="font-family:monospace;white-space:nowrap">{{ r.phone or '—' }}</td>
+  <td style="font-family:monospace;white-space:nowrap;color:#0891b2;font-weight:700">{{ r.portal_username or '—' }}</td>
+  <td style="white-space:nowrap">
+    {% if r.user_type == 'tawjihi' %}<span class="user-type-badge utype-tawjihi"><i class="fa-solid fa-user-graduate"></i>توجيهي</span>
+    {% elif r.user_type == 'university' %}<span class="user-type-badge utype-university"><i class="fa-solid fa-building-columns"></i>جامعي</span>
+    {% elif r.user_type == 'freelancer' %}<span class="user-type-badge utype-freelancer"><i class="fa-solid fa-laptop-code"></i>عمل حر</span>
+    {% else %}—{% endif %}
+  </td>
+  <td style="white-space:nowrap">
+    <span class="portal-badge portal-{{ r.portal_status }}">
+      {% if r.portal_status == 'active' %}<i class="fa-solid fa-circle-check"></i>
+      {% elif r.portal_status == 'reset' %}<i class="fa-solid fa-circle-exclamation"></i>
+      {% elif r.portal_status == 'disabled' %}<i class="fa-solid fa-circle-pause"></i>
+      {% else %}<i class="fa-regular fa-circle"></i>{% endif %}
+      {{ r.portal_status_label }}
+    </span>
+  </td>
+  <td><span class="last-login">{{ r.last_login_fmt }}</span></td>
+  <td>
+    <div class="action-wrap">
+      <a class="act-icon act-profile" href="/admin/users/{{ r.id }}/profile" title="الملف الكامل" style="text-decoration:none">
+        <i class="fa-solid fa-id-card-clip" style="color:#0891b2"></i>
+      </a>
+      <button type="button" class="act-icon portal-manage-btn"
+              data-bid="{{ r.id }}"
+              data-name="{{ r.full_name or r.id }}"
+              data-phone="{{ r.phone or '' }}"
+              data-portal-id="{{ r.portal_id or '' }}"
+              data-portal-username="{{ r.portal_username or '' }}"
+              data-portal-status="{{ r.portal_status }}"
+              title="إدارة حساب البوابة">
+        <i class="fa-solid fa-id-card" style="color:#0f766e"></i>
+      </button>
+      {% if has_permission('usage_counter') and r.access_mode == 'cards' %}
+      <button type="button" class="act-icon act-issue issue-card-btn" data-bid="{{ r.id }}" data-name="{{ r.full_name }}" title="إصدار بطاقة">
+        <i class="fa-solid fa-ticket"></i>
+      </button>
+      {% endif %}
+      {% if has_permission('edit') %}
+      <button type="button" class="act-icon quick-edit-btn" data-bid="{{ r.id }}" title="تعديل بيانات المشترك">
+        <i class="fa-solid fa-pen"></i>
+      </button>
+      {% endif %}
+      {% if has_permission('delete') %}
+      <button type="button" class="act-icon act-delete delete-btn" data-bid="{{ r.id }}" data-name="{{ r.full_name }}" title="حذف">
+        <i class="fa-solid fa-trash"></i>
+      </button>
+      {% endif %}
+    </div>
+  </td>
+</tr>
+{% else %}
+<tr class="no-paginate"><td colspan="8" style="text-align:center;padding:32px;color:var(--d-text-muted)">
+  <i class="fa-regular fa-folder-open" style="display:block;font-size:32px;color:var(--d-border-strong);margin-bottom:8px"></i>
+  <strong>لا توجد حسابات بوابة مطابقة</strong>
+</td></tr>
+{% endfor %}

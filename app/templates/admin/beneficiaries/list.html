@@ -137,6 +137,10 @@
 .act-icon.act-issue i{color:#1f8f51}
 .act-icon.act-delete i{color:#b91c1c}
 .act-icon.act-delete:hover{border-color:#b91c1c}
+
+/* Hide "الإنترنت" column (5th) when a segment filter is active — it's redundant */
+.d-table.seg-active th:nth-child(5),
+.d-table.seg-active td:nth-child(5){display:none}
 </style>{% endblock %}
 
 {% block content %}
@@ -178,13 +182,34 @@
     </div>
   </div>
 
+  <!-- Segment pills: نمط الإنترنت (بطاقات / اشتراك / الكل) -->
+  <div class="hub-pills" id="seg-pills" style="border-top:1px solid var(--d-border);padding-top:10px;gap:8px;align-items:center">
+    <span style="font-size:12px;color:var(--d-text-soft);font-weight:700;white-space:nowrap">نمط الإنترنت:</span>
+    <div style="display:inline-flex;gap:6px;flex-wrap:wrap">
+      <button type="button" class="hub-pill seg-pill {% if not filters.segment %}active{% endif %}" data-seg=""><i class="fa-solid fa-globe"></i>الجميع<span class="pill-count" id="cnt-seg-all">{{ kpi_total }}</span></button>
+      <button type="button" class="hub-pill seg-pill {% if filters.segment == 'cards' %}active{% endif %}" data-seg="cards"><i class="fa-solid fa-ticket"></i>بطاقات<span class="pill-count" id="cnt-seg-cards">{{ kpi_cards }}</span></button>
+      <button type="button" class="hub-pill seg-pill {% if filters.segment == 'username' %}active{% endif %}" data-seg="username"><i class="fa-solid fa-id-card"></i>اشتراك<span class="pill-count" id="cnt-seg-username">{{ kpi_username }}</span></button>
+    </div>
+  </div>
+
   <!-- Pills row INSIDE the hub: زر إضافة عاليمين + الـ pills عاليسار -->
   <div class="hub-pills" id="tab-pills" style="justify-content:space-between">
-    {% if has_permission('add') %}
-    <button type="button" class="hub-pill hub-pill--cta" id="open-add-modal" style="background:linear-gradient(135deg,#F4BA2A,#FFD96A);color:#1E1E1E;border-color:transparent">
-      <i class="fa-solid fa-user-plus"></i>إضافة مستفيد
-    </button>
-    {% endif %}
+    <div style="display:inline-flex;gap:6px;align-items:center">
+      {% if has_permission('add') %}
+      <button type="button" class="hub-pill hub-pill--cta" id="open-add-modal" style="background:linear-gradient(135deg,#F4BA2A,#FFD96A);color:#1E1E1E;border-color:transparent">
+        <i class="fa-solid fa-user-plus"></i>إضافة مستفيد
+      </button>
+      {% endif %}
+      <button type="button" class="hub-pill view-toggle-btn active" id="view-all-btn"
+              style="background:#1E1E1E;color:#fff;border-color:#1E1E1E;gap:6px">
+        <i class="fa-solid fa-users"></i>كل المستفيدين
+      </button>
+      <button type="button" class="hub-pill view-toggle-btn" id="view-portal-btn"
+              style="border-color:#0f766e;color:#0f766e;gap:6px">
+        <i class="fa-solid fa-id-card"></i>حسابات البوابة
+        <span class="qa-count" id="portal-count-badge" style="background:#0f766e;color:#fff">…</span>
+      </button>
+    </div>
     <div style="display:inline-flex;gap:6px;flex-wrap:wrap">
       <button type="button" class="hub-pill tab-pill {% if not filters.user_type %}active{% endif %}" data-type=""><i class="fa-solid fa-grip"></i>الكل<span class="qa-count pill-count" id="cnt-all">{{ kpi_total }}</span></button>
       <button type="button" class="hub-pill tab-pill {% if filters.user_type == 'tawjihi' %}active{% endif %}" data-type="tawjihi"><i class="fa-solid fa-user-graduate"></i>توجيهي<span class="qa-count pill-count" id="cnt-tawjihi">{{ kpi_tawjihi }}</span></button>
@@ -211,7 +236,13 @@
       <option value="">الجامعة</option>
       {% for u in university_names %}<option value="{{ u }}" {% if filters.university_name == u %}selected{% endif %}>{{ u }}</option>{% endfor %}
     </select>
+    <select name="has_portal" class="hub-search-select" id="filter-has-portal" title="حساب البوابة">
+      <option value="">حساب البوابة — الكل</option>
+      <option value="yes" {% if filters.has_portal == 'yes' %}selected{% endif %}>لديهم بوابة</option>
+      <option value="no"  {% if filters.has_portal == 'no'  %}selected{% endif %}>بدون بوابة</option>
+    </select>
     <input type="hidden" name="user_type" value="{{ filters.user_type or '' }}">
+    <input type="hidden" name="segment" id="form-segment" value="{{ filters.segment or '' }}">
     <a class="hub-search-clear" href="/admin/beneficiaries" title="مسح"><i class="fa-solid fa-xmark"></i></a>
   </form>
 </section>
@@ -232,7 +263,7 @@
 
 <section class="d-card">
   <div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-list"></i>النتائج</h3><span style="font-size:11.5px;color:var(--d-text-muted)"><span id="total-count">{{ total }}</span> نتيجة</span></div>
-  <div class="d-card-body--flush d-table-wrap">
+  <div class="d-card-body--flush d-table-wrap" id="ben-table-wrap">
     <table class="d-table" data-paginated="1" data-page-size="20" data-page-sizes="10,20,50,100" data-persist-key="beneficiaries">
       <thead><tr>
         <th style="width:30px"><input type="checkbox" class="head-cb" id="head-cb" title="تحديد الكل في الصفحة"></th>
@@ -244,6 +275,81 @@
     </table>
   </div>
 </section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Portal Accounts View — عرض حسابات البوابة
+════════════════════════════════════════════════════════════ -->
+<div id="portal-view" style="display:none;margin-top:8px">
+  <!-- Mini stats -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+    <div style="background:#fff;border:1.5px solid #d1fae5;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+      <div style="width:40px;height:40px;border-radius:50%;background:#d1fae5;display:flex;align-items:center;justify-content:center">
+        <i class="fa-solid fa-circle-check" style="color:#059669;font-size:18px"></i>
+      </div>
+      <div><div style="font-size:22px;font-weight:900;color:#1E1E1E" id="ps-active">…</div><div style="font-size:11px;color:#6b7280;font-weight:600">نشط</div></div>
+    </div>
+    <div style="background:#fff;border:1.5px solid #fef3c7;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+      <div style="width:40px;height:40px;border-radius:50%;background:#fef3c7;display:flex;align-items:center;justify-content:center">
+        <i class="fa-solid fa-circle-exclamation" style="color:#d97706;font-size:18px"></i>
+      </div>
+      <div><div style="font-size:22px;font-weight:900;color:#1E1E1E" id="ps-reset">…</div><div style="font-size:11px;color:#6b7280;font-weight:600">مصفّر</div></div>
+    </div>
+    <div style="background:#fff;border:1.5px solid #fee2e2;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+      <div style="width:40px;height:40px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center">
+        <i class="fa-solid fa-circle-pause" style="color:#dc2626;font-size:18px"></i>
+      </div>
+      <div><div style="font-size:22px;font-weight:900;color:#1E1E1E" id="ps-disabled">…</div><div style="font-size:11px;color:#6b7280;font-weight:600">معطّل</div></div>
+    </div>
+    <div style="background:#fff;border:1.5px solid #e0e7ef;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+      <div style="width:40px;height:40px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center">
+        <i class="fa-solid fa-user-slash" style="color:#6b7280;font-size:18px"></i>
+      </div>
+      <div><div style="font-size:22px;font-weight:900;color:#1E1E1E" id="ps-outside">…</div><div style="font-size:11px;color:#6b7280;font-weight:600">خارج البوابة</div></div>
+    </div>
+  </div>
+
+  <!-- Search + status filter -->
+  <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+    <div style="position:relative;flex:1;min-width:200px">
+      <i class="fa-solid fa-magnifying-glass" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--d-text-muted);font-size:13px"></i>
+      <input type="text" id="portal-search" placeholder="ابحث بالاسم / الجوال / اسم المستخدم…"
+             style="width:100%;padding:9px 36px 9px 12px;border-radius:10px;border:1.5px solid var(--d-border-strong);font-family:inherit;font-size:13px;background:#FAFAF8;box-sizing:border-box;direction:rtl">
+    </div>
+    <div style="display:flex;gap:6px;flex-shrink:0">
+      <button type="button" class="portal-status-pill" data-status="" style="padding:8px 14px;border-radius:10px;border:2px solid #1E1E1E;background:#1E1E1E;color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">الكل</button>
+      <button type="button" class="portal-status-pill" data-status="active" style="padding:8px 14px;border-radius:10px;border:2px solid #059669;color:#059669;background:#fff;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">نشط</button>
+      <button type="button" class="portal-status-pill" data-status="reset" style="padding:8px 14px;border-radius:10px;border:2px solid #d97706;color:#d97706;background:#fff;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">مصفّر</button>
+      <button type="button" class="portal-status-pill" data-status="disabled" style="padding:8px 14px;border-radius:10px;border:2px solid #dc2626;color:#dc2626;background:#fff;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">معطّل</button>
+    </div>
+  </div>
+
+  <!-- Portal table -->
+  <div style="border-radius:14px;border:1.5px solid var(--d-border);overflow:hidden;background:#fff">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--d-border);display:flex;align-items:center">
+      <span style="font-size:13px;font-weight:700;color:var(--d-text-soft)">
+        <i class="fa-solid fa-id-card" style="color:#0f766e;margin-left:6px"></i>
+        المشتركون داخل البوابة — <strong id="portal-row-count" style="color:#1E1E1E">…</strong> حساب
+      </span>
+    </div>
+    <table class="d-table" data-paginated="1" data-page-size="20" data-page-sizes="10,20,50,100" data-persist-key="portal-accounts">
+      <thead>
+        <tr>
+          <th style="width:34px"><input type="checkbox" id="portal-head-cb"></th>
+          <th>المستفيد</th>
+          <th>الجوال</th>
+          <th style="color:#0891b2">اسم المستخدم</th>
+          <th>النوع</th>
+          <th>الحالة</th>
+          <th>آخر دخول</th>
+          <th>إجراءات</th>
+        </tr>
+      </thead>
+      <tbody id="portal-rows">
+        <tr class="no-paginate"><td colspan="8" style="text-align:center;padding:24px;color:var(--d-text-muted)">جارٍ التحميل…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 
 <!-- ── Quick-edit Modal (FULL fields) ── -->
 <div class="qe-backdrop" id="qe-modal">
@@ -521,6 +627,8 @@
       tawjihi_year: u.searchParams.get('tawjihi_year') || '',
       tawjihi_branch: u.searchParams.get('tawjihi_branch') || '',
       university_name: u.searchParams.get('university_name') || '',
+      segment: u.searchParams.get('segment') || '',
+      has_portal: u.searchParams.get('has_portal') || '',
       page: u.searchParams.get('page') || '1',
     };
   }
@@ -535,6 +643,16 @@
     document.querySelectorAll('#tab-pills .tab-pill').forEach(function(p){
       p.classList.toggle('active', (p.dataset.type || '') === (ut || ''));
     });
+  }
+  function setSegActive(seg){
+    document.querySelectorAll('#seg-pills .seg-pill').forEach(function(p){
+      p.classList.toggle('active', (p.dataset.seg || '') === (seg || ''));
+    });
+    // toggle column-hiding class on the table
+    var tbl = document.querySelector('.d-table[data-paginated]');
+    if(tbl) tbl.classList.toggle('seg-active', !!(seg && seg !== ''));
+    // sync hidden form input
+    var hi = document.getElementById('form-segment'); if(hi) hi.value = seg || '';
   }
   function loadRows(state, pushHistory){
     if(ajaxAbort){ try{ ajaxAbort.abort(); }catch(e){} }
@@ -554,6 +672,7 @@
           var setText = function(id,v){ var el=document.getElementById(id); if(el) el.textContent = v; };
           setText('cnt-all', k.total); setText('cnt-tawjihi', k.tawjihi);
           setText('cnt-university', k.university); setText('cnt-freelancer', k.freelancer);
+          setText('cnt-seg-all', k.total); setText('cnt-seg-cards', k.cards); setText('cnt-seg-username', k.username);
           // KPI cards (the ones in the d-kpi-grid)
           var kpiVals = document.querySelectorAll('.d-kpi .d-kpi-value');
           if(kpiVals.length === 4){
@@ -571,6 +690,9 @@
           }
         }
         setTabsActive(state.user_type);
+        setSegActive(state.segment);
+        var hpSel = document.getElementById('filter-has-portal');
+        if(hpSel) hpSel.value = state.has_portal || '';
         // clear bulk selection (rows changed)
         var headCb = document.getElementById('head-cb'); if(headCb) headCb.checked = false;
         var bulkBar = document.getElementById('bulk-bar'); if(bulkBar) bulkBar.classList.remove('is-show');
@@ -598,6 +720,15 @@
     });
   });
 
+  // Segment pill clicks → AJAX
+  document.querySelectorAll('#seg-pills .seg-pill').forEach(function(p){
+    p.addEventListener('click', function(){
+      var seg = p.dataset.seg || '';
+      var s = readState(); s.segment = seg; s.user_type = ''; s.page = '1';
+      loadRows(s, true);
+    });
+  });
+
   // Filter form submit → AJAX (no reload)
   var filterForm = document.querySelector('form.filter-row');
   if(filterForm){
@@ -610,6 +741,7 @@
         tawjihi_year: fd.get('tawjihi_year') || '',
         tawjihi_branch: fd.get('tawjihi_branch') || '',
         university_name: fd.get('university_name') || '',
+        segment: fd.get('segment') || '',
         page: '1',
       };
       loadRows(s, true);
@@ -655,6 +787,7 @@
           tawjihi_year: fd.get('tawjihi_year') || '',
           tawjihi_branch: fd.get('tawjihi_branch') || '',
           university_name: fd.get('university_name') || '',
+          segment: fd.get('segment') || '',
           page: '1',
         };
         loadRows(s, true);
@@ -677,6 +810,18 @@
       var mo = new MutationObserver(function(){ setStatus('done'); });
       mo.observe(rowsEl, {childList:true});
     }
+  }
+
+  // Apply segment column-hiding on initial page load (before any AJAX call)
+  (function(){ var s = readState(); setSegActive(s.segment); })();
+
+  // has_portal select → AJAX فوري
+  var hpSelEl = document.getElementById('filter-has-portal');
+  if(hpSelEl){
+    hpSelEl.addEventListener('change', function(){
+      var s = readState(); s.has_portal = this.value; s.page = '1';
+      loadRows(s, true);
+    });
   }
 
   // History back/forward
@@ -735,216 +880,141 @@
     ids.forEach(id => fd.append('ids', id));
     fetch('/admin/beneficiaries/bulk-action', {method:'POST', credentials:'same-origin', body:fd})
       .then(r => r.json()).then(d => {
-        if(d.ok){ showToast(d.message, 'success'); setTimeout(() => window.location.reload(), 700); }
-        else showToast(d.message || 'فشلت العملية', 'error');
-      }).catch(() => showToast('فشل الاتصال', 'error'));
+        if(d.ok){ loadRows(readState(),false); showToast(d.message, 'success'); }
+        else { showToast(d.message || 'فشلت العملية', 'error'); }
+      }).catch(() => { showToast('فشل الاتصال','error'); });
   }
-  document.querySelectorAll('.bulk-bar .bulk-btn[data-action]').forEach(b =>
-    b.addEventListener('click', () => bulkAction(b.dataset.action)));
 
-  // ─── Delete single row (delegated) ───
-  document.addEventListener('click', function(e){
-    var btn = e.target.closest && e.target.closest('.delete-btn');
-    if(!btn) return;
-    var bid = btn.dataset.bid, name = btn.dataset.name;
-    if(!confirm('سيتم حذف "'+name+'" نهائيًا. متابعة؟')) return;
-    var fd = new FormData();
-    fetch('/admin/beneficiaries/'+bid+'/delete-ajax', {method:'POST', credentials:'same-origin', body:fd})
-      .then(r => r.json()).then(d => {
-        if(d.ok){
-          var row = document.querySelector('tr.beneficiary-row[data-bid="'+bid+'"]');
-          if(row) row.remove();
-          showToast(d.message, 'success');
-        } else showToast(d.message || 'تعذّر الحذف', 'error');
-      }).catch(() => showToast('فشل الاتصال', 'error'));
-  });
+  // ─── Issue Card Modal ───
+  var icModal       = document.getElementById('ic-modal');
+  var icForm        = document.getElementById('ic-form');
+  var icName        = document.getElementById('ic-name');
+  var icMsg         = document.getElementById('ic-msg');
+  var icSave        = document.getElementById('ic-save');
+  var icReasonsEl   = document.getElementById('ic-reasons');
+  var icCatsEl      = document.getElementById('ic-categories');
+  var icReasonInp   = document.getElementById('ic-reason');
+  var icCategoryInp = document.getElementById('ic-category');
+  var currentBid    = '';
 
-  // ─── Quick-edit Modal (FULL) ───
-  var qeModal = document.getElementById('qe-modal');
-  var qeForm = document.getElementById('qe-form');
-  var qeMsg = document.getElementById('qe-msg');
-  var qeSave = document.getElementById('qe-save');
-  var qeTypeBadge = document.getElementById('qe-type-badge');
-  var qeTawjihi = document.getElementById('qe-tawjihi-section');
-  var qeUniversity = document.getElementById('qe-university-section');
-  var qeFreelancer = document.getElementById('qe-freelancer-section');
+  function icShowMsg(t, txt){ if(icMsg){ icMsg.className='qe-msg is-show '+t; icMsg.textContent=txt; } }
+  function icClearMsg(){ if(icMsg){ icMsg.className='qe-msg'; icMsg.textContent=''; } }
+  function icClose(){ if(icModal) icModal.classList.remove('is-open'); }
 
-  function qeShowMsg(t, txt){ qeMsg.className = 'qe-msg is-show '+t; qeMsg.textContent = txt; }
-  function qeClear(){ qeMsg.className = 'qe-msg'; qeMsg.textContent = ''; }
-  function setSelectValue(elId, val){ var el = document.getElementById(elId); if(el) el.value = val || ''; }
-  function qeApplyType(ut){
-    ut = (ut || '').toLowerCase();
-    var label = {tawjihi:'توجيهي', university:'جامعي', freelancer:'عمل حر'}[ut] || ut;
-    qeTypeBadge.textContent = label;
-    document.getElementById('qe-user-type').value = ut;
-    qeTawjihi.style.display = (ut === 'tawjihi') ? '' : 'none';
-    qeUniversity.style.display = (ut === 'university') ? '' : 'none';
-    qeFreelancer.style.display = (ut === 'freelancer') ? '' : 'none';
-    document.querySelectorAll('.qe-type-card').forEach(function(c){
-      c.classList.toggle('is-selected', c.dataset.type === ut);
-    });
-  }
-  // type-picker click listeners (wired once)
-  document.querySelectorAll('.qe-type-card').forEach(function(card){
-    card.addEventListener('click', function(){ qeApplyType(card.dataset.type); });
-  });
-  function qeOpen(bid){
-    qeClear(); qeSave.disabled = true;
-    document.getElementById('qe-bid').value = bid;
-    fetch('/admin/beneficiaries/'+bid+'/quick-edit', {credentials:'same-origin'})
-      .then(r => r.json()).then(d => {
-        if(!d || !d.ok){ qeShowMsg('error', d && d.message || 'تعذّر التحميل'); return; }
-        var x = d.data;
-        document.getElementById('qe-first').value = x.first_name;
-        document.getElementById('qe-second').value = x.second_name;
-        document.getElementById('qe-third').value = x.third_name;
-        document.getElementById('qe-fourth').value = x.fourth_name;
-        document.getElementById('qe-phone').value = x.phone;
-        document.getElementById('qe-notes').value = x.notes || '';
-
-        // Apply type (badge + sections + picker selection)
-        var ut = (x.user_type || '').toLowerCase();
-        qeApplyType(ut);
-
-        if(ut === 'tawjihi'){
-          setSelectValue('qe-tawjihi-year', x.tawjihi_year);
-          setSelectValue('qe-tawjihi-branch', x.tawjihi_branch);
-        } else if(ut === 'university'){
-          document.getElementById('qe-uni-name').value = x.university_name;
-          document.getElementById('qe-uni-number').value = x.university_number;
-          document.getElementById('qe-uni-college').value = x.university_college;
-          document.getElementById('qe-uni-spec').value = x.university_specialization;
-          document.getElementById('qe-uni-days').value = x.university_days;
-          setSelectValue('qe-uni-method', x.university_internet_method || 'نظام البطاقات');
-        } else if(ut === 'freelancer'){
-          document.getElementById('qe-free-spec').value = x.freelancer_specialization;
-          document.getElementById('qe-free-company').value = x.freelancer_company;
-          setSelectValue('qe-free-sched', x.freelancer_schedule_type);
-          setSelectValue('qe-free-method', x.freelancer_internet_method || 'نظام البطاقات');
-        }
-        qeSave.disabled = false;
-      }).catch(() => qeShowMsg('error','فشل الاتصال'));
-    qeModal.classList.add('is-open');
-  }
-  function qeClose(){ qeModal.classList.remove('is-open'); }
-  // Delegated quick-edit click
-  document.addEventListener('click', function(e){
-    var b = e.target.closest && e.target.closest('.quick-edit-btn');
-    if(b) qeOpen(b.dataset.bid);
-  });
-  document.getElementById('qe-close').addEventListener('click', qeClose);
-  document.getElementById('qe-cancel').addEventListener('click', qeClose);
-  qeModal.addEventListener('click', e => { if(e.target === qeModal) qeClose(); });
-
-  qeForm.addEventListener('submit', e => {
-    e.preventDefault(); qeSave.disabled = true; qeClear();
-    var bid = document.getElementById('qe-bid').value;
-    fetch('/admin/beneficiaries/'+bid+'/quick-edit', {method:'POST', credentials:'same-origin', body:new FormData(qeForm)})
-      .then(r => r.json()).then(d => {
-        if(d.ok){
-          var row = document.querySelector('tr.beneficiary-row[data-bid="'+bid+'"]');
-          if(row){ var n = row.querySelector('.row-fullname'); var p = row.querySelector('.row-phone'); if(n) n.textContent = d.data.full_name; if(p) p.textContent = d.data.phone || '—'; }
-          qeShowMsg('success', d.message); setTimeout(qeClose, 700);
-        } else { qeShowMsg('error', d.message); qeSave.disabled = false; }
-      }).catch(() => { qeShowMsg('error','فشل الاتصال'); qeSave.disabled = false; });
-  });
-
-  // ─── Issue-card Modal ───
-  var icModal = document.getElementById('ic-modal');
-  var icForm = document.getElementById('ic-form');
-  var icMsg = document.getElementById('ic-msg');
-  var icSave = document.getElementById('ic-save');
-  var currentBid = null;
-  function icShowMsg(t, txt){ icMsg.className = 'qe-msg is-show '+t; icMsg.textContent = txt; }
-  function icClear(){ icMsg.className = 'qe-msg'; icMsg.textContent = ''; }
-  function catMeta(d){
-    var x = parseInt(d || 0, 10);
-    if(x <= 30)  return {icon:'fa-bolt',           accent:'#0891b2', bgFrom:'rgba(8,145,178,.10)',  bgTo:'rgba(8,145,178,.22)',  sub:'استخدام سريع'};
-    if(x <= 60)  return {icon:'fa-clock',          accent:'#1c52a8', bgFrom:'rgba(28,82,168,.10)',  bgTo:'rgba(28,82,168,.22)',  sub:'استخدام سريع'};
-    if(x <= 120) return {icon:'fa-hourglass-half', accent:'#7c3aed', bgFrom:'rgba(124,58,237,.10)', bgTo:'rgba(124,58,237,.22)', sub:'جلسة مركّزة'};
-    if(x <= 180) return {icon:'fa-bolt-lightning', accent:'#d97706', bgFrom:'rgba(217,119,6,.10)',  bgTo:'rgba(217,119,6,.22)',  sub:'جلسة طويلة'};
-    return                {icon:'fa-fire',         accent:'#dc2626', bgFrom:'rgba(220,38,38,.10)',  bgTo:'rgba(220,38,38,.22)',  sub:'جلسة مطوّلة'};
-  }
-  var REASON_META = {
-    'تنفيذ تجربة':    {icon:'fa-flask',            accent:'#dc2626', bgFrom:'rgba(220,38,38,.10)',  bgTo:'rgba(220,38,38,.22)',  sub:'اختبار عملي'},
-    'تقديم اختبار':   {icon:'fa-pen-to-square',    accent:'#1c52a8', bgFrom:'rgba(28,82,168,.10)',  bgTo:'rgba(28,82,168,.22)',  sub:'سريع ومحدد'},
-    'حل واجب':        {icon:'fa-list-check',       accent:'#d97706', bgFrom:'rgba(217,119,6,.10)',  bgTo:'rgba(217,119,6,.22)',  sub:'إنجاز مهمة'},
-    'دراسة':          {icon:'fa-book-open',        accent:'#16a34a', bgFrom:'rgba(22,163,74,.10)',  bgTo:'rgba(22,163,74,.22)',  sub:'جلسة تعلّم'},
-    'عمل حر':         {icon:'fa-laptop-code',      accent:'#7c3aed', bgFrom:'rgba(124,58,237,.10)', bgTo:'rgba(124,58,237,.22)', sub:'عمل مستقل'},
-    'تحميل محاضرات':  {icon:'fa-cloud-arrow-down', accent:'#0891b2', bgFrom:'rgba(8,145,178,.10)',  bgTo:'rgba(8,145,178,.22)',  sub:'محاضرات وملفات'},
-    'أخرى':           {icon:'fa-ellipsis',         accent:'#6b7280', bgFrom:'rgba(107,114,128,.10)',bgTo:'rgba(107,114,128,.22)',sub:'سبب مخصّص'},
-  };
-  function buildCard(o){
-    var b = document.createElement('button');
-    b.type='button'; b.className='pick-card';
-    b.style.setProperty('--pick-accent', o.accent);
-    b.style.setProperty('--pick-bg-from', o.bgFrom);
-    b.style.setProperty('--pick-bg-to', o.bgTo);
-    b.innerHTML = '<span class="pc-ico"><i class="fa-solid '+o.icon+'"></i></span><span class="pc-label">'+o.label+'</span>'+(o.sub?'<span class="pc-sub">'+o.sub+'</span>':'');
-    return b;
-  }
   function icOpen(bid, name){
-    icClear(); currentBid = bid; icSave.disabled = true;
-    document.getElementById('ic-name').textContent = name;
-    document.getElementById('ic-category').value = '';
-    document.getElementById('ic-reason').value = '';
-    document.getElementById('ic-delivery').value = 'paper';
-    document.getElementById('ic-notes').value = '';
-    document.querySelectorAll('.delivery-opt').forEach((o,i) => o.classList.toggle('is-selected', i===0));
+    currentBid = bid;
+    if(icName) icName.textContent = name || bid;
+    icClearMsg();
+    if(icForm) icForm.reset();
+    if(icReasonsEl) icReasonsEl.innerHTML = '<span style="color:var(--d-text-muted);font-size:13px">جارٍ التحميل…</span>';
+    if(icCatsEl)    icCatsEl.innerHTML    = '<span style="color:var(--d-text-muted);font-size:13px">جارٍ التحميل…</span>';
+    if(icReasonInp)   icReasonInp.value   = '';
+    if(icCategoryInp) icCategoryInp.value = '';
+    if(icSave) icSave.disabled = false;
+    if(icModal) icModal.classList.add('is-open');
+
     fetch('/admin/beneficiaries/'+bid+'/issue-card', {credentials:'same-origin'})
-      .then(r => r.json()).then(d => {
-        if(!d || !d.ok){ icShowMsg('error', d && d.message || 'تعذّر التحميل'); return; }
-        var cats = document.getElementById('ic-categories'); cats.innerHTML = '';
-        (d.categories || []).forEach(c => {
-          var m = catMeta(c.duration);
-          var card = buildCard({icon:m.icon,accent:m.accent,bgFrom:m.bgFrom,bgTo:m.bgTo,label:c.label,sub:m.sub});
-          card.addEventListener('click', () => {
-            cats.querySelectorAll('.pick-card').forEach(x => x.classList.remove('is-selected'));
-            card.classList.add('is-selected');
-            document.getElementById('ic-category').value = c.code; checkReady();
+      .then(function(r){ return r.json(); }).then(function(d){
+        if(!d.ok){ icShowMsg('error', d.message || 'تعذّر تحميل البيانات'); return; }
+
+        // Build reasons pick-grid
+        var reasons = d.reasons || [];
+        var reasonMeta = {
+          'تنفيذ تجربة':     {ico:'fa-flask',          accent:'#7c3aed', from:'rgba(124,58,237,.08)', to:'rgba(124,58,237,.18)'},
+          'تقديم اختبار':    {ico:'fa-file-pen',        accent:'#dc2626', from:'rgba(220,38,38,.08)',  to:'rgba(220,38,38,.18)'},
+          'حل واجب':         {ico:'fa-book-open',       accent:'#d97706', from:'rgba(217,119,6,.08)',  to:'rgba(217,119,6,.18)'},
+          'دراسة':           {ico:'fa-graduation-cap',  accent:'#0891b2', from:'rgba(8,145,178,.08)',  to:'rgba(8,145,178,.18)'},
+          'عمل حر':          {ico:'fa-laptop-code',     accent:'#059669', from:'rgba(5,150,105,.08)',  to:'rgba(5,150,105,.18)'},
+          'تحميل محاضرات':   {ico:'fa-cloud-arrow-down',accent:'#2563eb', from:'rgba(37,99,235,.08)',  to:'rgba(37,99,235,.18)'},
+          'أخرى':            {ico:'fa-circle-question', accent:'#6b7280', from:'rgba(107,114,128,.08)',to:'rgba(107,114,128,.18)'},
+        };
+        if(icReasonsEl){
+          icReasonsEl.innerHTML = '';
+          reasons.forEach(function(r){
+            var m = reasonMeta[r] || {ico:'fa-tag', accent:'#0891b2', from:'rgba(8,145,178,.08)', to:'rgba(8,145,178,.18)'};
+            var btn = document.createElement('button');
+            btn.type = 'button'; btn.className = 'pick-card';
+            btn.style.cssText = '--pick-accent:'+m.accent+';--pick-bg-from:'+m.from+';--pick-bg-to:'+m.to;
+            btn.innerHTML = '<span class="pc-ico"><i class="fa-solid '+m.ico+'" style="font-size:18px;color:'+m.accent+'"></i></span><span class="pc-label">'+r+'</span>';
+            btn.addEventListener('click', function(){
+              icReasonsEl.querySelectorAll('.pick-card').forEach(function(x){ x.classList.remove('is-selected'); });
+              btn.classList.add('is-selected');
+              if(icReasonInp) icReasonInp.value = r;
+            });
+            icReasonsEl.appendChild(btn);
           });
-          cats.appendChild(card);
-        });
-        var rs = document.getElementById('ic-reasons'); rs.innerHTML = '';
-        (d.reasons || []).forEach(r => {
-          var m = REASON_META[r] || {icon:'fa-circle',accent:'#6b7280',bgFrom:'rgba(107,114,128,.10)',bgTo:'rgba(107,114,128,.22)',sub:''};
-          var card = buildCard({icon:m.icon,accent:m.accent,bgFrom:m.bgFrom,bgTo:m.bgTo,label:r,sub:m.sub});
-          card.addEventListener('click', () => {
-            rs.querySelectorAll('.pick-card').forEach(x => x.classList.remove('is-selected'));
-            card.classList.add('is-selected');
-            document.getElementById('ic-reason').value = r; checkReady();
+        }
+
+        // Build categories pick-grid
+        var cats = d.categories || [];
+        var catMeta = {
+          'half_hour':  {emoji:'⏱', dur:'٣٠ د',  color:'#0891b2', from:'rgba(8,145,178,.08)',  to:'rgba(8,145,178,.18)'},
+          'one_hour':   {emoji:'🕐', dur:'ساعة',   color:'#16a34a', from:'rgba(22,163,74,.08)',  to:'rgba(22,163,74,.18)'},
+          'two_hours':  {emoji:'🕑', dur:'ساعتان', color:'#d97706', from:'rgba(217,119,6,.08)',  to:'rgba(217,119,6,.18)'},
+          'three_hours':{emoji:'🕒', dur:'٣ ساعات',color:'#7c3aed', from:'rgba(124,58,237,.08)', to:'rgba(124,58,237,.18)'},
+          'four_hours': {emoji:'🕓', dur:'٤ ساعات',color:'#F4BA2A', from:'rgba(244,186,42,.10)', to:'rgba(244,186,42,.22)'},
+        };
+        if(icCatsEl){
+          icCatsEl.innerHTML = '';
+          cats.forEach(function(c){
+            var m = catMeta[c.code] || {emoji:'🎫', dur:c.duration?c.duration+'د':'', color:'#1f8f51', from:'rgba(31,143,81,.08)', to:'rgba(31,143,81,.18)'};
+            var btn = document.createElement('button');
+            btn.type = 'button'; btn.className = 'pick-card';
+            btn.style.cssText = '--pick-accent:'+m.color+';--pick-bg-from:'+m.from+';--pick-bg-to:'+m.to;
+            btn.innerHTML = '<span class="pc-ico" style="font-size:22px;line-height:1">'+m.emoji+'</span>'
+              +'<span class="pc-label" style="font-size:11px;font-weight:700;color:'+m.color+'">'+m.dur+'</span>'
+              +'<span class="pc-label">'+c.label+'</span>';
+            btn.addEventListener('click', function(){
+              icCatsEl.querySelectorAll('.pick-card').forEach(function(x){ x.classList.remove('is-selected'); });
+              btn.classList.add('is-selected');
+              if(icCategoryInp) icCategoryInp.value = c.code;
+            });
+            icCatsEl.appendChild(btn);
           });
-          rs.appendChild(card);
-        });
-      }).catch(() => icShowMsg('error','فشل الاتصال'));
-    icModal.classList.add('is-open');
+        }
+      }).catch(function(){ icShowMsg('error','فشل الاتصال'); });
   }
-  function icClose(){ icModal.classList.remove('is-open'); }
-  function checkReady(){
-    icSave.disabled = !(document.getElementById('ic-category').value && document.getElementById('ic-reason').value);
-  }
-  // Delegated issue-card click
-  document.addEventListener('click', function(e){
-    var b = e.target.closest && e.target.closest('.issue-card-btn');
-    if(b) icOpen(b.dataset.bid, b.dataset.name);
-  });
-  document.getElementById('ic-close').addEventListener('click', icClose);
-  document.getElementById('ic-cancel').addEventListener('click', icClose);
-  icModal.addEventListener('click', e => { if(e.target === icModal) icClose(); });
-  document.querySelectorAll('.delivery-opt').forEach(o => {
-    o.addEventListener('click', () => {
-      document.querySelectorAll('.delivery-opt').forEach(x => x.classList.remove('is-selected'));
-      o.classList.add('is-selected'); document.getElementById('ic-delivery').value = o.dataset.mode;
+
+  // Delivery toggle
+  document.querySelectorAll('.delivery-opt').forEach(function(opt){
+    opt.addEventListener('click', function(){
+      document.querySelectorAll('.delivery-opt').forEach(function(x){ x.classList.remove('is-selected'); });
+      opt.classList.add('is-selected');
+      var deliveryInp = document.getElementById('ic-delivery');
+      if(deliveryInp) deliveryInp.value = opt.dataset.mode;
     });
   });
-  icForm.addEventListener('submit', e => {
-    e.preventDefault(); icSave.disabled = true; icClear();
-    fetch('/admin/beneficiaries/'+currentBid+'/issue-card', {method:'POST', credentials:'same-origin', body:new FormData(icForm)})
-      .then(r => r.json()).then(d => {
-        if(d.ok){ icClose(); showToast(d.message || 'تم تسجيل الإصدار', 'success'); }
-        else { icShowMsg('error', d.message); icSave.disabled = false; }
-      }).catch(() => { icShowMsg('error','فشل الاتصال'); icSave.disabled = false; });
+
+  // Delegated click for issue-card-btn (survives AJAX row refresh)
+  document.addEventListener('click', function(e){
+    var btn = e.target && e.target.closest && e.target.closest('.issue-card-btn');
+    if(!btn) return;
+    icOpen(btn.dataset.bid, btn.dataset.name);
   });
+
+  if(icModal){
+    var icCloseBtn  = document.getElementById('ic-close');
+    var icCancelBtn = document.getElementById('ic-cancel');
+    if(icCloseBtn)  icCloseBtn.addEventListener('click',  icClose);
+    if(icCancelBtn) icCancelBtn.addEventListener('click', icClose);
+    icModal.addEventListener('click', function(e){ if(e.target === icModal) icClose(); });
+  }
+
+  if(icForm){
+    icForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      if(!currentBid){ icShowMsg('error','معرّف المشترك مفقود'); return; }
+      if(!icReasonInp || !icReasonInp.value){ icShowMsg('error','الرجاء اختيار سبب البطاقة'); return; }
+      if(!icCategoryInp || !icCategoryInp.value){ icShowMsg('error','الرجاء اختيار فئة البطاقة'); return; }
+      if(icSave) icSave.disabled = true; icClearMsg();
+      fetch('/admin/beneficiaries/'+currentBid+'/issue-card', {
+        method:'POST', credentials:'same-origin', body:new FormData(icForm)
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){ icClose(); loadRows(readState(),false); showToast(d.message || 'تم إصدار البطاقة', 'success'); }
+        else { icShowMsg('error', d.message || 'فشل الإصدار'); if(icSave) icSave.disabled = false; }
+      }).catch(function(){ icShowMsg('error','فشل الاتصال'); if(icSave) icSave.disabled = false; });
+    });
+  }
 
   // ─── Add Beneficiary Modal ───
   var addModal = document.getElementById('add-modal');
@@ -1006,12 +1076,772 @@
     });
   }
 
+  // ─── Quick Edit Modal ───
+  var qeModal   = document.getElementById('qe-modal');
+  var qeForm    = document.getElementById('qe-form');
+  var qeMsg     = document.getElementById('qe-msg');
+  var qeSave    = document.getElementById('qe-save');
+  var qeBadge   = document.getElementById('qe-type-badge');
+  var qeBid     = document.getElementById('qe-bid');
+  var qeTypeInp = document.getElementById('qe-user-type');
+  var qeTypeCards = document.querySelectorAll('.qe-type-card');
+  var qeSections  = {
+    tawjihi:    document.getElementById('qe-tawjihi-section'),
+    university: document.getElementById('qe-university-section'),
+    freelancer: document.getElementById('qe-freelancer-section'),
+  };
+  var qeTypeBadgeMap = {tawjihi:'توجيهي', university:'جامعي', freelancer:'عمل حر'};
+
+  function qeShowMsg(t,txt){ if(qeMsg){ qeMsg.className='qe-msg is-show '+t; qeMsg.textContent=txt; } }
+  function qeClearMsg(){ if(qeMsg){ qeMsg.className='qe-msg'; qeMsg.textContent=''; } }
+  function qeClose(){ if(qeModal) qeModal.classList.remove('is-open'); }
+
+  function qeSetType(ut){
+    qeTypeInp.value = ut;
+    qeTypeCards.forEach(function(c){ c.classList.toggle('is-selected', c.dataset.type===ut); });
+    Object.keys(qeSections).forEach(function(k){ if(qeSections[k]) qeSections[k].style.display=(k===ut)?'':'none'; });
+    if(qeBadge) qeBadge.textContent = qeTypeBadgeMap[ut]||ut;
+  }
+
+  function qeOpen(bid){
+    if(!qeModal) return;
+    qeClearMsg(); if(qeForm) qeForm.reset(); if(qeSave) qeSave.disabled=false;
+    if(qeBid) qeBid.value=bid;
+    qeModal.classList.add('is-open');
+
+    fetch('/admin/beneficiaries/'+bid+'/quick-edit', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); }).then(function(d){
+        if(!d.ok){ qeShowMsg('error', d.message||'تعذّر تحميل البيانات'); return; }
+        var b = d.data;
+        qeSetType(b.user_type||'tawjihi');
+        var fv = function(id, val){ var el=document.getElementById(id); if(el) el.value=val||''; };
+        fv('qe-first',     b.first_name);    fv('qe-second',   b.second_name);
+        fv('qe-third',     b.third_name);    fv('qe-fourth',   b.fourth_name);
+        fv('qe-phone',     b.phone);         fv('qe-notes',    b.notes);
+        fv('qe-tawjihi-year',   b.tawjihi_year);
+        fv('qe-tawjihi-branch', b.tawjihi_branch);
+        fv('qe-uni-name',   b.university_name);  fv('qe-uni-number', b.university_number);
+        fv('qe-uni-college',b.university_college);fv('qe-uni-spec', b.university_specialization);
+        fv('qe-uni-days',   b.university_days);   fv('qe-uni-method',b.university_internet_method);
+        fv('qe-free-spec',  b.freelancer_specialization);
+        fv('qe-free-company',b.freelancer_company);
+        fv('qe-free-sched', b.freelancer_schedule_type);
+        fv('qe-free-method',b.freelancer_internet_method);
+      }).catch(function(){ qeShowMsg('error','فشل الاتصال'); });
+  }
+
+  // delegated: quick-edit-btn
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest && e.target.closest('.quick-edit-btn');
+    if(btn) qeOpen(btn.dataset.bid);
+  });
+
+  if(qeModal){
+    var qeCloseBtn  = document.getElementById('qe-close');
+    var qeCancelBtn = document.getElementById('qe-cancel');
+    if(qeCloseBtn)  qeCloseBtn.addEventListener('click',  qeClose);
+    if(qeCancelBtn) qeCancelBtn.addEventListener('click', qeClose);
+    qeModal.addEventListener('click', function(e){ if(e.target===qeModal) qeClose(); });
+  }
+
+  // type picker inside QE modal
+  qeTypeCards.forEach(function(card){
+    card.addEventListener('click', function(){ qeSetType(card.dataset.type); });
+  });
+
+  if(qeForm){
+    qeForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      var bid = qeBid ? qeBid.value : '';
+      if(!bid){ qeShowMsg('error','معرّف المشترك مفقود'); return; }
+      qeSave.disabled=true; qeClearMsg();
+      fetch('/admin/beneficiaries/'+bid+'/quick-edit', {
+        method:'POST', credentials:'same-origin', body:new FormData(qeForm)
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){ qeClose(); loadRows(readState(),false); showToast(d.message||'تم الحفظ','success'); }
+        else { qeShowMsg('error', d.message||'فشل الحفظ'); qeSave.disabled=false; }
+      }).catch(function(){ qeShowMsg('error','فشل الاتصال'); qeSave.disabled=false; });
+    });
+  }
+
+  // ─── Delete Button ───
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest && e.target.closest('.delete-btn');
+    if(!btn) return;
+    var bid  = btn.dataset.bid;
+    var name = btn.dataset.name || bid;
+    if(!confirm('حذف "'+name+'" نهائياً؟ لا يمكن التراجع.')) return;
+    fetch('/admin/beneficiaries/'+bid+'/delete-ajax', {method:'POST', credentials:'same-origin'})
+      .then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){ loadRows(readState(),false); showToast(d.message||'تم الحذف','success'); }
+        else { showToast(d.message||'فشل الحذف','error'); }
+      }).catch(function(){ showToast('فشل الاتصال','error'); });
+  });
+
+  // ─── Convert Access Button ───
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest && e.target.closest('.convert-access-btn');
+    if(!btn) return;
+    var name  = btn.dataset.name  || btn.dataset.bid;
+    var label = btn.dataset.label || '';
+    var url   = btn.dataset.url   || '';
+    if(!url) return;
+    if(!confirm('تحويل "'+name+'" إلى '+label+'؟')) return;
+    var fd = new FormData();
+    fd.append('target_mode', btn.dataset.mode||'');
+    fd.append('confirm_convert','1');
+    fetch(url, {method:'POST', credentials:'same-origin', body:fd})
+      .then(function(r){
+        if(r.redirected || r.ok){ loadRows(readState(),false); showToast('تم التحويل بنجاح','success'); }
+        else { showToast('فشل التحويل','error'); }
+      }).catch(function(){ showToast('فشل الاتصال','error'); });
+  });
+
   document.addEventListener('keydown', e => {
     if(e.key === 'Escape'){
-      if(qeModal.classList.contains('is-open')) qeClose();
-      if(icModal.classList.contains('is-open')) icClose();
+      if(qeModal && qeModal.classList.contains('is-open')) qeClose();
+      if(icModal && icModal.classList.contains('is-open')) icClose();
       if(addModal && addModal.classList.contains('is-open')) addModal.classList.remove('is-open');
     }
+  });
+
+  // ─── View Toggle: كل المستفيدين ↔ حسابات البوابة ───
+  (function(){
+    var viewAllBtn    = document.getElementById('view-all-btn');
+    var viewPortalBtn = document.getElementById('view-portal-btn');
+    var mainView      = document.getElementById('ben-table-wrap');
+    var portalView    = document.getElementById('portal-view');
+    var filterHub     = document.querySelector('.hub-filter-bar');
+    var portalRows    = document.getElementById('portal-rows');
+    var portalCount   = document.getElementById('portal-row-count');
+    var portalBadge   = document.getElementById('portal-count-badge');
+    var portalSearch  = document.getElementById('portal-search');
+    var portalStatus  = '';
+    var portalDebTimer = null;
+    var portalLoaded  = false;
+
+    // ── load portal stats badge on page load ──
+    fetch('/admin/beneficiaries/portal-stats', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); }).then(function(d){
+        if(!d.ok) return;
+        if(portalBadge) portalBadge.textContent = d.total;
+        var fill = function(id, v){ var el=document.getElementById(id); if(el) el.textContent=v; };
+        fill('ps-active', d.active); fill('ps-reset', d.reset);
+        fill('ps-disabled', d.disabled); fill('ps-outside', d.outside);
+      }).catch(function(){});
+
+    function loadPortalRows(){
+      var q = portalSearch ? portalSearch.value.trim() : '';
+      var url = '/admin/beneficiaries/portal-rows?status='+encodeURIComponent(portalStatus)+'&q='+encodeURIComponent(q);
+      if(portalRows) portalRows.innerHTML = '<tr class="no-paginate"><td colspan="8" style="text-align:center;padding:24px;color:var(--d-text-muted)">جارٍ التحميل…</td></tr>';
+      fetch(url, {credentials:'same-origin'}).then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){
+          if(portalRows) portalRows.innerHTML = d.html;
+          if(portalCount) portalCount.textContent = d.count;
+          // re-init pagination on portal table
+          if(typeof initPagination === 'function'){
+            var tbl = portalRows && portalRows.closest('table');
+            if(tbl) initPagination(tbl);
+          }
+        }
+      }).catch(function(){
+        if(portalRows) portalRows.innerHTML = '<tr class="no-paginate"><td colspan="8" style="text-align:center;padding:24px;color:#b91c1c">فشل الاتصال</td></tr>';
+      });
+    }
+
+    function showPortal(){
+      if(mainView)   mainView.style.display   = 'none';
+      if(filterHub)  filterHub.style.display  = 'none';
+      if(portalView) portalView.style.display = '';
+      viewAllBtn    && viewAllBtn.classList.remove('active');
+      viewPortalBtn && viewPortalBtn.classList.add('active');
+      viewAllBtn    && (viewAllBtn.style.background    = '#FAFAF8');
+      viewAllBtn    && (viewAllBtn.style.color         = '#1E1E1E');
+      viewAllBtn    && (viewAllBtn.style.borderColor   = 'var(--d-border-strong)');
+      viewPortalBtn && (viewPortalBtn.style.background = '#0f766e');
+      viewPortalBtn && (viewPortalBtn.style.color      = '#fff');
+      viewPortalBtn && (viewPortalBtn.style.borderColor= '#0f766e');
+      if(!portalLoaded){ portalLoaded=true; loadPortalRows(); }
+    }
+
+    function showAll(){
+      if(mainView)   mainView.style.display   = '';
+      if(filterHub)  filterHub.style.display  = '';
+      if(portalView) portalView.style.display = 'none';
+      viewPortalBtn && viewPortalBtn.classList.remove('active');
+      viewAllBtn    && viewAllBtn.classList.add('active');
+      viewAllBtn    && (viewAllBtn.style.background    = '#1E1E1E');
+      viewAllBtn    && (viewAllBtn.style.color         = '#fff');
+      viewAllBtn    && (viewAllBtn.style.borderColor   = '#1E1E1E');
+      viewPortalBtn && (viewPortalBtn.style.background = '#fff');
+      viewPortalBtn && (viewPortalBtn.style.color      = '#0f766e');
+      viewPortalBtn && (viewPortalBtn.style.borderColor= '#0f766e');
+    }
+
+    viewAllBtn    && viewAllBtn.addEventListener('click',    showAll);
+    viewPortalBtn && viewPortalBtn.addEventListener('click', function(){ showPortal(); });
+
+    // status pills
+    document.querySelectorAll('.portal-status-pill').forEach(function(pill){
+      pill.addEventListener('click', function(){
+        document.querySelectorAll('.portal-status-pill').forEach(function(p){
+          p.style.background = '#fff';
+          p.style.color = p.dataset.status === ''  ? '#1E1E1E'
+                        : p.dataset.status === 'active'   ? '#059669'
+                        : p.dataset.status === 'reset'    ? '#d97706'
+                        : '#dc2626';
+        });
+        pill.style.background = pill.dataset.status === ''       ? '#1E1E1E'
+                               : pill.dataset.status === 'active'   ? '#059669'
+                               : pill.dataset.status === 'reset'    ? '#d97706'
+                               : '#dc2626';
+        pill.style.color = '#fff';
+        portalStatus = pill.dataset.status;
+        loadPortalRows();
+      });
+    });
+
+    // portal search debounce
+    portalSearch && portalSearch.addEventListener('input', function(){
+      if(portalDebTimer) clearTimeout(portalDebTimer);
+      portalDebTimer = setTimeout(function(){ loadPortalRows(); }, 280);
+    });
+
+    // portal head checkbox
+    var phCb = document.getElementById('portal-head-cb');
+    phCb && phCb.addEventListener('change', function(){
+      document.querySelectorAll('#portal-rows .row-cb').forEach(function(cb){ cb.checked = phCb.checked; });
+    });
+
+    // reload portal after PM modal actions (portal account created/updated)
+    document.addEventListener('portal-updated', function(){
+      if(portalView && portalView.style.display !== 'none'){
+        portalLoaded = false;
+        loadPortalRows();
+        fetch('/admin/beneficiaries/portal-stats',{credentials:'same-origin'})
+          .then(function(r){return r.json();}).then(function(d){
+            if(!d.ok) return;
+            if(portalBadge) portalBadge.textContent = d.total;
+            var fill = function(id, v){ var el=document.getElementById(id); if(el) el.textContent=v; };
+            fill('ps-active', d.active); fill('ps-reset', d.reset);
+            fill('ps-disabled', d.disabled); fill('ps-outside', d.outside);
+          }).catch(function(){});
+      }
+    });
+  })();
+
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     Portal Management Modal — إدارة حساب بوابة المستفيد
+══════════════════════════════════════════════════════════════════ -->
+<div class="qe-backdrop" id="portal-modal">
+  <div class="qe-modal" style="max-width:520px">
+    <div class="qe-head">
+      <h3><i class="fa-solid fa-id-card"></i><span id="pm-title">إدارة حساب البوابة</span></h3>
+      <button type="button" class="qe-close" id="pm-close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="qe-msg" id="pm-msg"></div>
+
+    <!-- Beneficiary info strip -->
+    <div style="background:#F4F3EF;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;display:flex;gap:12px;align-items:center">
+      <strong id="pm-name" style="font-size:14px"></strong>
+      <span style="color:var(--d-text-muted);font-family:monospace" id="pm-phone"></span>
+    </div>
+
+    <!-- ─── Create mode: no portal account ─── -->
+    <div id="pm-create-section">
+      <p style="font-size:13px;color:var(--d-text-soft);margin-bottom:12px"><i class="fa-regular fa-circle-question"></i> لا يوجد حساب بوابة لهذا المستفيد. أنشئ حسابًا جديدًا:</p>
+      <div class="qe-field" style="margin-bottom:14px">
+        <label>اسم المستخدم <span class="hint">(رقم الجوال افتراضيًا)</span></label>
+        <input type="text" id="pm-create-username" placeholder="اسم المستخدم…" style="direction:ltr;text-align:left">
+      </div>
+      <div class="qe-actions">
+        <button type="button" class="qe-btn qe-btn-save" id="pm-create-btn"><i class="fa-solid fa-plus"></i> إنشاء حساب</button>
+        <button type="button" class="qe-btn qe-btn-cancel" id="pm-create-cancel">إلغاء</button>
+      </div>
+    </div>
+
+    <!-- ─── Manage mode: has portal account ─── -->
+    <div id="pm-manage-section" style="display:none">
+      <!-- Status + username -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <span id="pm-status-badge" style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:800"></span>
+        <span style="font-family:monospace;font-size:14px;font-weight:700" id="pm-username-display"></span>
+        <span style="font-size:11.5px;color:var(--d-text-muted);margin-inline-start:auto">آخر دخول: <span id="pm-last-login">—</span></span>
+      </div>
+
+      <!-- Activation code box (shows after reset) -->
+      <div id="pm-code-box" style="display:none;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:12px 16px;margin-bottom:12px;text-align:center">
+        <p style="font-size:12px;color:#166534;margin:0 0 8px;font-weight:700"><i class="fa-solid fa-key"></i> رمز التفعيل (صالح 72 ساعة)</p>
+        <div style="font-family:monospace;font-size:30px;font-weight:900;letter-spacing:10px;color:#1E1E1E;padding:8px 0" id="pm-code-text"></div>
+        <p style="font-size:11px;color:var(--d-text-muted);margin:4px 0 0">أعطِ هذا الرمز للمشترك ليتمكن من تسجيل الدخول وإعداد كلمة مروره.</p>
+      </div>
+
+      <!-- Credentials reveal box -->
+      <div id="pm-creds-box" style="display:none;background:#FDF1CF;border:1.5px solid rgba(244,186,42,.4);border-radius:10px;padding:12px 16px;margin-bottom:12px">
+        <div style="font-size:12px;color:var(--d-text-soft);margin-bottom:8px;font-weight:700"><i class="fa-solid fa-eye"></i> بيانات الدخول الحالية:</div>
+        <div style="font-family:monospace;font-size:13px;margin-bottom:4px">يوزر: <strong id="pm-creds-username" style="color:#1E1E1E"></strong></div>
+        <div style="font-family:monospace;font-size:13px">باسوورد: <strong id="pm-creds-password" style="color:#1E1E1E"></strong></div>
+      </div>
+
+      <!-- Inline edit section -->
+      <div id="pm-edit-section" style="display:none;border:1.5px dashed var(--d-border);border-radius:10px;padding:14px;margin-bottom:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+          <div class="qe-field">
+            <label>اسم المستخدم</label>
+            <input type="text" id="pm-edit-username" style="direction:ltr;text-align:left">
+          </div>
+          <div class="qe-field">
+            <label>كلمة مرور جديدة <span class="hint">(اتركها فارغة للإبقاء)</span></label>
+            <input type="password" id="pm-edit-password" placeholder="…">
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:10px;cursor:pointer">
+          <input type="checkbox" id="pm-edit-active" style="width:16px;height:16px;accent-color:var(--d-gold)">
+          الحساب مفعّل
+        </label>
+        <div style="display:flex;gap:8px">
+          <button type="button" class="qe-btn qe-btn-save" id="pm-edit-save"><i class="fa-solid fa-floppy-disk"></i> حفظ</button>
+          <button type="button" class="qe-btn qe-btn-cancel" id="pm-edit-cancel">إلغاء</button>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="qe-btn" style="background:#e8f6ee;color:#166534;font-size:12.5px" id="pm-reset-btn">
+          <i class="fa-solid fa-rotate-left"></i> تصفير + كود
+        </button>
+        <button type="button" class="qe-btn" style="background:#FDF1CF;color:#7c2d12;font-size:12.5px" id="pm-creds-btn">
+          <i class="fa-solid fa-eye"></i> كلمة المرور
+        </button>
+        <button type="button" class="qe-btn" style="background:#F4F3EF;color:var(--d-text);font-size:12.5px" id="pm-edit-btn">
+          <i class="fa-solid fa-pen"></i> تعديل
+        </button>
+        <button type="button" class="qe-btn" style="background:#fde2e2;color:#b91c1c;font-size:12.5px;margin-inline-start:auto" id="pm-delete-btn">
+          <i class="fa-solid fa-trash"></i> حذف
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var pmModal = document.getElementById('portal-modal');
+  var pmClose = document.getElementById('pm-close');
+  var pmMsg   = document.getElementById('pm-msg');
+  var pmTitle = document.getElementById('pm-title');
+  var pmNameEl  = document.getElementById('pm-name');
+  var pmPhoneEl = document.getElementById('pm-phone');
+
+  var pmCreateSection = document.getElementById('pm-create-section');
+  var pmManageSection = document.getElementById('pm-manage-section');
+
+  // create-mode elements
+  var pmCreateUsername = document.getElementById('pm-create-username');
+  var pmCreateBtn      = document.getElementById('pm-create-btn');
+  var pmCreateCancel   = document.getElementById('pm-create-cancel');
+
+  // manage-mode elements
+  var pmStatusBadge    = document.getElementById('pm-status-badge');
+  var pmUsernameDisplay= document.getElementById('pm-username-display');
+  var pmLastLogin      = document.getElementById('pm-last-login');
+  var pmCodeBox        = document.getElementById('pm-code-box');
+  var pmCodeText       = document.getElementById('pm-code-text');
+  var pmCredsBox       = document.getElementById('pm-creds-box');
+  var pmCredsUsername  = document.getElementById('pm-creds-username');
+  var pmCredsPassword  = document.getElementById('pm-creds-password');
+  var pmEditSection    = document.getElementById('pm-edit-section');
+  var pmEditUsername   = document.getElementById('pm-edit-username');
+  var pmEditPassword   = document.getElementById('pm-edit-password');
+  var pmEditActive     = document.getElementById('pm-edit-active');
+  var pmEditSave       = document.getElementById('pm-edit-save');
+  var pmEditCancel     = document.getElementById('pm-edit-cancel');
+  var pmResetBtn       = document.getElementById('pm-reset-btn');
+  var pmCredsBtn       = document.getElementById('pm-creds-btn');
+  var pmEditBtn        = document.getElementById('pm-edit-btn');
+  var pmDeleteBtn      = document.getElementById('pm-delete-btn');
+
+  var _currentBid = '';
+  var _currentPortalId = '';
+
+  function pmShowMsg(type, text){
+    pmMsg.className = 'qe-msg is-show ' + type;
+    pmMsg.textContent = text;
+  }
+  function pmClearMsg(){
+    pmMsg.className = 'qe-msg';
+    pmMsg.textContent = '';
+  }
+
+  function pmOpen(btn){
+    var bid      = btn.dataset.bid || '';
+    var name     = btn.dataset.name || '';
+    var phone    = btn.dataset.phone || '';
+    var portalId = btn.dataset.portalId || '';
+    var portalUsername = btn.dataset.portalUsername || '';
+    var portalStatus   = btn.dataset.portalStatus || '';
+
+    _currentBid      = bid;
+    _currentPortalId = portalId;
+
+    pmNameEl.textContent  = name;
+    pmPhoneEl.textContent = phone ? ('(' + phone + ')') : '';
+    pmClearMsg();
+    pmCodeBox.style.display   = 'none';
+    pmCredsBox.style.display  = 'none';
+    pmEditSection.style.display = 'none';
+
+    if(!portalId){
+      // Create mode
+      pmTitle.textContent = 'إنشاء حساب بوابة';
+      pmCreateUsername.value = phone || '';
+      pmCreateSection.style.display = '';
+      pmManageSection.style.display = 'none';
+    } else {
+      // Manage mode
+      pmTitle.textContent = 'إدارة حساب البوابة';
+      pmCreateSection.style.display = 'none';
+      pmManageSection.style.display = '';
+      pmUsernameDisplay.textContent = portalUsername || '—';
+      pmLastLogin.textContent = '—';
+
+      // Status badge styling
+      var statusMap = {
+        active:   {cls:'portal-active', label:'نشط'},
+        reset:    {cls:'portal-reset', label:'مصفّر'},
+        disabled: {cls:'portal-disabled', label:'معطّل'},
+        none:     {cls:'portal-none', label:'لا يوجد'},
+      };
+      var sinfo = statusMap[portalStatus] || {cls:'portal-none', label: portalStatus};
+      pmStatusBadge.className = 'access-badge ' + sinfo.cls;
+      pmStatusBadge.textContent = sinfo.label;
+
+      // Pre-fill edit form
+      pmEditUsername.value = portalUsername || '';
+      pmEditPassword.value = '';
+      pmEditActive.checked = (portalStatus === 'active' || portalStatus === 'reset');
+    }
+
+    pmModal.classList.add('is-open');
+  }
+
+  function pmClose_fn(){
+    pmModal.classList.remove('is-open');
+  }
+
+  pmClose && pmClose.addEventListener('click', pmClose_fn);
+  pmModal && pmModal.addEventListener('click', function(e){ if(e.target === pmModal) pmClose_fn(); });
+
+  // ─── Create account ───
+  pmCreateBtn && pmCreateBtn.addEventListener('click', function(){
+    var username = (pmCreateUsername.value || '').trim();
+    if(!username){ pmShowMsg('error','اسم المستخدم مطلوب.'); return; }
+    pmCreateBtn.disabled = true; pmClearMsg();
+    var fd = new FormData();
+    fd.append('beneficiary_id', _currentBid);
+    fd.append('username', username);
+    fetch('/admin/portal-accounts/move-in', {method:'POST', credentials:'same-origin', body:fd})
+      .then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){
+          pmShowMsg('success', d.message);
+          if(d.code){ pmCodeText.textContent = d.code; pmCodeBox.style.display = ''; }
+          _currentPortalId = d.portal_id || '';
+          pmUsernameDisplay.textContent = d.username || username;
+          pmCreateSection.style.display = 'none';
+          pmManageSection.style.display = '';
+          pmStatusBadge.className = 'access-badge portal-reset';
+          pmStatusBadge.textContent = 'مصفّر';
+          pmTitle.textContent = 'إدارة حساب البوابة';
+          if(typeof loadRows === 'function') setTimeout(function(){ loadRows(readState(),false); }, 900);
+        } else {
+          pmShowMsg('error', d.message || 'تعذّر الإنشاء');
+        }
+        pmCreateBtn.disabled = false;
+      }).catch(function(){ pmShowMsg('error','فشل الاتصال'); pmCreateBtn.disabled = false; });
+  });
+  pmCreateCancel && pmCreateCancel.addEventListener('click', pmClose_fn);
+
+  // ─── Reset account ───
+  pmResetBtn && pmResetBtn.addEventListener('click', function(){
+    if(!_currentPortalId) return;
+    if(!confirm('تأكيد تصفير حساب البوابة وتوليد رمز تفعيل جديد؟')) return;
+    pmResetBtn.disabled = true; pmClearMsg();
+    pmCredsBox.style.display = 'none'; pmCodeBox.style.display = 'none';
+    fetch('/admin/portal-accounts/'+_currentPortalId+'/reset', {method:'POST', credentials:'same-origin'})
+      .then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){
+          pmCodeText.textContent = d.code || '';
+          pmCodeBox.style.display = '';
+          pmStatusBadge.className = 'access-badge portal-reset';
+          pmStatusBadge.textContent = 'مصفّر';
+          pmShowMsg('success', d.message);
+          if(typeof loadRows === 'function') setTimeout(function(){ loadRows(readState(),false); }, 900);
+        } else { pmShowMsg('error', d.message || 'فشل التصفير'); }
+        pmResetBtn.disabled = false;
+      }).catch(function(){ pmShowMsg('error','فشل الاتصال'); pmResetBtn.disabled = false; });
+  });
+
+  // ─── Show credentials ───
+  pmCredsBtn && pmCredsBtn.addEventListener('click', function(){
+    if(!_currentPortalId) return;
+    pmCredsBox.style.display = 'none'; pmCredsBtn.disabled = true;
+    fetch('/admin/portal-accounts/'+_currentPortalId+'/credentials', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){
+          pmCredsUsername.textContent = d.username || '—';
+          pmCredsPassword.textContent = d.password || '(غير محدد)';
+          pmCredsBox.style.display = '';
+        } else { pmShowMsg('error', d.message || 'تعذّر جلب البيانات'); }
+        pmCredsBtn.disabled = false;
+      }).catch(function(){ pmShowMsg('error','فشل الاتصال'); pmCredsBtn.disabled = false; });
+  });
+
+  // ─── Edit toggle ───
+  pmEditBtn && pmEditBtn.addEventListener('click', function(){
+    pmEditSection.style.display = pmEditSection.style.display === 'none' ? '' : 'none';
+    pmCredsBox.style.display = 'none';
+  });
+  pmEditCancel && pmEditCancel.addEventListener('click', function(){ pmEditSection.style.display = 'none'; });
+
+  // ─── Save credentials ───
+  pmEditSave && pmEditSave.addEventListener('click', function(){
+    if(!_currentPortalId) return;
+    pmEditSave.disabled = true; pmClearMsg();
+    var fd = new FormData();
+    fd.append('username', pmEditUsername.value || '');
+    fd.append('password', pmEditPassword.value || '');
+    fd.append('is_active', pmEditActive.checked ? '1' : '0');
+    fetch('/admin/portal-accounts/'+_currentPortalId+'/set-credentials', {method:'POST', credentials:'same-origin', body:fd})
+      .then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){
+          pmShowMsg('success', d.message);
+          pmUsernameDisplay.textContent = pmEditUsername.value || pmUsernameDisplay.textContent;
+          var newStatus = pmEditActive.checked ? 'active' : 'disabled';
+          pmStatusBadge.className = 'access-badge portal-' + newStatus;
+          pmStatusBadge.textContent = pmEditActive.checked ? 'نشط' : 'معطّل';
+          pmEditSection.style.display = 'none';
+          if(typeof loadRows === 'function') setTimeout(function(){ loadRows(readState(),false); }, 900);
+        } else { pmShowMsg('error', d.message || 'فشل الحفظ'); }
+        pmEditSave.disabled = false;
+      }).catch(function(){ pmShowMsg('error','فشل الاتصال'); pmEditSave.disabled = false; });
+  });
+
+  // ─── Delete account ───
+  pmDeleteBtn && pmDeleteBtn.addEventListener('click', function(){
+    if(!_currentPortalId) return;
+    if(!confirm('هل أنت متأكد من حذف حساب البوابة؟ لن يُحذف المستفيد نفسه.')) return;
+    pmDeleteBtn.disabled = true; pmClearMsg();
+    fetch('/admin/portal-accounts/'+_currentPortalId+'/delete', {method:'POST', credentials:'same-origin'})
+      .then(function(r){ return r.json(); }).then(function(d){
+        if(d.ok){
+          pmClose_fn();
+          if(typeof showToast === 'function') showToast(d.message, 'success');
+          if(typeof loadRows === 'function') setTimeout(function(){ loadRows(readState(),false); }, 600);
+        } else { pmShowMsg('error', d.message || 'فشل الحذف'); pmDeleteBtn.disabled = false; }
+}).catch(function(){ pmShowMsg('error','فشل الاتصال'); pmDeleteBtn.disabled = false; });
+  });
+
+  // ─── Delegated click for portal-manage-btn (works after AJAX row refresh) ───
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest && e.target.closest('.portal-manage-btn');
+    if(btn) pmOpen(btn);
+  });
+
+  // Escape key
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && pmModal && pmModal.classList.contains('is-open')) pmClose_fn();
+  });
+})();
+</script>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     Tier Modal — إدارة التوثيق المتدرج
+══════════════════════════════════════════════════════════════════ -->
+<div class="qe-backdrop" id="tier-modal">
+  <div class="qe-modal" style="max-width:500px">
+    <div class="qe-head">
+      <h3><i class="fa-solid fa-shield-halved"></i>إدارة التوثيق<span id="tm-name" class="qe-type-badge"></span></h3>
+      <button class="qe-close" id="tm-close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div id="tm-current" style="margin-bottom:14px;padding:10px 14px;border-radius:12px;background:#F4F3EF;display:flex;align-items:center;gap:10px">
+      <i class="fa-solid fa-circle-info" style="color:var(--d-gold);font-size:15px"></i>
+      <div style="font-size:13px">
+        <span style="font-weight:700;color:var(--d-text)">المستوى الحالي:</span>
+        <span id="tm-current-label" style="font-weight:800;margin-inline-start:6px">…</span>
+        <span id="tm-current-until" style="font-size:11.5px;color:var(--d-text-muted);margin-inline-start:8px"></span>
+      </div>
+    </div>
+
+    <div class="qe-msg" id="tm-msg"></div>
+
+    <div class="qe-section">
+      <div class="qe-section-title"><i class="fa-solid fa-layer-group"></i>المستوى الجديد</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="tm-tier-grid">
+        <button type="button" class="tm-tier-opt" data-tier="0" data-color="muted">
+          <span class="tm-tier-ico"><i class="fa-solid fa-circle"></i></span>
+          <span class="tm-tier-lbl">افتراضي</span>
+          <span class="tm-tier-sub">نصف ساعة + ساعة</span>
+        </button>
+        <button type="button" class="tm-tier-opt" data-tier="1" data-color="blue">
+          <span class="tm-tier-ico"><i class="fa-solid fa-shield"></i></span>
+          <span class="tm-tier-lbl">معتمد</span>
+          <span class="tm-tier-sub">+ ساعتين</span>
+        </button>
+        <button type="button" class="tm-tier-opt" data-tier="2" data-color="green">
+          <span class="tm-tier-ico"><i class="fa-solid fa-shield-halved"></i></span>
+          <span class="tm-tier-lbl">مؤكد</span>
+          <span class="tm-tier-sub">+ 3 ساعات</span>
+        </button>
+        <button type="button" class="tm-tier-opt" data-tier="3" data-color="gold">
+          <span class="tm-tier-ico"><i class="fa-solid fa-star-of-life"></i></span>
+          <span class="tm-tier-lbl">سوبر</span>
+          <span class="tm-tier-sub">+ 4 ساعات</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="qe-section">
+      <div class="qe-section-title"><i class="fa-solid fa-calendar-xmark"></i>تاريخ الانتهاء <span style="font-weight:600;color:var(--d-text-muted)">(اختياري)</span></div>
+      <div class="qe-grid">
+        <div class="qe-field">
+          <label>ينتهي في <span class="hint">فارغ = توثيق دائم</span></label>
+          <input type="date" id="tm-valid-until">
+        </div>
+        <div class="qe-field" id="tm-fallback-wrap" style="display:none">
+          <label>بعد الانتهاء يرجع لـ</label>
+          <select id="tm-fallback">
+            <option value="0">افتراضي (نصف ساعة + ساعة)</option>
+            <option value="1">معتمد (+ ساعتين)</option>
+            <option value="2">مؤكد (+ 3 ساعات)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="qe-actions">
+      <button type="button" class="qe-btn qe-btn-cancel" id="tm-cancel">إلغاء</button>
+      <button type="button" class="qe-btn qe-btn-save" id="tm-save" disabled>
+        <i class="fa-solid fa-shield-halved"></i> حفظ التوثيق
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+.tm-tier-opt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 8px;border-radius:12px;background:#FAFAF8;border:2px solid var(--d-border);cursor:pointer;font-family:inherit;transition:.18s ease;text-align:center}
+.tm-tier-opt:hover{border-color:var(--d-gold);background:#fff}
+.tm-tier-opt.is-sel[data-color="muted"]{border-color:#9ca3af;background:#f3f4f6}
+.tm-tier-opt.is-sel[data-color="blue"] {border-color:#2563eb;background:#eff6ff}
+.tm-tier-opt.is-sel[data-color="green"]{border-color:#16a34a;background:#f0fdf4}
+.tm-tier-opt.is-sel[data-color="gold"] {border-color:#F4BA2A;background:#fffbeb}
+.tm-tier-ico{width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;background:var(--d-border);color:var(--d-text-muted);transition:.18s}
+.tm-tier-opt.is-sel[data-color="muted"] .tm-tier-ico{background:#9ca3af;color:#fff}
+.tm-tier-opt.is-sel[data-color="blue"]  .tm-tier-ico{background:#2563eb;color:#fff}
+.tm-tier-opt.is-sel[data-color="green"] .tm-tier-ico{background:#16a34a;color:#fff}
+.tm-tier-opt.is-sel[data-color="gold"]  .tm-tier-ico{background:#F4BA2A;color:#1E1E1E}
+.tm-tier-lbl{font-size:13px;font-weight:800;color:var(--d-black)}
+.tm-tier-sub{font-size:10.5px;color:var(--d-text-muted);font-weight:600}
+</style>
+
+<script>
+(function(){
+  var tmModal  = document.getElementById('tier-modal');
+  var tmClose  = document.getElementById('tm-close');
+  var tmCancel = document.getElementById('tm-cancel');
+  var tmSave   = document.getElementById('tm-save');
+  var tmMsg    = document.getElementById('tm-msg');
+  var tmName   = document.getElementById('tm-name');
+  var tmCurLbl = document.getElementById('tm-current-label');
+  var tmCurUnt = document.getElementById('tm-current-until');
+  var tmDate   = document.getElementById('tm-valid-until');
+  var tmFbWrap = document.getElementById('tm-fallback-wrap');
+  var tmFbSel  = document.getElementById('tm-fallback');
+  var tmOpts   = document.querySelectorAll('.tm-tier-opt');
+  var _bid = null, _selTier = null;
+
+  function tmShowMsg(type,txt){ tmMsg.className='qe-msg is-show '+type; tmMsg.textContent=txt; }
+  function tmClearMsg(){ tmMsg.className='qe-msg'; tmMsg.textContent=''; }
+
+  function tmOpen(btn){
+    _bid=btn.dataset.bid; _selTier=null;
+    tmName.textContent=btn.dataset.name||'';
+    tmCurLbl.textContent='…'; tmCurUnt.textContent='';
+    tmClearMsg(); tmSave.disabled=true;
+    tmOpts.forEach(function(o){o.classList.remove('is-sel');});
+    tmDate.value=''; tmFbWrap.style.display='none';
+    tmModal.classList.add('is-open');
+
+    fetch('/admin/beneficiaries/'+_bid+'/tier-info')
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(!d.ok) return;
+        tmCurLbl.textContent=d.effective_tier_label||'افتراضي';
+        var top=(d.policies||[]).find(function(p){return !p.expired;});
+        tmCurUnt.textContent=top&&top.valid_until?'(حتى '+top.valid_until+')':'';
+        var et=d.effective_tier;
+        tmOpts.forEach(function(o){
+          if(parseInt(o.dataset.tier)===et){ o.classList.add('is-sel'); _selTier=et; tmSave.disabled=false; }
+        });
+      }).catch(function(){});
+  }
+
+  function tmCloseFn(){ tmModal.classList.remove('is-open'); _bid=null; _selTier=null; }
+
+  tmClose&&tmClose.addEventListener('click',tmCloseFn);
+  tmCancel&&tmCancel.addEventListener('click',tmCloseFn);
+  tmModal&&tmModal.addEventListener('click',function(e){if(e.target===tmModal)tmCloseFn();});
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&tmModal&&tmModal.classList.contains('is-open'))tmCloseFn();
+  });
+
+  tmOpts.forEach(function(opt){
+    opt.addEventListener('click',function(){
+      tmOpts.forEach(function(o){o.classList.remove('is-sel');});
+      opt.classList.add('is-sel');
+      _selTier=parseInt(opt.dataset.tier);
+      tmSave.disabled=false; tmClearMsg();
+    });
+  });
+
+  tmDate&&tmDate.addEventListener('input',function(){
+    tmFbWrap.style.display=this.value?'block':'none';
+  });
+
+  tmSave&&tmSave.addEventListener('click',function(){
+    if(_selTier===null||!_bid) return;
+    tmSave.disabled=true; tmClearMsg();
+    var payload={
+      tier:_selTier,
+      valid_until:tmDate.value||'',
+      fallback_tier:tmDate.value?parseInt(tmFbSel.value||'0'):0,
+    };
+    fetch('/admin/beneficiaries/'+_bid+'/set-tier',{
+      method:'POST',
+headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload),
+    })
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(d.ok){
+          tmShowMsg('success',d.message);
+          tmCurLbl.textContent=d.tier_label||'افتراضي';
+          tmCurUnt.textContent=payload.valid_until?'(حتى '+payload.valid_until+')':'';
+          setTimeout(function(){
+            tmCloseFn();
+            if(typeof loadRows==='function') loadRows(readState(),false);
+          },1200);
+        } else { tmShowMsg('error',d.message||'حدث خطأ.'); tmSave.disabled=false; }
+      })
+      .catch(function(){ tmShowMsg('error','فشل الاتصال.'); tmSave.disabled=false; });
+  });
+
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest&&e.target.closest('.tier-btn');
+    if(btn) tmOpen(btn);
   });
 })();
 </script>

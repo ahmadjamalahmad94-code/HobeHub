@@ -87,17 +87,6 @@ def run_import_task(task_id: str, content: str):
             ins, _ = process_batches(inserts, is_update=False)
             total_inserted += ins
             update_import_task(task_id, inserted=total_inserted)
-            try:
-                from app.services.portal_account_lifecycle import ensure_portal_account_for_beneficiary
-                for _, inserted_data in inserts:
-                    phone = inserted_data.get("phone")
-                    if not phone:
-                        continue
-                    row = query_one("SELECT id FROM beneficiaries WHERE phone=%s LIMIT 1", [phone])
-                    if row and row.get("id"):
-                        ensure_portal_account_for_beneficiary(int(row["id"]), is_active=False, source="csv_import")
-            except Exception as exc:
-                append_import_log(task_id, f"تعذر تجهيز بعض حسابات البوابة للمستفيدين الجدد: {exc}", is_error=True)
         if updates:
             _, upd = process_batches(updates, is_update=True)
             total_updated += upd

@@ -256,11 +256,11 @@
   </div>
 </div>
 
-<!-- ── Modal: نقل مستفيد للبوابة ── -->
+<!-- ── Modal: تفعيل حساب بوابة لمستفيد ── -->
 <div class="pa-backdrop" id="movein-modal">
   <div class="pa-modal">
     <div class="pa-head">
-      <h3><i class="fa-solid fa-right-to-bracket"></i> نقل للبوابة</h3>
+      <h3><i class="fa-solid fa-user-check"></i> تفعيل حساب البوابة</h3>
       <button type="button" class="pa-close" onclick="document.getElementById('movein-modal').classList.remove('is-open')">✕</button>
     </div>
     <div class="pa-msg" id="movein-msg"></div>
@@ -273,7 +273,7 @@
       </div>
       <div class="pa-actions">
         <button type="button" class="pa-btn pa-btn-cancel" onclick="document.getElementById('movein-modal').classList.remove('is-open')">إلغاء</button>
-        <button type="submit" class="pa-btn pa-btn-save"><i class="fa-solid fa-right-to-bracket"></i> نقل وتوليد كود</button>
+        <button type="submit" class="pa-btn pa-btn-save"><i class="fa-solid fa-user-check"></i> تفعيل وتوليد كود</button>
       </div>
     </form>
   </div>
@@ -524,7 +524,7 @@
       });
   });
 
-  // ── Move-in (outside → inside) ──
+  // ── Enable portal account for a beneficiary ──
   document.addEventListener('click', function(e){
     var btn = e.target.closest && e.target.closest('.move-in-btn');
     if(!btn) return;
@@ -547,7 +547,7 @@
         } else {
           var m = document.getElementById('movein-msg');
           m.className = 'pa-msg is-show error';
-          m.textContent = d.message || 'فشل النقل';
+          m.textContent = d.message || 'فشل تفعيل حساب البوابة';
         }
       }).catch(function(){
         var m = document.getElementById('movein-msg');

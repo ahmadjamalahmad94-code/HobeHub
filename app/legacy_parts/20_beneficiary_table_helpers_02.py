@@ -61,6 +61,23 @@ def build_beneficiary_filters(args_dict):
         )
         """)
 
+    seg = (args_dict.get("segment") or "").strip()
+    if seg == "cards":
+        filters.append("""
+        (
+          user_type='tawjihi'
+          OR (user_type='university' AND COALESCE(university_internet_method,'') NOT IN ('يوزر إنترنت','يمتلك اسم مستخدم','username'))
+          OR (user_type='freelancer' AND COALESCE(freelancer_internet_method,'') NOT IN ('يوزر إنترنت','يمتلك اسم مستخدم','username'))
+        )
+        """)
+    elif seg == "username":
+        filters.append("""
+        (
+          (user_type='university' AND COALESCE(university_internet_method,'') IN ('يوزر إنترنت','يمتلك اسم مستخدم','username'))
+          OR (user_type='freelancer' AND COALESCE(freelancer_internet_method,'') IN ('يوزر إنترنت','يمتلك اسم مستخدم','username'))
+        )
+        """)
+
     return filters, params
 
 

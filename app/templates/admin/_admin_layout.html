@@ -19,10 +19,19 @@
 </div>
 
 <div class="d-nav-group">
+  {% set seg = request.args.get('segment','') %}
   <div class="d-nav-group-label"><i class="fa-solid fa-users"></i><span>المستفيدون</span></div>
-  <a class="d-nav-item {% if p == '/admin/beneficiaries' or (p.startswith('/admin/beneficiaries') and p != '/admin/beneficiaries/add') or p.startswith('/admin/users/') %}is-active{% endif %}"
+  <a class="d-nav-item {% if (p == '/admin/beneficiaries' or (p.startswith('/admin/beneficiaries') and p != '/admin/beneficiaries/add') or p.startswith('/admin/users/')) and not seg %}is-active{% endif %}"
      href="/admin/beneficiaries" data-label="كل المستفيدين">
     <i class="fa-solid fa-users-viewfinder"></i><span>كل المستفيدين</span>
+  </a>
+  <a class="d-nav-item {% if p == '/admin/beneficiaries' and seg == 'cards' %}is-active{% endif %}"
+     href="/admin/beneficiaries?segment=cards" data-label="مستفيد بطاقات">
+    <i class="fa-solid fa-ticket"></i><span>مستفيد بطاقات</span>
+  </a>
+  <a class="d-nav-item {% if p == '/admin/beneficiaries' and seg == 'username' %}is-active{% endif %}"
+     href="/admin/beneficiaries?segment=username" data-label="مستفيد اشتراك">
+    <i class="fa-solid fa-id-card"></i><span>مستفيد اشتراك</span>
   </a>
   <a class="d-nav-item {% if p == '/admin/beneficiaries/add' %}is-active{% endif %}"
      href="/admin/beneficiaries/add" data-label="إضافة مستفيد">
@@ -35,19 +44,7 @@
 </div>
 
 <div class="d-nav-group">
-  <div class="d-nav-group-label"><i class="fa-solid fa-circle-user"></i><span>حسابات الإنترنت</span></div>
-  <a class="d-nav-item {% if p in ('/admin/users-account', '/admin/users-account/', '/admin/users-account/overview', '/admin/users-account/list') %}is-active{% endif %}"
-     href="/admin/users-account" data-label="حسابات الإنترنت">
-    <i class="fa-solid fa-chart-pie"></i><span>حسابات الإنترنت</span>
-  </a>
-</div>
-
-<div class="d-nav-group">
   <div class="d-nav-group-label"><i class="fa-solid fa-ticket"></i><span>البطاقات</span></div>
-  <a class="d-nav-item {% if p == '/admin/cards/subscribers' %}is-active{% endif %}"
-     href="/admin/cards/subscribers" data-label="مشتركو البطاقات">
-    <i class="fa-solid fa-users"></i><span>مشتركو البطاقات</span>
-  </a>
   <a class="d-nav-item {% if p in ('/admin/cards', '/admin/cards/overview') %}is-active{% endif %}"
      href="/admin/cards" data-label="لوحة البطاقات">
     <i class="fa-solid fa-chart-pie"></i><span>لوحة البطاقات</span>

@@ -38,12 +38,6 @@ def _patched_add_beneficiary_page():
             ) RETURNING id
         """, data, fetchone=True)
         new_id = row['id'] if row else None
-        if new_id:
-            try:
-                from app.services.portal_account_lifecycle import ensure_portal_account_for_beneficiary
-                ensure_portal_account_for_beneficiary(int(new_id), is_active=False, source='admin_add_legacy')
-            except Exception:
-                pass
         log_action('add', 'beneficiary', new_id, f"إضافة مستفيد: {data['full_name']}")
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             inserted_row = query_one('SELECT * FROM beneficiaries WHERE id=%s', [new_id]) if new_id else None

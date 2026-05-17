@@ -31,7 +31,6 @@ def _beneficiary_access_mode(row):
     else:
         return 'cards'
     return 'username' if method in {"يوزر إنترنت", "username"} else 'cards'
-
 # /admin/users-account — overview
 @app.route("/admin/users-account", methods=["GET"])
 @app.route("/admin/users-account/", methods=["GET"])
@@ -42,13 +41,11 @@ def admin_users_account_overview():
     from app.services.radius_client import get_radius_client
     from app.services.access_rules import can_switch_to
 
-    # إجمالي مشتركي اليوزر = beneficiary_portal_accounts النشطة
     users_count_row = query_one(
         "SELECT COUNT(*) AS c FROM beneficiary_portal_accounts WHERE is_active=TRUE"
     ) or {}
     users_count = int(users_count_row.get("c") or 0)
 
-    # عدد طلبات اليوزر المعلّقة
     client = get_radius_client()
     user_action_types = list(_USER_ACTION_TYPES.keys())
     placeholders = ",".join(["%s"] * len(user_action_types))
@@ -58,7 +55,6 @@ def admin_users_account_overview():
     ) or {}
     user_requests_count = int(pending_row.get("c") or 0)
 
-    # تفصيل العدد لكل نوع
     counts = {}
     for t in user_action_types:
         r = query_one(
@@ -490,5 +486,13 @@ def admin_beneficiary_convert_access(beneficiary_id):
         )
     except Exception:
         pass
-    flash(f"تم تحويل {ben['full_name']} إلى {ACCESS_LABELS.get(target_mode, target_mode)}.", "success")
+    msg = f"تم تحويل {ben['full_name']} إلى {ACCESS_LABELS.get(target_mode, target_mode)}."
+    # AJAX response
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": True, "message": msg})
+    flash(msg, "success")
+    # redirect back to referrer if available, else fallback
+    referrer = request.form.get("_referrer") or request.referrer or ""
+    if referrer and "/admin/" in referrer:
+        return redirect(referrer)
     return redirect(url_for("admin_users_account_list"))

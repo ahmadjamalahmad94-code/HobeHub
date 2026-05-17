@@ -1,4 +1,4 @@
-{# Partial: rows for مشتركي البوابة (خارج) #}
+{# Partial: beneficiaries who do not have a portal account yet #}
 {% for b in outside %}
 <tr class="out-row" data-bid="{{ b.id }}" data-name="{{ b.full_name or '' }}" data-phone="{{ b.phone or '' }}">
   <td style="font-family:monospace;color:var(--d-text-muted)">#{{ b.id }}</td>
@@ -24,7 +24,7 @@
       <button type="button" class="d-pill-btn d-pill-btn--gold move-in-btn"
               data-bid="{{ b.id }}" data-name="{{ b.full_name or '' }}" data-phone="{{ b.phone or '' }}"
               style="padding:6px 12px;font-size:12px">
-        <i class="fa-solid fa-right-to-bracket"></i>نقل للبوابة
+        <i class="fa-solid fa-user-check"></i>تفعيل حساب البوابة
       </button>
       <a class="act-icon act-profile" href="/admin/users/{{ b.id }}/profile" title="الصفحة الشخصية">
         <i class="fa-solid fa-id-card-clip"></i>
@@ -35,6 +35,6 @@
 {% else %}
 <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--d-text-muted)">
   <i class="fa-regular fa-circle-check" style="font-size:32px;display:block;margin-bottom:8px;color:var(--d-border-strong)"></i>
-  كل المستفيدين لديهم حسابات بوابة.
+  لا يوجد مستفيدون خارج حسابات البوابة بهذا البحث.
 </td></tr>
 {% endfor %}

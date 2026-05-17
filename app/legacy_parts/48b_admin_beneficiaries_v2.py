@@ -148,6 +148,8 @@ def _admin_beneficiaries_v2_view():
             "tawjihi_year": args_dict.get("tawjihi_year", ""),
             "tawjihi_branch": args_dict.get("tawjihi_branch", ""),
             "university_name": args_dict.get("university_name", ""),
+            "segment": args_dict.get("segment", ""),
+            "has_portal": args_dict.get("has_portal", ""),
         },
         kpi_total=kpi_total,
         kpi_tawjihi=kpi_tawjihi,

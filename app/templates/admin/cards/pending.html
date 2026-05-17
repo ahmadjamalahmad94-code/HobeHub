@@ -5,6 +5,17 @@
 {% block head_extra %}
 {{ super() }}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_addons.css') }}">
+<style>
+.auto-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:10px;
+  background:linear-gradient(135deg,#1E1E1E,#2a2724);color:#F4BA2A;border:none;cursor:pointer;
+  font-family:inherit;font-size:13px;font-weight:800;transition:.18s ease;white-space:nowrap}
+.auto-btn:hover{background:#1E1E1E;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.auto-btn:disabled{opacity:.5;cursor:not-allowed}
+.auto-msg{display:none;padding:6px 11px;border-radius:8px;font-size:12px;font-weight:700;margin-top:6px}
+.auto-msg.ok{display:block;background:#e8f6ee;color:#166534}
+.auto-msg.err{display:block;background:#fde2e2;color:#b91c1c}
+.fulfill-or{font-size:11px;color:var(--d-text-muted);font-weight:700;padding:0 4px}
+</style>
 {% endblock %}
 
 {% block cards_content %}
@@ -16,7 +27,7 @@
     المتابعة اليومية الموحدة أصبحت من مركز الطلبات، وهذه الصفحة تبقى لتسليم طلبات البطاقات اليدوية فقط.
     <br>
     <strong>قائمة الطلبات اليدوية.</strong>
-    اكتب اسم المستخدم وكلمة المرور للبطاقة (من مخزونك أو من الراوتر يدويًا)، ثم اضغط "تسليم". سيُسجَّل في سجل التسليم تلقائيًا.
+    اضغط «تسليم تلقائي» لسحب أقدم بطاقة من المخزون مباشرة، أو اضغط «يدوي» لإدخال بيانات بطاقة بعينها.
     <div style="margin-top:8px">
       <a class="d-card-action" href="{{ url_for('admin_request_center', type='card') }}"><i class="fa-solid fa-inbox"></i>فتحها داخل مركز الطلبات الموحد</a>
     </div>
@@ -62,20 +73,39 @@
           </td>
           <td>{{ a.requested_at }}</td>
           <td>
-            <form method="POST" action="{{ url_for('admin_cards_pending_fulfill', action_id=a.id) }}"
-                  style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-              {{ csrf_token_input() | safe }}
-              <input class="d-field" name="card_username" placeholder="اسم البطاقة" required style="max-width:140px;padding:8px 10px">
-              <input class="d-field" name="card_password" placeholder="كلمة المرور" required style="max-width:140px;padding:8px 10px">
-              <button class="d-pill-btn d-pill-btn--gold" type="submit" style="padding:8px 14px" onclick="return confirm('تأكيد تسليم البطاقة لهذا الطلب؟')">
-                <i class="fa-solid fa-check"></i>تسليم
-              </button>
-              <button class="d-pill-btn d-pill-btn--ghost" type="submit"
-                      formaction="{{ url_for('admin_cards_pending_cancel', action_id=a.id) }}"
-                      style="padding:8px 14px" onclick="return confirm('إلغاء طلب البطاقة؟')">
-                <i class="fa-solid fa-xmark"></i>إلغاء
-              </button>
-            </form>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <!-- تسليم تلقائي من المخزون -->
+              <div style="display:flex;align-items:center;gap:8px">
+                <button type="button" class="auto-btn"
+                        data-action-id="{{ a.id }}"
+                        data-csrf="{{ csrf_token() }}"
+                        onclick="autoFulfill(this)">
+                  <i class="fa-solid fa-bolt"></i>تسليم تلقائي
+                </button>
+                <span class="fulfill-or">أو</span>
+                <button type="button" class="d-pill-btn d-pill-btn--ghost"
+                        style="padding:8px 14px;font-size:12px"
+                        onclick="this.closest('div').nextElementSibling.nextElementSibling.style.display='flex';this.closest('div').style.display='none'">
+                  <i class="fa-solid fa-pencil"></i>يدوي
+                </button>
+              </div>
+              <div class="auto-msg" id="auto-msg-{{ a.id }}"></div>
+              <!-- تسليم يدوي (مخفي افتراضيًا) -->
+              <form method="POST" action="{{ url_for('admin_cards_pending_fulfill', action_id=a.id) }}"
+                    style="display:none;gap:6px;flex-wrap:wrap;align-items:center">
+                {{ csrf_token_input() | safe }}
+                <input class="d-field" name="card_username" placeholder="اسم البطاقة" required style="max-width:130px;padding:8px 10px">
+                <input class="d-field" name="card_password" placeholder="كلمة المرور" required style="max-width:130px;padding:8px 10px">
+                <button class="d-pill-btn d-pill-btn--gold" type="submit" style="padding:8px 14px" onclick="return confirm('تأكيد تسليم البطاقة؟')">
+                  <i class="fa-solid fa-check"></i>تسليم
+                </button>
+                <button class="d-pill-btn d-pill-btn--ghost" type="submit"
+                        formaction="{{ url_for('admin_cards_pending_cancel', action_id=a.id) }}"
+                        style="padding:8px 14px" onclick="return confirm('إلغاء طلب البطاقة؟')">
+                  <i class="fa-solid fa-xmark"></i>إلغاء
+                </button>
+              </form>
+            </div>
           </td>
         </tr>
         {% else %}
@@ -85,5 +115,41 @@
     </table>
   </div>
 </section>
+
+<script>
+function autoFulfill(btn){
+  var actionId = btn.dataset.actionId;
+  var csrf = btn.dataset.csrf;
+  var msgEl = document.getElementById('auto-msg-' + actionId);
+  if(!confirm('تسليم تلقائي من المخزون لهذا الطلب؟')) return;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>جارٍ التنفيذ…';
+  var fd = new FormData();
+  fd.append('csrf_token', csrf);
+  fd.append('notes', 'تسليم تلقائي من المخزون');
+  fetch('/admin/cards/pending/' + actionId + '/fulfill-auto', {method:'POST', body:fd})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.ok){
+        msgEl.className = 'auto-msg ok';
+        msgEl.textContent = d.message + (d.card_username ? ' — ' + d.card_username : '');
+        var row = btn.closest('tr');
+        if(row){ row.style.opacity='0.4'; row.style.pointerEvents='none'; }
+        setTimeout(function(){ if(row && row.parentNode) row.parentNode.removeChild(row); }, 2800);
+      } else {
+        msgEl.className = 'auto-msg err';
+        msgEl.textContent = d.message || 'حدث خطأ.';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-bolt"></i>تسليم تلقائي';
+      }
+    })
+    .catch(function(){
+      msgEl.className = 'auto-msg err';
+      msgEl.textContent = 'فشل الاتصال بالخادم.';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-bolt"></i>تسليم تلقائي';
+    });
+}
+</script>
 
 {% endblock %}

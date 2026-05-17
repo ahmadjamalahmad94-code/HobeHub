@@ -1,12 +1,12 @@
 # 48ai_unified_login.py
-# تسجيل دخول موحّد ذكي — صفحة واحدة لكل المستخدمين (مشتركين + بطاقات + إدمن)
+# تسجيل دخول المشتركين فقط — /login مقيّد للمشتركين (beneficiaries) حصراً
 # المسارات النشطة:
-#   /login                    → الصفحة الموحّدة الذكية (الافتراضية لكل المستخدمين)
-#   /login/check              → JSON يتحقق من حالة الرقم/اليوزر
-#   /login/submit             → JSON يتحقق من كلمة المرور
+#   /login                    → صفحة دخول المشتركين فقط
+#   /login/check              → JSON يتحقق من وجود المشترك (لا يبحث في المدراء)
+#   /login/submit             → JSON يتحقق من كلمة مرور المشترك فقط
 #   /login/activate           → JSON تفعيل (كود + كلمة مرور جديدة)
-#   /x9k2p7-mgmt/sign-in      → دخول الإدارة بمسار خفي (الصفحة القديمة)
-# لا توجد صفحات دخول أخرى مرئية — كلها تحوّل لـ /login
+#   /x9k2p7-mgmt/sign-in      → يحوّل لبوابة الإدارة الفاخرة (لا يعالج دخول هنا)
+# المدراء: يجب عليهم استخدام /h0be-vault-9k2x7p/master-gateway حصراً
 
 import hashlib
 import logging
@@ -46,11 +46,18 @@ def _unified_login_view():
     return render_template("auth/unified_login.html")
 
 
-# سجّل مسار خفي إضافي يُظهر الفورم الموحّد للإدارة (الإدمن يكتب يوزره وباسوورده هنا)
+# المسار الخفي القديم → يحوّل لبوابة الإدارة الفاخرة مباشرة (لا يعرض unified_login)
 def _hidden_admin_login_view():
     if session.get("account_id"):
-        return redirect(url_for("dashboard"))
-    return render_template("auth/unified_login.html")
+        try:
+            return redirect(url_for("dashboard"))
+        except Exception:
+            return redirect("/admin/dashboard")
+    # حوّل للبوابة الفاخرة الجديدة
+    try:
+        return redirect(url_for("master_admin_portal"))
+    except Exception:
+        return redirect("/h0be-vault-9k2x7p/master-gateway")
 
 
 app.add_url_rule(
@@ -116,28 +123,11 @@ def _funnel_all_login_paths_to_unified():
 # ────────────────────────────────────────────────────────────────
 @app.route("/login/check", methods=["POST"])
 def login_check():
+    """يتحقق من هوية المشترك فقط — المدراء لا يُقبلون هنا."""
     raw = request.form.get("identifier") or request.form.get("username") or ""
     ident = _normalize_identifier(raw)
     if not ident:
         return jsonify({"ok": False, "message": "أدخل رقم الجوال أو اسم المستخدم."}), 400
-
-    try:
-        admin = query_one(
-            "SELECT id, username, full_name, is_active FROM app_accounts WHERE username=%s LIMIT 1",
-            [ident],
-        )
-    except Exception:
-        admin = None
-    if admin:
-        if not admin.get("is_active"):
-            return jsonify({"ok": False, "message": "هذا الحساب معطّل. تواصل مع المدير."}), 403
-        return jsonify({
-            "ok": True,
-            "type": "admin",
-            "state": "active",
-            "label": admin.get("full_name") or admin.get("username"),
-            "next": "password",
-        })
 
     try:
         from app.legacy import normalize_portal_username
@@ -205,33 +195,12 @@ def login_check():
 # ────────────────────────────────────────────────────────────────
 @app.route("/login/submit", methods=["POST"])
 def login_submit():
+    """يتحقق من كلمة مرور المشترك فقط — المدراء لا يُقبلون هنا."""
     raw = request.form.get("identifier") or request.form.get("username") or ""
     ident = _normalize_identifier(raw)
     password = (request.form.get("password") or "").strip()
     if not ident or not password:
         return jsonify({"ok": False, "message": "أدخل بياناتك كاملة."}), 400
-
-    admin = query_one(
-        "SELECT * FROM app_accounts WHERE username=%s AND is_active=TRUE LIMIT 1",
-        [ident],
-    )
-    if admin:
-        failure_key = auth_failure_key("admin", ident)
-        if is_auth_limited(failure_key):
-            return jsonify({"ok": False, "message": "تم إيقاف المحاولات مؤقتًا. حاول لاحقًا."}), 429
-        if verify_admin_password(admin.get("password_hash"), password):
-            maybe_upgrade_admin_password(admin["id"], password, admin.get("password_hash"))
-            clear_auth_failures(failure_key)
-            session.clear()
-            session["portal_type"] = "admin"
-            session["account_id"] = admin["id"]
-            session["username"] = admin["username"]
-            session["full_name"] = admin["full_name"]
-            refresh_session_permissions(admin["id"])
-            log_action("login", "account", admin["id"], "تسجيل دخول إدمن (موحد)")
-            return jsonify({"ok": True, "redirect": url_for("dashboard"), "label": admin.get("full_name") or admin.get("username")})
-        register_auth_failure(failure_key)
-        return jsonify({"ok": False, "message": "كلمة المرور غير صحيحة."}), 401
 
     try:
         from app.legacy import normalize_portal_username
