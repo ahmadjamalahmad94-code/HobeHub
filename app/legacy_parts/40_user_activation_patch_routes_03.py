@@ -19,7 +19,7 @@ def _patched_admin_portal_accounts_page():
                 execute_sql(
                     """
                     UPDATE beneficiary_portal_accounts
-                    SET username=%s, is_active=%s, must_set_password=TRUE, updated_at=CURRENT_TIMESTAMP
+                    SET username=%s, is_active=%s, portal_membership_active=TRUE, portal_access_state='active', must_set_password=TRUE, updated_at=CURRENT_TIMESTAMP
                     WHERE beneficiary_id=%s
                     """,
                     [username, is_active, beneficiary_id],
@@ -30,8 +30,8 @@ def _patched_admin_portal_accounts_page():
                 row = execute_sql(
                     """
                     INSERT INTO beneficiary_portal_accounts (
-                        beneficiary_id, username, password_hash, is_active, must_set_password
-                    ) VALUES (%s,%s,%s,%s,TRUE)
+                        beneficiary_id, username, password_hash, is_active, portal_membership_active, portal_access_state, must_set_password
+                    ) VALUES (%s,%s,%s,%s,TRUE,'active',TRUE)
                     RETURNING id
                     """,
                     [beneficiary_id, username, "", is_active],

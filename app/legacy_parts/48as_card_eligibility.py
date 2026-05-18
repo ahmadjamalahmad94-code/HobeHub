@@ -58,7 +58,7 @@ except Exception:
 
 # ─── 2. الـ Engine الرئيسي للأهلية ────────────────────────────────────
 TIER_TO_CODES = {
-    0: ["half_hour", "one_hour", "two_hours", "three_hours"],                   # default
+    0: ["half_hour", "one_hour", "two_hours", "three_hours"],                   # افتراضي — الفئات العادية
     1: ["half_hour", "one_hour", "two_hours"],                                  # معتمد — + ساعتين
     2: ["half_hour", "one_hour", "two_hours", "three_hours"],                   # مؤكد — + 3 ساعات
     3: ["half_hour", "one_hour", "two_hours", "three_hours", "four_hours"],     # سوبر — + 4 ساعات

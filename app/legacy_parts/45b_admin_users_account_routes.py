@@ -42,7 +42,7 @@ def admin_users_account_overview():
     from app.services.access_rules import can_switch_to
 
     users_count_row = query_one(
-        "SELECT COUNT(*) AS c FROM beneficiary_portal_accounts WHERE is_active=TRUE"
+        "SELECT COUNT(*) AS c FROM beneficiary_portal_accounts WHERE is_active=TRUE AND COALESCE(portal_membership_active, FALSE)=TRUE"
     ) or {}
     users_count = int(users_count_row.get("c") or 0)
 
@@ -76,6 +76,7 @@ def admin_users_account_overview():
                ra.plain_password    AS radius_password
         FROM beneficiaries b
         LEFT JOIN beneficiary_portal_accounts pa ON pa.beneficiary_id = b.id
+             AND COALESCE(pa.portal_membership_active, FALSE)=TRUE
         LEFT JOIN beneficiary_radius_accounts  ra ON ra.beneficiary_id = b.id
         WHERE b.user_type IN ('university','freelancer')
           AND (
@@ -170,6 +171,7 @@ def admin_users_account_data_json():
                ra.plain_password    AS radius_password
         FROM beneficiaries b
         LEFT JOIN beneficiary_portal_accounts pa ON pa.beneficiary_id = b.id
+             AND COALESCE(pa.portal_membership_active, FALSE)=TRUE
         LEFT JOIN beneficiary_radius_accounts  ra ON ra.beneficiary_id = b.id
         WHERE b.user_type IN ('university','freelancer')
           AND (
@@ -302,8 +304,8 @@ def admin_users_account_create():
             """
             INSERT INTO beneficiary_portal_accounts (
                 beneficiary_id, username, password_hash, password_plain,
-                is_active, must_set_password, activated_at
-            ) VALUES (%s,%s,%s,%s,TRUE,FALSE,CURRENT_TIMESTAMP)
+                is_active, portal_membership_active, portal_access_state, must_set_password, activated_at
+            ) VALUES (%s,%s,%s,%s,TRUE,TRUE,'active',FALSE,CURRENT_TIMESTAMP)
             """,
             [beneficiary_id, username, portal_password_hash(password), password],
         )

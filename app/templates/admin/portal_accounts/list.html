@@ -17,6 +17,7 @@
 .st-on{background:#e8f6ee;color:#1f8f51}
 .st-off{background:#fde2e2;color:#b91c1c}
 .st-warn{background:#fef0c7;color:#92400e}
+.st-frozen{background:#e8eef9;color:#1c52a8}
 .utype-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700}
 .utype-tawjihi{background:#e8f6ee;color:#1f8f51}
 .utype-university{background:#FDF1CF;color:#7c2d12}
@@ -52,6 +53,18 @@
 .act-icon.act-profile:hover{border-color:#0891b2}
 .act-icon.act-delete i{color:#b91c1c}
 .act-icon.act-delete:hover{border-color:#b91c1c}
+.act-icon.act-convert i{color:#7c3aed}
+.act-icon.act-convert:hover{border-color:#7c3aed;background:rgba(124,58,237,.06)}
+.act-icon.act-state i{color:#1c52a8}
+.act-icon.act-state:hover{border-color:#1c52a8;background:rgba(28,82,168,.06)}
+.state-options{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+.state-choice{border:1.5px solid var(--d-border-strong);background:#fff;border-radius:14px;padding:14px 10px;cursor:pointer;font-family:inherit;font-weight:900;color:var(--d-black);display:flex;flex-direction:column;align-items:center;gap:7px;transition:.18s ease;text-align:center}
+.state-choice i{font-size:22px;color:var(--d-gold)}
+.state-choice small{font-size:10.5px;font-weight:700;color:var(--d-text-muted);line-height:1.5}
+.state-choice:hover{transform:translateY(-1px);border-color:var(--d-gold);box-shadow:0 10px 24px rgba(30,30,30,.08)}
+.state-choice[data-state="active"] i{color:#16a34a}
+.state-choice[data-state="frozen"] i{color:#1c52a8}
+.state-choice[data-state="disabled"] i{color:#b91c1c}
 
 /* Generic Modal */
 .pa-backdrop{position:fixed;inset:0;background:rgba(30,30,30,.65);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px;backdrop-filter:blur(3px)}
@@ -119,6 +132,10 @@
     <div class="hub-stat">
       <span class="hub-stat-ico ok{% if active_count and active_count > 0 %} has-pulse{% endif %}"><i class="fa-solid fa-circle-check"></i></span>
       <div><span class="lbl">نشط</span><span class="val" id="kpi-active">{{ active_count }}</span></div>
+    </div>
+    <div class="hub-stat">
+      <span class="hub-stat-ico muted{% if frozen_count and frozen_count > 0 %} has-pulse{% endif %}"><i class="fa-solid fa-snowflake"></i></span>
+      <div><span class="lbl">مجمّد</span><span class="val" id="kpi-frozen">{{ frozen_count or 0 }}</span></div>
     </div>
     <div class="hub-stat">
       <span class="hub-stat-ico muted"><i class="fa-solid fa-circle-pause"></i></span>
@@ -279,32 +296,178 @@
   </div>
 </div>
 
-<!-- ── Modal: تعديل حساب ── -->
+<!-- ── Modal: تعديل بيانات شامل (مشترك + حساب بوابة) ── -->
 <div class="pa-backdrop" id="edit-modal">
-  <div class="pa-modal">
+  <div class="pa-modal" style="max-width:880px">
     <div class="pa-head">
-      <h3><i class="fa-solid fa-pen"></i> تعديل حساب البوابة</h3>
+      <h3><i class="fa-solid fa-pen"></i> تعديل البيانات الشامل <span id="edit-name-tag" style="display:inline-flex;align-items:center;padding:4px 12px;border-radius:999px;font-size:11.5px;font-weight:800;background:var(--d-gold-faint);color:var(--d-black);margin-inline-start:8px"></span></h3>
       <button type="button" class="pa-close" onclick="document.getElementById('edit-modal').classList.remove('is-open')">✕</button>
     </div>
     <div class="pa-msg" id="edit-msg"></div>
-    <form id="edit-form">
+    <form id="edit-form" autocomplete="off">
       {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
       <input type="hidden" id="edit-pa-id">
-      <div class="pa-grid">
-        <div class="pa-field"><label>اسم المستخدم</label><input name="username" id="edit-username" required></div>
-        <div class="pa-field"><label>كلمة المرور <span style="font-weight:600;color:var(--d-text-muted);font-size:10.5px">(فارغ = بدون تغيير)</span></label><input type="text" name="password" id="edit-password" autocomplete="new-password"></div>
-        <div class="pa-field"><label>الحالة</label>
-          <select name="is_active" id="edit-active">
-            <option value="1">نشط</option>
-            <option value="0">معطَّل</option>
-          </select>
+      <input type="hidden" id="edit-bid">
+
+      {# ─── 1) نوع المشترك ─── #}
+      <div style="background:#FAFAF8;padding:12px 14px;border-radius:12px;margin-bottom:14px">
+        <div style="font-size:11.5px;font-weight:800;color:var(--d-text-muted);text-transform:uppercase;margin-bottom:8px"><i class="fa-solid fa-user-tag" style="color:var(--d-gold)"></i> نوع المشترك</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="edit-type-picker">
+          <button type="button" class="edit-type-card" data-type="tawjihi" style="padding:10px;border-radius:10px;background:#fff;border:1.5px solid var(--d-border);cursor:pointer;font-family:inherit;text-align:center">
+            <i class="fa-solid fa-user-graduate" style="color:#16a34a"></i>
+            <div style="font-weight:800;font-size:13px;margin-top:4px">توجيهي</div>
+          </button>
+          <button type="button" class="edit-type-card" data-type="university" style="padding:10px;border-radius:10px;background:#fff;border:1.5px solid var(--d-border);cursor:pointer;font-family:inherit;text-align:center">
+            <i class="fa-solid fa-building-columns" style="color:#d97706"></i>
+            <div style="font-weight:800;font-size:13px;margin-top:4px">جامعي</div>
+          </button>
+          <button type="button" class="edit-type-card" data-type="freelancer" style="padding:10px;border-radius:10px;background:#fff;border:1.5px solid var(--d-border);cursor:pointer;font-family:inherit;text-align:center">
+            <i class="fa-solid fa-laptop-code" style="color:#7c3aed"></i>
+            <div style="font-weight:800;font-size:13px;margin-top:4px">عمل حر</div>
+          </button>
+        </div>
+        <input type="hidden" name="user_type" id="edit-user-type">
+      </div>
+
+      {# ─── 2) الاسم الرباعي + الجوال ─── #}
+      <div style="margin-bottom:14px">
+        <div style="font-size:11.5px;font-weight:800;color:var(--d-text-muted);text-transform:uppercase;margin-bottom:8px"><i class="fa-solid fa-id-card" style="color:var(--d-gold)"></i> الاسم والجوال</div>
+        <div class="pa-grid" style="grid-template-columns:repeat(2,1fr)">
+          <div class="pa-field"><label>الاسم الأول</label><input name="first_name" id="edit-first" required></div>
+          <div class="pa-field"><label>اسم الأب</label><input name="second_name" id="edit-second"></div>
+          <div class="pa-field"><label>اسم الجد</label><input name="third_name" id="edit-third"></div>
+          <div class="pa-field"><label>اسم العائلة</label><input name="fourth_name" id="edit-fourth"></div>
+          <div class="pa-field" style="grid-column:1/-1"><label>رقم الجوال</label><input name="phone" id="edit-phone" inputmode="numeric" maxlength="10" pattern="0[0-9]{9}" required></div>
         </div>
       </div>
+
+      {# ─── 3) قسم التوجيهي ─── #}
+      <div style="margin-bottom:14px;display:none" id="edit-tawjihi-section">
+        <div style="font-size:11.5px;font-weight:800;color:var(--d-text-muted);text-transform:uppercase;margin-bottom:8px"><i class="fa-solid fa-user-graduate" style="color:var(--d-gold)"></i> بيانات التوجيهي</div>
+        <div class="pa-grid" style="grid-template-columns:repeat(2,1fr)">
+          <div class="pa-field"><label>السنة</label>
+            <select name="tawjihi_year" id="edit-tawjihi-year">
+              <option value="">— اختر —</option>
+              {% for y in ['2026','2025','2024','2023','2022','2021','2020'] %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="pa-field"><label>الفرع</label>
+            <select name="tawjihi_branch" id="edit-tawjihi-branch">
+              <option value="">— اختر —</option>
+              {% for b in ['علمي','أدبي','شرعي','صناعي','تجاري','زراعي','فندقي','ريادة'] %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {# ─── 4) قسم الجامعي ─── #}
+      <div style="margin-bottom:14px;display:none" id="edit-university-section">
+        <div style="font-size:11.5px;font-weight:800;color:var(--d-text-muted);text-transform:uppercase;margin-bottom:8px"><i class="fa-solid fa-building-columns" style="color:var(--d-gold)"></i> بيانات الجامعة</div>
+        <div class="pa-grid" style="grid-template-columns:repeat(2,1fr)">
+          <div class="pa-field"><label>الجامعة</label><input name="university_name" id="edit-uni-name"></div>
+          <div class="pa-field"><label>الرقم الجامعي</label><input name="university_number" id="edit-uni-number"></div>
+          <div class="pa-field"><label>الكلية</label><input name="university_college" id="edit-uni-college"></div>
+          <div class="pa-field"><label>التخصص</label><input name="university_specialization" id="edit-uni-spec"></div>
+          <div class="pa-field"><label>أيام الدوام</label><input name="university_days" id="edit-uni-days"></div>
+          <div class="pa-field"><label>طريقة الاتصال</label>
+            <select name="university_internet_method" id="edit-uni-method">
+              <option value="نظام البطاقات">نظام البطاقات</option>
+              <option value="يوزر إنترنت">حساب إنترنت</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {# ─── 5) قسم العمل الحر ─── #}
+      <div style="margin-bottom:14px;display:none" id="edit-freelancer-section">
+        <div style="font-size:11.5px;font-weight:800;color:var(--d-text-muted);text-transform:uppercase;margin-bottom:8px"><i class="fa-solid fa-laptop-code" style="color:var(--d-gold)"></i> بيانات العمل الحر</div>
+        <div class="pa-grid" style="grid-template-columns:repeat(2,1fr)">
+          <div class="pa-field"><label>التخصص</label><input name="freelancer_specialization" id="edit-free-spec"></div>
+          <div class="pa-field"><label>الشركة/الجهة</label><input name="freelancer_company" id="edit-free-company"></div>
+          <div class="pa-field"><label>نوع الجدول</label>
+            <select name="freelancer_schedule_type" id="edit-free-sched">
+              <option value="">— اختر —</option><option value="مرن">مرن</option><option value="ثابت">ثابت</option>
+            </select>
+          </div>
+          <div class="pa-field"><label>طريقة الاتصال</label>
+            <select name="freelancer_internet_method" id="edit-free-method">
+              <option value="نظام البطاقات">نظام البطاقات</option>
+              <option value="يوزر إنترنت">حساب إنترنت</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {# ─── 6) حساب البوابة ─── #}
+      <div style="background:#FDF6E3;border:1px dashed rgba(244,186,42,.5);padding:12px 14px;border-radius:12px;margin-bottom:14px">
+        <div style="font-size:11.5px;font-weight:800;color:#7c2d12;text-transform:uppercase;margin-bottom:8px"><i class="fa-solid fa-id-card-clip" style="color:#d97706"></i> حساب البوابة</div>
+        <div class="pa-grid" style="grid-template-columns:repeat(3,1fr)">
+          <div class="pa-field"><label>اسم المستخدم</label><input name="username" id="edit-username" required></div>
+          <div class="pa-field"><label>كلمة المرور <span style="font-weight:600;color:var(--d-text-muted);font-size:10.5px">(فارغ = بدون تغيير)</span></label><input type="text" name="password" id="edit-password" autocomplete="new-password"></div>
+          <div class="pa-field"><label>الحالة</label>
+            <select name="is_active" id="edit-active">
+              <option value="1">نشط</option>
+              <option value="0">معطَّل</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {# ─── 7) ملاحظات ─── #}
+      <div style="margin-bottom:14px">
+        <div class="pa-field full"><label>ملاحظات</label><textarea name="notes" id="edit-notes" rows="3" placeholder="ملاحظات تخص المشترك (اختياري)"></textarea></div>
+      </div>
+
       <div class="pa-actions">
         <button type="button" class="pa-btn pa-btn-cancel" onclick="document.getElementById('edit-modal').classList.remove('is-open')">إلغاء</button>
-        <button type="submit" class="pa-btn pa-btn-save"><i class="fa-solid fa-floppy-disk"></i> حفظ</button>
+        <button type="submit" class="pa-btn pa-btn-save"><i class="fa-solid fa-floppy-disk"></i> حفظ كل التعديلات</button>
       </div>
     </form>
+  </div>
+</div>
+
+<style>
+.edit-type-card:hover{border-color:var(--d-gold)!important;background:#FFFDF7!important}
+.edit-type-card.is-sel{border-color:var(--d-gold)!important;background:linear-gradient(135deg,rgba(244,186,42,.15),rgba(255,217,106,.25))!important;box-shadow:0 4px 12px rgba(0,0,0,.06)}
+#edit-modal .pa-field input, #edit-modal .pa-field select, #edit-modal .pa-field textarea{
+  padding:9px 11px;border-radius:10px;border:1.5px solid var(--d-border-strong);
+  font-size:13px;font-family:inherit;background:#fff;width:100%;box-sizing:border-box
+}
+#edit-modal .pa-field input:focus, #edit-modal .pa-field select:focus, #edit-modal .pa-field textarea:focus{
+  outline:0;border-color:var(--d-gold);box-shadow:0 0 0 3px rgba(244,186,42,.20)
+}
+#edit-modal .pa-field label{font-size:11.5px;font-weight:700;color:var(--d-text);margin-bottom:5px;display:block}
+</style>
+
+<!-- ── Modal: إدارة حالة دخول المشترك ── -->
+<div class="pa-backdrop" id="state-modal">
+  <div class="pa-modal">
+    <div class="pa-head">
+      <h3><i class="fa-solid fa-toggle-on"></i> إدارة حالة الدخول</h3>
+      <button type="button" class="pa-close" onclick="document.getElementById('state-modal').classList.remove('is-open')">✕</button>
+    </div>
+    <div class="pa-msg info is-show" id="state-current-text">اختر ما تريد تطبيقه على الحساب.</div>
+    <input type="hidden" id="state-pa-id">
+    <div class="state-options">
+      <button type="button" class="state-choice" data-state="active">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>تفعيل</span>
+        <small>دخول كامل إلى البوابة والخدمات.</small>
+      </button>
+      <button type="button" class="state-choice" data-state="frozen">
+        <i class="fa-solid fa-snowflake"></i>
+        <span>تجميد</span>
+        <small>دخول محدود لتحديث الملف الشخصي.</small>
+      </button>
+      <button type="button" class="state-choice" data-state="disabled">
+        <i class="fa-solid fa-ban"></i>
+        <span>تعطيل</span>
+        <small>منع الدخول وطلب مراجعة الإدارة.</small>
+      </button>
+    </div>
+    <div class="pa-actions">
+      <button type="button" class="pa-btn pa-btn-cancel" onclick="document.getElementById('state-modal').classList.remove('is-open')">إغلاق</button>
+    </div>
   </div>
 </div>
 
@@ -369,6 +532,8 @@
         document.getElementById('kpi-inside').textContent = d.counts.inside;
         document.getElementById('kpi-outside').textContent = d.counts.outside;
         document.getElementById('kpi-active').textContent = d.counts.active;
+        var frozenKpi = document.getElementById('kpi-frozen');
+        if(frozenKpi) frozenKpi.textContent = d.counts.frozen || 0;
         document.getElementById('kpi-inactive').textContent = d.counts.inactive;
         setSearchStatus('done');
       }).catch(function(){ setSearchStatus('error', 'تعذّر الاتصال'); })
@@ -396,12 +561,26 @@
   var lastPortalIdForSms = null;
   var pendingAction = null;  // {paId, name, phone, url}
   function showCode(code, target, phone, hours){
+    var safeCode = (code === undefined || code === null) ? '' : String(code).trim();
+    // إذا الكود فارغ، لا تفتح المودال — اعرض toast بدلاً
+    if(!safeCode){
+      showToast('لم يتم توليد كود تفعيل (الحساب نشط بكلمة مروره الحالية).', 'info');
+      return;
+    }
     var cv = document.getElementById('code-value');
     var ct = document.getElementById('code-target');
     var ctp = document.getElementById('code-target-phone');
     var ch = document.getElementById('code-hours');
     var cb = document.getElementById('code-copy-btn');
-    if(cv) cv.textContent = code;
+    // ✅ ستايل قوي يضمن الظهور حتى لو CSS variables تعطّلت
+    if(cv){
+      cv.textContent = safeCode;
+      cv.style.color = '#F4BA2A';
+      cv.style.fontFamily = 'monospace';
+      cv.style.fontSize = '36px';
+      cv.style.fontWeight = '900';
+      cv.style.letterSpacing = '8px';
+    }
     if(ct) ct.textContent = target || '—';
     if(ctp) ctp.textContent = phone || '—';
     if(ch) ch.textContent = hours || 72;
@@ -488,7 +667,7 @@
   document.addEventListener('click', function(e){
     var btn = e.target.closest && e.target.closest('.delete-pa-btn');
     if(!btn) return;
-    if(!confirm('حذف حساب "'+btn.dataset.name+'"؟ المستفيد يبقى لكن يفقد دخول البوابة.')) return;
+    if(!confirm('إخراج "'+btn.dataset.name+'" من البوابة؟ سيبقى الحساب محفوظًا ويمكن إرجاعه لاحقًا.')) return;
     fetch('/admin/portal-accounts/'+btn.dataset.paId+'/delete', {method:'POST', credentials:'same-origin'})
       .then(function(r){ return r.json(); }).then(function(d){
         showToast(d.message || (d.ok?'تم':'فشل'), d.ok ? 'success' : 'error');
@@ -496,32 +675,163 @@
       });
   });
 
-  // ── Edit (inline modal) ──
+  // ── Edit comprehensive modal (beneficiary + portal account) ──
+  function applyEditType(ut){
+    ut = (ut || '').toLowerCase();
+    document.getElementById('edit-user-type').value = ut;
+    document.getElementById('edit-tawjihi-section').style.display    = (ut === 'tawjihi')    ? '' : 'none';
+    document.getElementById('edit-university-section').style.display = (ut === 'university') ? '' : 'none';
+    document.getElementById('edit-freelancer-section').style.display = (ut === 'freelancer') ? '' : 'none';
+    document.querySelectorAll('.edit-type-card').forEach(function(c){
+      c.classList.toggle('is-sel', c.dataset.type === ut);
+    });
+  }
+  document.querySelectorAll('.edit-type-card').forEach(function(card){
+    card.addEventListener('click', function(){ applyEditType(card.dataset.type); });
+  });
+
   document.addEventListener('click', function(e){
     var btn = e.target.closest && e.target.closest('.edit-pa-btn');
     if(!btn) return;
-    document.getElementById('edit-pa-id').value = btn.dataset.paId;
+    var paId = btn.dataset.paId;
+    var bid  = btn.dataset.bid;
+    if(!bid) return;
+    document.getElementById('edit-pa-id').value = paId || '';
+    document.getElementById('edit-bid').value = bid;
+    // امسح الرسالة
+    document.getElementById('edit-msg').className = 'pa-msg';
+    // قيم افتراضية للحساب من data-* (لو لم نجلب من السيرفر)
     document.getElementById('edit-username').value = btn.dataset.username || '';
     document.getElementById('edit-password').value = '';
     document.getElementById('edit-active').value = btn.dataset.active === '1' ? '1' : '0';
-    document.getElementById('edit-msg').className = 'pa-msg';
+    // الاسم في العنوان
+    document.getElementById('edit-name-tag').textContent = '#'+bid;
+    // افتح المودال فوراً + اجلب البيانات
     document.getElementById('edit-modal').classList.add('is-open');
+    fetch('/admin/beneficiaries/'+bid+'/quick-edit', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); }).then(function(d){
+        if(!d || !d.ok){ return; }
+        var x = d.data || {};
+        document.getElementById('edit-first').value  = x.first_name  || '';
+        document.getElementById('edit-second').value = x.second_name || '';
+        document.getElementById('edit-third').value  = x.third_name  || '';
+        document.getElementById('edit-fourth').value = x.fourth_name || '';
+        document.getElementById('edit-phone').value  = x.phone || '';
+        document.getElementById('edit-notes').value  = x.notes || '';
+        var ut = (x.user_type || '').toLowerCase();
+        applyEditType(ut);
+        if(ut === 'tawjihi'){
+          document.getElementById('edit-tawjihi-year').value   = x.tawjihi_year   || '';
+          document.getElementById('edit-tawjihi-branch').value = x.tawjihi_branch || '';
+        } else if(ut === 'university'){
+          document.getElementById('edit-uni-name').value    = x.university_name           || '';
+          document.getElementById('edit-uni-number').value  = x.university_number         || '';
+          document.getElementById('edit-uni-college').value = x.university_college        || '';
+          document.getElementById('edit-uni-spec').value    = x.university_specialization || '';
+          document.getElementById('edit-uni-days').value    = x.university_days           || '';
+          document.getElementById('edit-uni-method').value  = x.university_internet_method || 'نظام البطاقات';
+        } else if(ut === 'freelancer'){
+          document.getElementById('edit-free-spec').value    = x.freelancer_specialization || '';
+          document.getElementById('edit-free-company').value = x.freelancer_company        || '';
+          document.getElementById('edit-free-sched').value   = x.freelancer_schedule_type  || '';
+          document.getElementById('edit-free-method').value  = x.freelancer_internet_method || 'نظام البطاقات';
+        }
+        // حدّث اسم في العنوان
+        var name = [x.first_name, x.second_name, x.third_name, x.fourth_name].filter(Boolean).join(' ');
+        document.getElementById('edit-name-tag').textContent = name || ('#'+bid);
+      }).catch(function(){});
   });
+
   document.getElementById('edit-form').addEventListener('submit', function(e){
     e.preventDefault();
     var paId = document.getElementById('edit-pa-id').value;
-    var fd = new FormData(this);
-    fetch('/admin/portal-accounts/'+paId+'/set-credentials', {method:'POST', credentials:'same-origin', body:fd})
-      .then(function(r){ return r.json(); }).then(function(d){
-        if(d.ok){
-          showToast(d.message, 'success');
-          document.getElementById('edit-modal').classList.remove('is-open');
-          reloadList(searchInput.value);
-        } else {
-          var m = document.getElementById('edit-msg');
-          m.className = 'pa-msg is-show error'; m.textContent = d.message || 'فشل الحفظ';
+    var bid  = document.getElementById('edit-bid').value;
+    var msg  = document.getElementById('edit-msg');
+    var saveBtn = document.querySelector('#edit-form .pa-btn-save');
+    saveBtn.disabled = true;
+    var origHtml = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ…';
+
+    // 1) احفظ بيانات المستفيد عبر quick-edit
+    var fdBen = new FormData();
+    var fields = ['user_type','first_name','second_name','third_name','fourth_name','phone','notes',
+                  'tawjihi_year','tawjihi_branch',
+                  'university_name','university_number','university_college','university_specialization','university_days','university_internet_method',
+                  'freelancer_specialization','freelancer_company','freelancer_schedule_type','freelancer_internet_method'];
+    fields.forEach(function(name){
+      var el = document.querySelector('#edit-form [name="'+name+'"]');
+      if(el && el.value !== undefined && el.value !== null) fdBen.append(name, el.value);
+    });
+
+    fetch('/admin/beneficiaries/'+bid+'/quick-edit', {method:'POST', credentials:'same-origin', body:fdBen})
+      .then(function(r){ return r.json(); }).then(function(dBen){
+        if(!dBen.ok){
+          msg.className = 'pa-msg is-show error';
+          msg.textContent = dBen.message || 'فشل حفظ بيانات المستفيد';
+          throw new Error('beneficiary save failed');
         }
+        // 2) احفظ بيانات حساب البوابة
+        if(!paId) return {ok:true, message:'تم'};
+        var fdPa = new FormData();
+        fdPa.append('username', document.getElementById('edit-username').value || '');
+        fdPa.append('password', document.getElementById('edit-password').value || '');
+        fdPa.append('is_active', document.getElementById('edit-active').value);
+        return fetch('/admin/portal-accounts/'+paId+'/set-credentials', {method:'POST', credentials:'same-origin', body:fdPa})
+          .then(function(r){ return r.json(); });
+      }).then(function(dPa){
+        if(!dPa || !dPa.ok){
+          msg.className = 'pa-msg is-show error';
+          msg.textContent = (dPa && dPa.message) || 'فشل حفظ حساب البوابة';
+          return;
+        }
+        msg.className = 'pa-msg is-show success';
+        msg.textContent = 'تم حفظ كل التعديلات ✓';
+        showToast('تم حفظ كل التعديلات ✓', 'success');
+        setTimeout(function(){
+          document.getElementById('edit-modal').classList.remove('is-open');
+          reloadList(searchInput ? searchInput.value : '');
+        }, 700);
+      }).catch(function(){
+        if(msg.textContent === ''){
+          msg.className = 'pa-msg is-show error';
+          msg.textContent = 'فشل الاتصال';
+        }
+      }).finally(function(){
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = origHtml;
       });
+  });
+
+  // ── Access state: active / frozen / disabled ──
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest && e.target.closest('.state-pa-btn');
+    if(!btn) return;
+    var labels = {active:'نشط', frozen:'مجمّد', disabled:'معطّل'};
+    document.getElementById('state-pa-id').value = btn.dataset.paId;
+    document.getElementById('state-current-text').textContent =
+      'الحالة الحالية لـ "' + (btn.dataset.name || 'المشترك') + '": ' + (labels[btn.dataset.state] || 'نشط');
+    document.getElementById('state-modal').classList.add('is-open');
+  });
+  document.querySelectorAll('#state-modal .state-choice').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var paId = document.getElementById('state-pa-id').value;
+      var fd = new FormData();
+      fd.append('state', btn.dataset.state || 'active');
+      btn.disabled = true;
+      fetch('/admin/portal-accounts/' + paId + '/access-state', {
+        method:'POST', credentials:'same-origin', body:fd
+      }).then(function(r){ return r.json(); }).then(function(d){
+        showToast(d.message || (d.ok ? 'تم الحفظ' : 'فشل الحفظ'), d.ok ? 'success' : 'error');
+        if(d.ok){
+          document.getElementById('state-modal').classList.remove('is-open');
+          reloadList(searchInput.value);
+        }
+      }).catch(function(){
+        showToast('فشل الاتصال', 'error');
+      }).finally(function(){
+        btn.disabled = false;
+      });
+    });
   });
 
   // ── Enable portal account for a beneficiary ──
@@ -542,7 +852,12 @@
         if(d.ok){
           document.getElementById('movein-modal').classList.remove('is-open');
           lastPortalIdForSms = d.portal_id;
-          showCode(d.code, d.phone || d.username, d.expires_hours);
+          // اعرض modal الكود فقط لو فعلاً تم توليد كود جديد
+          if(d.code && String(d.code).trim()){
+            showCode(d.code, d.phone || d.username, d.phone || '', d.expires_hours || 72);
+          } else {
+            showToast(d.message || 'تم تفعيل حساب البوابة. الحساب نشط بكلمة مروره الحالية.', 'success');
+          }
           reloadList(searchInput.value);
         } else {
           var m = document.getElementById('movein-msg');
@@ -554,6 +869,40 @@
         m.className = 'pa-msg is-show error';
         m.textContent = 'فشل الاتصال';
       });
+  });
+
+  // ─── Convert access mode (cards ↔ username) ───
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest && e.target.closest('.convert-access-pa-btn');
+    if(!btn) return;
+    var bid     = btn.dataset.bid;
+    var name    = btn.dataset.name || '';
+    var mode    = btn.dataset.mode;
+    var label   = btn.dataset.label || '';
+    var current = btn.dataset.current || '';
+    if(!bid || !mode) return;
+    if(!confirm('تحويل "'+name+'" من «'+current+'» إلى «'+label+'»?')) return;
+    btn.disabled = true;
+    var orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    var fd = new FormData();
+    fd.append('target_mode', mode);
+    fd.append('confirm_convert', '1');
+    fetch('/admin/beneficiary/'+bid+'/convert-access', {
+      method:'POST', credentials:'same-origin', body:fd,
+      headers:{'X-Requested-With':'XMLHttpRequest'},
+    }).then(function(r){
+      btn.disabled = false; btn.innerHTML = orig;
+      if(r.ok || r.redirected){
+        showToast('تم تحويل '+name+' إلى '+label, 'success');
+        reloadList(searchInput ? searchInput.value : '');
+      } else {
+        showToast('فشل التحويل', 'error');
+      }
+    }).catch(function(){
+      btn.disabled = false; btn.innerHTML = orig;
+      showToast('فشل الاتصال', 'error');
+    });
   });
 
   document.addEventListener('click', function(e){
@@ -570,4 +919,242 @@
   });
 })();
 </script>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     Tier Modal — إدارة التوثيق المتدرّج (نُسخ من /admin/beneficiaries)
+══════════════════════════════════════════════════════════════════ -->
+<style>
+.tm-tier-opt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 8px;border-radius:12px;background:#FAFAF8;border:2px solid var(--d-border);cursor:pointer;font-family:inherit;transition:.18s ease;text-align:center}
+.tm-tier-opt:hover{border-color:var(--d-gold);background:#fff}
+.tm-tier-opt.is-sel[data-color="muted"]{border-color:#9ca3af;background:#f3f4f6}
+.tm-tier-opt.is-sel[data-color="blue"] {border-color:#2563eb;background:#eff6ff}
+.tm-tier-opt.is-sel[data-color="green"]{border-color:#16a34a;background:#f0fdf4}
+.tm-tier-opt.is-sel[data-color="gold"] {border-color:#F4BA2A;background:#fffbeb}
+.tm-tier-ico{width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;background:var(--d-border);color:var(--d-text-muted);transition:.18s}
+.tm-tier-opt.is-sel[data-color="muted"] .tm-tier-ico{background:#9ca3af;color:#fff}
+.tm-tier-opt.is-sel[data-color="blue"]  .tm-tier-ico{background:#2563eb;color:#fff}
+.tm-tier-opt.is-sel[data-color="green"] .tm-tier-ico{background:#16a34a;color:#fff}
+.tm-tier-opt.is-sel[data-color="gold"]  .tm-tier-ico{background:#F4BA2A;color:#1E1E1E}
+.tm-tier-lbl{font-size:13px;font-weight:800;color:var(--d-black)}
+.tm-tier-sub{font-size:10.5px;color:var(--d-text-muted);font-weight:600}
+.act-icon.act-tier i{color:#7c3aed}
+.act-icon.act-tier:hover{border-color:#7c3aed;background:rgba(124,58,237,.06)}
+.tm-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;font-size:11.5px;font-weight:800;background:var(--d-gold-faint);color:var(--d-black);margin-inline-start:8px}
+.tm-msg{padding:8px 12px;border-radius:10px;font-size:12px;font-weight:700;margin-bottom:10px;display:none}
+.tm-msg.is-show{display:block}
+.tm-msg.error{background:#fde2e2;color:#b91c1c}
+.tm-msg.success{background:#e8f6ee;color:#1f8f51}
+</style>
+
+<div class="pa-backdrop" id="tier-modal-pa">
+  <div class="pa-modal" style="max-width:500px">
+    <div class="pa-head">
+      <h3><i class="fa-solid fa-shield-halved"></i>إدارة التوثيق<span id="tm-name-pa" class="tm-badge"></span></h3>
+      <button type="button" class="pa-close" id="tm-close-pa">✕</button>
+    </div>
+
+    <div id="tm-current-pa" style="margin-bottom:14px;padding:10px 14px;border-radius:12px;background:#F4F3EF;display:flex;align-items:center;gap:10px">
+      <i class="fa-solid fa-circle-info" style="color:var(--d-gold);font-size:15px"></i>
+      <div style="font-size:13px">
+        <span style="font-weight:700;color:var(--d-text)">المستوى الحالي:</span>
+        <span id="tm-current-label-pa" style="font-weight:800;margin-inline-start:6px">…</span>
+        <span id="tm-current-until-pa" style="font-size:11.5px;color:var(--d-text-muted);margin-inline-start:8px"></span>
+      </div>
+    </div>
+
+    <div class="tm-msg" id="tm-msg-pa"></div>
+
+    <div style="margin-bottom:14px">
+      <div style="font-size:11.5px;font-weight:800;color:var(--d-text-muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;padding-bottom:6px;border-bottom:1px dashed var(--d-border);display:flex;align-items:center;gap:6px">
+        <i class="fa-solid fa-layer-group" style="color:var(--d-gold);font-size:13px"></i>المستوى الجديد
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="tm-tier-grid-pa">
+        <button type="button" class="tm-tier-opt" data-tier="0" data-color="muted">
+          <span class="tm-tier-ico"><i class="fa-solid fa-circle"></i></span>
+          <span class="tm-tier-lbl">افتراضي</span>
+          <span class="tm-tier-sub">نصف ساعة + ساعة</span>
+        </button>
+        <button type="button" class="tm-tier-opt" data-tier="1" data-color="blue">
+          <span class="tm-tier-ico"><i class="fa-solid fa-shield"></i></span>
+          <span class="tm-tier-lbl">معتمد</span>
+          <span class="tm-tier-sub">+ ساعتين</span>
+        </button>
+        <button type="button" class="tm-tier-opt" data-tier="2" data-color="green">
+          <span class="tm-tier-ico"><i class="fa-solid fa-shield-halved"></i></span>
+          <span class="tm-tier-lbl">مؤكد</span>
+          <span class="tm-tier-sub">+ 3 ساعات</span>
+        </button>
+        <button type="button" class="tm-tier-opt" data-tier="3" data-color="gold">
+          <span class="tm-tier-ico"><i class="fa-solid fa-star-of-life"></i></span>
+          <span class="tm-tier-lbl">سوبر</span>
+          <span class="tm-tier-sub">+ 4 ساعات</span>
+        </button>
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <div style="font-size:11.5px;font-weight:800;color:var(--d-text-muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;padding-bottom:6px;border-bottom:1px dashed var(--d-border);display:flex;align-items:center;gap:6px">
+        <i class="fa-solid fa-calendar-xmark" style="color:var(--d-gold);font-size:13px"></i>تاريخ الانتهاء
+        <span style="font-weight:600;color:var(--d-text-muted)">(اختياري)</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="pa-field">
+          <label>ينتهي في <span style="font-weight:600;color:var(--d-text-muted);font-size:10.5px">فارغ = توثيق دائم</span></label>
+          <input type="date" id="tm-valid-until-pa">
+        </div>
+        <div class="pa-field" id="tm-fallback-wrap-pa" style="display:none">
+          <label>بعد الانتهاء يرجع لـ</label>
+          <select id="tm-fallback-pa">
+            <option value="0">افتراضي (نصف ساعة + ساعة)</option>
+            <option value="1">معتمد (+ ساعتين)</option>
+            <option value="2">مؤكد (+ 3 ساعات)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="pa-actions">
+      <button type="button" class="pa-btn pa-btn-cancel" id="tm-cancel-pa">إلغاء</button>
+      <button type="button" class="pa-btn pa-btn-save" id="tm-save-pa" disabled>
+        <i class="fa-solid fa-shield-halved"></i> حفظ التوثيق
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var tmModal = document.getElementById('tier-modal-pa');
+  var tmClose = document.getElementById('tm-close-pa');
+  var tmCancel= document.getElementById('tm-cancel-pa');
+  var tmSave  = document.getElementById('tm-save-pa');
+  var tmMsg   = document.getElementById('tm-msg-pa');
+  var tmName  = document.getElementById('tm-name-pa');
+  var tmCurLbl= document.getElementById('tm-current-label-pa');
+  var tmCurUnt= document.getElementById('tm-current-until-pa');
+  var tmDate  = document.getElementById('tm-valid-until-pa');
+  var tmFbWrap= document.getElementById('tm-fallback-wrap-pa');
+  var tmFbSel = document.getElementById('tm-fallback-pa');
+  var tmOpts  = document.querySelectorAll('#tier-modal-pa .tm-tier-opt');
+  var _bid = null, _selTier = null;
+
+  function tmShowMsg(type, txt){ tmMsg.className='tm-msg is-show '+type; tmMsg.textContent=txt; }
+  function tmClearMsg(){ tmMsg.className='tm-msg'; tmMsg.textContent=''; }
+
+  function tmOpen(btn){
+    _bid = btn.dataset.bid; _selTier = null;
+    tmName.textContent = btn.dataset.name || '';
+    tmCurLbl.textContent = '…'; tmCurUnt.textContent = '';
+    tmClearMsg(); tmSave.disabled = true;
+    tmOpts.forEach(function(o){ o.classList.remove('is-sel'); });
+    tmDate.value=''; tmFbWrap.style.display='none';
+    tmModal.classList.add('is-open');
+
+    fetch('/admin/beneficiaries/'+_bid+'/tier-info', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(!d.ok) return;
+        tmCurLbl.textContent = d.effective_tier_label || 'افتراضي';
+        var top = (d.policies||[]).find(function(p){ return !p.expired; });
+        tmCurUnt.textContent = top && top.valid_until ? '(حتى '+top.valid_until+')' : '';
+        var et = d.effective_tier;
+        tmOpts.forEach(function(o){
+          if(parseInt(o.dataset.tier) === et){
+            o.classList.add('is-sel');
+            _selTier = et;
+            tmSave.disabled = false;
+          }
+        });
+      }).catch(function(){});
+  }
+
+  function tmCloseFn(){ tmModal.classList.remove('is-open'); _bid=null; _selTier=null; }
+
+  tmClose  && tmClose.addEventListener('click', tmCloseFn);
+  tmCancel && tmCancel.addEventListener('click', tmCloseFn);
+  tmModal  && tmModal.addEventListener('click', function(e){ if(e.target===tmModal) tmCloseFn(); });
+
+  tmOpts.forEach(function(opt){
+    opt.addEventListener('click', function(){
+      tmOpts.forEach(function(o){ o.classList.remove('is-sel'); });
+      opt.classList.add('is-sel');
+      _selTier = parseInt(opt.dataset.tier);
+      tmSave.disabled = false;
+      tmClearMsg();
+    });
+  });
+
+  tmDate && tmDate.addEventListener('input', function(){
+    tmFbWrap.style.display = this.value ? 'block' : 'none';
+  });
+
+  tmSave && tmSave.addEventListener('click', function(){
+    if(_selTier === null || !_bid) return;
+    tmSave.disabled = true; tmClearMsg();
+    var payload = {
+      tier: _selTier,
+      valid_until: tmDate.value || '',
+      fallback_tier: tmDate.value ? parseInt(tmFbSel.value || '0') : 0,
+    };
+    fetch('/admin/beneficiaries/'+_bid+'/set-tier', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d.ok){
+          tmShowMsg('success', d.message);
+          tmCurLbl.textContent = d.tier_label || 'افتراضي';
+          tmCurUnt.textContent = payload.valid_until ? '(حتى '+payload.valid_until+')' : '';
+          setTimeout(function(){
+            tmCloseFn();
+            if(typeof reloadList === 'function' && typeof searchInput !== 'undefined'){
+              reloadList(searchInput ? searchInput.value : '');
+            }
+          }, 1100);
+        } else {
+          tmShowMsg('error', d.message || 'حدث خطأ.');
+          tmSave.disabled = false;
+        }
+      })
+      .catch(function(){ tmShowMsg('error', 'فشل الاتصال.'); tmSave.disabled = false; });
+  });
+
+  // فتح المودال عند النقر على .tier-pa-btn
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest && e.target.closest('.tier-pa-btn');
+    if(btn) tmOpen(btn);
+  });
+
+  // ─── Toggle Tawjihi verified ───
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest && e.target.closest('.tawjihi-toggle-pa-btn');
+    if(!btn) return;
+    var bid = btn.dataset.bid;
+    var name= btn.dataset.name || '';
+    var verified = btn.dataset.verified === '1';
+    if(!bid) return;
+    var action = verified ? 'إلغاء توثيق' : 'توثيق';
+    if(!confirm(action+' "'+name+'" (توجيهي)؟')) return;
+    btn.disabled = true;
+    var orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    fetch('/admin/beneficiaries/'+bid+'/toggle-tawjihi-verified', {
+      method:'POST', credentials:'same-origin',
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        btn.disabled = false; btn.innerHTML = orig;
+        if(!d.ok){ showToast(d.message || 'فشل', 'error'); return; }
+        showToast(d.message || 'تم', 'success');
+        if(typeof reloadList === 'function' && typeof searchInput !== 'undefined'){
+          reloadList(searchInput ? searchInput.value : '');
+        }
+      })
+      .catch(function(){ btn.disabled = false; btn.innerHTML = orig; showToast('فشل الاتصال', 'error'); });
+  });
+})();
+</script>
+
 {% endblock %}

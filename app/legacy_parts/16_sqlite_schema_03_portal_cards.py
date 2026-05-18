@@ -113,3 +113,5 @@ def _setup_sqlite_portal_card_schema(cur):
     _sqlite_add_column_if_missing(cur, "beneficiary_portal_accounts", "last_activation_sent_at TIMESTAMP NULL")
     _sqlite_add_column_if_missing(cur, "beneficiary_portal_accounts", "failed_login_attempts INTEGER DEFAULT 0")
     _sqlite_add_column_if_missing(cur, "beneficiary_portal_accounts", "locked_until TIMESTAMP NULL")
+    _sqlite_add_column_if_missing(cur, "beneficiary_portal_accounts", "portal_membership_active INTEGER DEFAULT 0")
+    _sqlite_add_column_if_missing(cur, "beneficiary_portal_accounts", "portal_access_state TEXT DEFAULT 'active'")

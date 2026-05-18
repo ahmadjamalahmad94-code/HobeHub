@@ -18,10 +18,14 @@ def admin_portal_stats():
           SUM(CASE WHEN is_active=TRUE  AND must_set_password=TRUE  THEN 1 ELSE 0 END) AS reset_pw,
           SUM(CASE WHEN is_active=FALSE THEN 1 ELSE 0 END) AS disabled
         FROM beneficiary_portal_accounts
+        WHERE COALESCE(portal_membership_active, FALSE)=TRUE
     """) or {}
     outside = query_one("""
         SELECT COUNT(*) AS c FROM beneficiaries
-        WHERE id NOT IN (SELECT beneficiary_id FROM beneficiary_portal_accounts)
+        WHERE id NOT IN (
+            SELECT beneficiary_id FROM beneficiary_portal_accounts
+            WHERE COALESCE(portal_membership_active, FALSE)=TRUE
+        )
     """) or {}
     return jsonify({
         "ok": True,
@@ -58,6 +62,7 @@ def admin_portal_rows():
         conditions.append("bpa.is_active=TRUE AND bpa.must_set_password=TRUE")
     elif status == "disabled":
         conditions.append("bpa.is_active=FALSE")
+    conditions.append("COALESCE(bpa.portal_membership_active, FALSE)=TRUE")
 
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 

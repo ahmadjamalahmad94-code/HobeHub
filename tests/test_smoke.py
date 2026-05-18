@@ -82,6 +82,71 @@ def test_portal_login_buttons_use_three_layer_paths(client):
         assert page.headers["Location"].endswith("/login")
 
 
+def test_portal_account_access_state_freeze_and_disable(client):
+    login_admin(client)
+    row = db.query_one(
+        "SELECT id FROM beneficiary_portal_accounts WHERE username=%s LIMIT 1",
+        ["0599123456"],
+    )
+    assert row
+    portal_id = row["id"]
+
+    def post_state(state):
+        page = client.get("/admin/portal-accounts")
+        token = extract_csrf(page.get_data(as_text=True))
+        return client.post(
+            f"/admin/portal-accounts/{portal_id}/access-state",
+            data={"state": state, "_csrf_token": token},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+
+    try:
+        response = post_state("frozen")
+        assert response.status_code == 200
+        assert response.get_json()["ok"] is True
+
+        with client.session_transaction() as sess:
+            sess.clear()
+        page = client.get("/login")
+        token = extract_csrf(page.get_data(as_text=True))
+        login_response = client.post(
+            "/login/submit",
+            data={"identifier": "0599123456", "password": "demo12345", "_csrf_token": token},
+            follow_redirects=False,
+        )
+        payload = login_response.get_json()
+        assert login_response.status_code == 200
+        assert payload["ok"] is True
+        assert payload["redirect"].endswith("/user/profile")
+        blocked = client.get("/user/account", follow_redirects=False)
+        assert blocked.status_code == 302
+        assert blocked.headers["Location"].endswith("/user/profile")
+
+        with client.session_transaction() as sess:
+            sess.clear()
+        login_admin(client)
+        response = post_state("disabled")
+        assert response.status_code == 200
+        assert response.get_json()["ok"] is True
+
+        with client.session_transaction() as sess:
+            sess.clear()
+        page = client.get("/login")
+        token = extract_csrf(page.get_data(as_text=True))
+        disabled_login = client.post(
+            "/login/submit",
+            data={"identifier": "0599123456", "password": "demo12345", "_csrf_token": token},
+            follow_redirects=False,
+        )
+        assert disabled_login.status_code == 403
+        assert "حسابك معطل" in disabled_login.get_json()["message"]
+    finally:
+        with client.session_transaction() as sess:
+            sess.clear()
+        login_admin(client)
+        post_state("active")
+
+
 def test_admin_login_requires_csrf(client):
     response = client.post(
         "/login",
@@ -418,6 +483,7 @@ def test_university_beneficiary_saves_university_number(client):
 def test_admin_sidebar_exposes_core_pages(client):
     response = login_admin(client)
     html = response.get_data(as_text=True)
+    sidebar = html.split('<aside class="d-sidebar"', 1)[1].split("</aside>", 1)[0]
     for href in [
         "/admin/beneficiaries",
         "/admin/portal-accounts",
@@ -428,22 +494,23 @@ def test_admin_sidebar_exposes_core_pages(client):
         "/admin/internet-requests",
         "/admin/users-account/requests",
         "/admin/cards/pending",
-        "/admin/radius/settings",
-        "/admin/api/test",
         "/admin/usage-archive",
         "/admin/timer",
     ]:
-        assert href in html
+        assert href in sidebar
     for hidden_href in [
         "/admin/cards/settings",
         "/admin/cards/deliveries",
         "/admin/cards/audit",
+        "/admin/radius/settings",
+        "/admin/radius/online",
+        "/admin/api/test",
         "/admin/radius/app-test",
         "/admin/radius/users-online",
         "/admin/archive",
         "/admin/backup-sql",
     ]:
-        assert hidden_href not in html
+        assert hidden_href not in sidebar
 
     import_page = client.get("/admin/cards/import")
     import_html = import_page.get_data(as_text=True)

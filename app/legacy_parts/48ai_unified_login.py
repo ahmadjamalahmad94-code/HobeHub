@@ -139,12 +139,16 @@ def login_check():
         SELECT pa.*, b.full_name, b.phone, b.user_type
         FROM beneficiary_portal_accounts pa
         JOIN beneficiaries b ON b.id = pa.beneficiary_id
-        WHERE pa.username=%s OR b.phone=%s
+        WHERE (pa.username=%s OR b.phone=%s)
+          AND COALESCE(pa.portal_membership_active, FALSE)=TRUE
         LIMIT 1
         """,
         [norm_user, ident],
     )
     if portal:
+        access_state = (portal.get("portal_access_state") or "active").strip().lower()
+        if access_state == "disabled" or not portal.get("is_active"):
+            return jsonify({"ok": False, "message": "حسابك معطل. يرجى مراجعة الإدارة."}), 403
         if portal.get("must_set_password"):
             return jsonify({
                 "ok": True,
@@ -159,10 +163,11 @@ def login_check():
         return jsonify({
             "ok": True,
             "type": "beneficiary",
-            "state": "active",
+            "state": "frozen" if access_state == "frozen" else "active",
             "label": portal.get("full_name") or portal.get("username"),
             "username": portal.get("username"),
             "next": "password",
+            "message": "حسابك مجمّد مؤقتًا. يمكنك الدخول لتحديث ملفك الشخصي." if access_state == "frozen" else "",
         })
 
     try:
@@ -179,7 +184,7 @@ def login_check():
             "state": "no_account",
             "label": ben.get("full_name") or ben.get("phone"),
             "next": "request_activation",
-            "message": "أنت مسجّل لدينا لكن حسابك لم يُفعَّل بعد. اطلب من الإدارة كود التفعيل.",
+            "message": "لا تملك حساب بوابة حالياً. راجع الإدارة لتفعيل حسابك.",
         })
 
     return jsonify({
@@ -212,13 +217,17 @@ def login_submit():
         SELECT pa.*, b.full_name, b.phone
         FROM beneficiary_portal_accounts pa
         JOIN beneficiaries b ON b.id = pa.beneficiary_id
-        WHERE pa.username=%s OR b.phone=%s
+        WHERE (pa.username=%s OR b.phone=%s)
+          AND COALESCE(pa.portal_membership_active, FALSE)=TRUE
         LIMIT 1
         """,
         [norm_user, ident],
     )
     if not portal:
-        return jsonify({"ok": False, "message": "بيانات الدخول غير صحيحة."}), 401
+        return jsonify({"ok": False, "message": "لا تملك حساب بوابة حالياً. راجع الإدارة لتفعيل حسابك."}), 404
+    access_state = (portal.get("portal_access_state") or "active").strip().lower()
+    if access_state == "disabled" or not portal.get("is_active"):
+        return jsonify({"ok": False, "message": "حسابك معطل. يرجى مراجعة الإدارة."}), 403
     if portal_account_is_locked(portal):
         return jsonify({"ok": False, "message": "تم إيقاف المحاولة مؤقتًا. حاول لاحقًا."}), 429
     if portal.get("must_set_password"):
@@ -230,7 +239,8 @@ def login_submit():
     if verify_portal_password(portal.get("password_hash"), password):
         finalize_beneficiary_portal_login(portal)
         log_action("beneficiary_login", "beneficiary_portal_account", portal["id"], "تسجيل دخول مشترك (موحد)")
-        return jsonify({"ok": True, "redirect": url_for("user_dashboard"), "label": portal.get("full_name") or portal.get("username")})
+        redirect_target = url_for("user_profile_page") if access_state == "frozen" else url_for("user_dashboard")
+        return jsonify({"ok": True, "redirect": redirect_target, "label": portal.get("full_name") or portal.get("username"), "state": access_state})
     register_portal_failed_attempt(portal["id"])
     return jsonify({"ok": False, "message": "كلمة المرور غير صحيحة."}), 401
 
@@ -259,13 +269,17 @@ def login_activate():
         SELECT pa.*, b.full_name
         FROM beneficiary_portal_accounts pa
         JOIN beneficiaries b ON b.id = pa.beneficiary_id
-        WHERE pa.username=%s OR b.phone=%s
+        WHERE (pa.username=%s OR b.phone=%s)
+          AND COALESCE(pa.portal_membership_active, FALSE)=TRUE
         LIMIT 1
         """,
         [norm_user, ident],
     )
     if not portal:
-        return jsonify({"ok": False, "message": "الحساب غير موجود."}), 404
+        return jsonify({"ok": False, "message": "لا تملك حساب بوابة حالياً. راجع الإدارة لتفعيل حسابك."}), 404
+    access_state = (portal.get("portal_access_state") or "active").strip().lower()
+    if access_state == "disabled" or not portal.get("is_active"):
+        return jsonify({"ok": False, "message": "حسابك معطل. يرجى مراجعة الإدارة."}), 403
     if not portal.get("must_set_password"):
         return jsonify({"ok": False, "message": "هذا الحساب غير مصفّر — استخدم كلمة المرور المعتادة."}), 400
 

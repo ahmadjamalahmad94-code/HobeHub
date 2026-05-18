@@ -111,6 +111,33 @@ def admin_user_profile_page(beneficiary_id):
     issued_cards = _profile_issued_cards(beneficiary_id)
     requests = _profile_requests(beneficiary_id)
     audit = _profile_audit(beneficiary_id)
+
+    # احسب المستوى الفعّال + التسمية بالساعات
+    _eff_tier = 0
+    _eff_tier_label = "افتراضي"
+    try:
+        _get_eff = globals().get("get_effective_tier")
+        if callable(_get_eff):
+            _eff_tier = int(_get_eff(beneficiary_id) or 0)
+    except Exception:
+        _eff_tier = 0
+    _tier_hours_map = {0: "افتراضي", 1: "ساعتين", 2: "3 ساعات", 3: "4 ساعات"}
+    _eff_tier_label = _tier_hours_map.get(_eff_tier, "افتراضي")
+
+    # نمط الوصول: cards أم username (للتحكم بعرض الأقسام)
+    _ut = (bio.get("user_type") or "").lower()
+    _uni = (bio.get("university_internet_method") or "")
+    _free = (bio.get("freelancer_internet_method") or "")
+    _username_methods = ("يوزر إنترنت", "يمتلك اسم مستخدم", "username")
+    if _ut == "tawjihi":
+        _access_mode = "cards"
+    elif _ut == "university":
+        _access_mode = "username" if _uni in _username_methods else "cards"
+    elif _ut == "freelancer":
+        _access_mode = "username" if _free in _username_methods else "cards"
+    else:
+        _access_mode = "cards"
+
     return render_template(
         "admin/users/profile.html",
         bio=bio,
@@ -122,6 +149,9 @@ def admin_user_profile_page(beneficiary_id):
         audit=audit,
         action_type_label=action_type_label,
         format_dt_short=format_dt_short,
+        effective_tier=_eff_tier,
+        effective_tier_label=_eff_tier_label,
+        profile_access_mode=_access_mode,
     )
 
 

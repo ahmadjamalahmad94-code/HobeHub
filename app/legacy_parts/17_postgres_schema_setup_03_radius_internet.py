@@ -162,3 +162,5 @@ def _setup_postgres_radius_internet_schema(cur):
     cur.execute("ALTER TABLE beneficiary_portal_accounts ADD COLUMN IF NOT EXISTS last_activation_sent_at TIMESTAMP NULL")
     cur.execute("ALTER TABLE beneficiary_portal_accounts ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER DEFAULT 0")
     cur.execute("ALTER TABLE beneficiary_portal_accounts ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP NULL")
+    cur.execute("ALTER TABLE beneficiary_portal_accounts ADD COLUMN IF NOT EXISTS portal_membership_active BOOLEAN DEFAULT FALSE")
+    cur.execute("ALTER TABLE beneficiary_portal_accounts ADD COLUMN IF NOT EXISTS portal_access_state TEXT DEFAULT 'active'")

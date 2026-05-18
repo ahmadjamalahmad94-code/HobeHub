@@ -104,6 +104,7 @@ def export_portal_accounts():
                b.id AS beneficiary_id, b.full_name, b.phone, b.user_type
         FROM beneficiary_portal_accounts pa
         JOIN beneficiaries b ON b.id = pa.beneficiary_id
+        WHERE COALESCE(pa.portal_membership_active, FALSE)=TRUE
         ORDER BY pa.id DESC
         """
     ) or []

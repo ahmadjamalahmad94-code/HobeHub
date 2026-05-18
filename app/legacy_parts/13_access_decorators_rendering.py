@@ -40,6 +40,9 @@ def user_login_required(view):
             if request.path.startswith("/card"):
                 return redirect("/card/login")
             return redirect(url_for("user_login"))
+        if session.get("portal_access_state") == "frozen" and not request.path.startswith("/user/profile"):
+            flash("حسابك مجمّد مؤقتًا. يمكنك تحديث ملفك الشخصي ثم مراجعة الإدارة.", "warning")
+            return redirect(url_for("user_profile_page"))
         return view(*args, **kwargs)
     return wrapped
 

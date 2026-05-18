@@ -68,8 +68,8 @@ def _seed_local_demo_data(cur):
     cur.execute(
         """
         INSERT OR IGNORE INTO beneficiary_portal_accounts (
-            beneficiary_id, username, password_hash, is_active, must_set_password, activated_at, failed_login_attempts
-        ) VALUES (%s,%s,%s,1,0,%s,0)
+            beneficiary_id, username, password_hash, is_active, portal_membership_active, must_set_password, activated_at, failed_login_attempts
+        ) VALUES (%s,%s,%s,1,1,0,%s,0)
         """,
         [first_id, "0599123456", generate_password_hash("demo12345"), now_local()],
     )

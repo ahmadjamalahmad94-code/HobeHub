@@ -137,7 +137,24 @@
     <div class="phone">{{ bio.phone or '—' }}</div>
     <div class="up-meta">
       <span class="up-badge"><i class="fa-solid fa-user"></i>{{ t_label }}</span>
-      <span class="up-badge tier-{{ tier }}"><i class="fa-solid fa-medal"></i>{{ tier_label }}</span>
+      {# نمط الوصول #}
+      {% if profile_access_mode == 'username' %}
+      <span class="up-badge" style="background:rgba(22,163,74,.18);color:#86efac;border-color:rgba(134,239,172,.30)"><i class="fa-solid fa-user-check"></i>حساب اشتراك</span>
+      {% else %}
+      <span class="up-badge" style="background:rgba(244,186,42,.18);color:#FFD96A;border-color:rgba(255,217,106,.30)"><i class="fa-solid fa-ticket"></i>نظام البطاقات</span>
+      {% endif %}
+      {# مستوى الصلاحية — يظهر فقط لمستخدمي نظام البطاقات (التوجيهي + جامعي/عمل حر على بطاقات) #}
+      {% if profile_access_mode == 'cards' %}
+        {% if (bio.user_type or '')|lower == 'tawjihi' %}
+        {% set _hrs_label = 'نصف + ساعة' if bio.tawjihi_verified else 'نصف ساعة فقط' %}
+        <span class="up-badge" style="background:linear-gradient(135deg,rgba(244,186,42,.25),rgba(255,217,106,.30));color:#FFD96A;border-color:rgba(255,217,106,.4)"><i class="fa-regular fa-clock"></i>{{ _hrs_label }}</span>
+        {% else %}
+        {% set _t = effective_tier or 0 %}
+        {% set _hours_color = {0:'#9ca3af',1:'#7eb1f3',2:'#85e0ad',3:'#FFD96A'}.get(_t,'#9ca3af') %}
+        {% set _hours_bg    = {0:'rgba(255,255,255,.08)',1:'rgba(28,82,168,.18)',2:'rgba(31,143,81,.18)',3:'linear-gradient(135deg,rgba(244,186,42,.25),rgba(255,217,106,.30))'}.get(_t,'rgba(255,255,255,.08)') %}
+        <span class="up-badge" style="background:{{ _hours_bg }};color:{{ _hours_color }};border-color:rgba(255,255,255,.15)"><i class="fa-regular fa-clock"></i>{{ effective_tier_label or 'افتراضي' }}</span>
+        {% endif %}
+      {% endif %}
       <span class="up-badge v-{{ vstat }}"><i class="fa-solid fa-shield-halved"></i>{{ v_label }}{% if bio.verified_until %} · حتى {{ bio.verified_until }}{% endif %}</span>
       {% if portal %}
         {% if portal.must_set_password %}
@@ -153,19 +170,22 @@
     </div>
     <div class="up-actions">
       <button type="button" class="up-act-btn gold" id="profile-edit-btn"><i class="fa-solid fa-pen"></i>تعديل البيانات</button>
-      {% if (bio.user_type or '')|lower == 'tawjihi' %}
-      {# توثيق التوجيهي — يقلب tawjihi_verified: TRUE = نصف + ساعة، FALSE = نصف فقط #}
-      <button type="button" class="up-act-btn" id="toggle-tawjihi-verified-btn"
-              data-verified="{{ '1' if bio.tawjihi_verified else '0' }}">
-        {% if bio.tawjihi_verified %}
-          <i class="fa-solid fa-shield-halved" style="color:#34d399"></i>إلغاء توثيق التوجيهي
+      {# أزرار الصلاحية + النافذة 4 ساعات — فقط لمستخدمي نظام البطاقات #}
+      {% if profile_access_mode == 'cards' %}
+        {% if (bio.user_type or '')|lower == 'tawjihi' %}
+        {# توثيق التوجيهي — يقلب tawjihi_verified #}
+        <button type="button" class="up-act-btn" id="toggle-tawjihi-verified-btn"
+                data-verified="{{ '1' if bio.tawjihi_verified else '0' }}">
+          {% if bio.tawjihi_verified %}
+            <i class="fa-solid fa-shield-halved" style="color:#34d399"></i>إلغاء توثيق التوجيهي
+          {% else %}
+            <i class="fa-regular fa-shield"></i>توثيق التوجيهي
+          {% endif %}
+        </button>
         {% else %}
-          <i class="fa-regular fa-shield"></i>توثيق التوجيهي
+        <button type="button" class="up-act-btn" id="set-tier-btn"><i class="fa-solid fa-medal"></i>تغيير صلاحية البطاقات</button>
+        <button type="button" class="up-act-btn" id="four-hour-window-btn"><i class="fa-regular fa-clock"></i>نافذة بطاقة 4 ساعات</button>
         {% endif %}
-      </button>
-      {% else %}
-      <button type="button" class="up-act-btn" id="set-tier-btn"><i class="fa-solid fa-medal"></i>تغيير صلاحية البطاقات</button>
-      <button type="button" class="up-act-btn" id="four-hour-window-btn"><i class="fa-regular fa-clock"></i>نافذة بطاقة 4 ساعات</button>
       {% endif %}
       <button type="button" class="up-act-btn" id="set-verify-btn"><i class="fa-solid fa-shield-halved"></i>تعديل التوثيق</button>
       {% if portal %}
@@ -215,7 +235,9 @@
     <div class="up-row"><span class="lbl">اسم الجد</span><span class="val text">{{ bio.third_name or '—' }}</span></div>
     <div class="up-row"><span class="lbl">اسم العائلة</span><span class="val text">{{ bio.fourth_name or '—' }}</span></div>
     <div class="up-row"><span class="lbl">الجوال</span><span class="val">{{ bio.phone or '—' }}</span></div>
+    {% if profile_access_mode == 'cards' %}
     <div class="up-row"><span class="lbl">عدد البطاقات/أسبوع</span><span class="val">{{ bio.weekly_usage_count or 0 }}</span></div>
+    {% endif %}
     <div class="up-row"><span class="lbl">أضافه</span><span class="val text">{{ bio.added_by_username or '—' }}</span></div>
     <div class="up-row"><span class="lbl">تاريخ التسجيل</span><span class="val">{{ format_dt_short(bio.created_at) or '—' }}</span></div>
   </div>
@@ -277,7 +299,8 @@
   </div>
 </div>
 
-<!-- إحصاء الاستخدام -->
+{# إحصاء الاستخدام + آخر البطاقات الصادرة — يظهر فقط لمستخدمي نظام البطاقات #}
+{% if profile_access_mode == 'cards' %}
 <div class="up-card" style="margin-bottom:14px">
   <h3><i class="fa-solid fa-chart-column"></i>إحصاءات الاستخدام</h3>
   <div class="up-totals">
@@ -306,8 +329,11 @@
     </table>
   </div>
 </div>
+{% endif %}
 
 <div class="up-grid">
+  {# طلبات المشترك — يظهر فقط لمستخدمي حساب الاشتراك (طلبات الإنترنت، الترقية، إلخ) #}
+  {% if profile_access_mode == 'username' %}
   <div class="up-card">
     <h3><i class="fa-solid fa-inbox"></i>طلبات المشترك</h3>
     <div class="d-table-wrap" style="overflow-x:auto">
@@ -330,6 +356,7 @@
       </table>
     </div>
   </div>
+  {% endif %}{# end طلبات المشترك (username only) #}
 
   {# تحديد وضع وصول المشترك (cards / username) لتمييز الواجهة #}
   {% set _uni_method = (bio.university_internet_method or '') %}
@@ -339,36 +366,8 @@
   {% if bio.user_type == 'university' and _uni_method in _username_methods %}{% set access_mode = 'username' %}{% endif %}
   {% if bio.user_type == 'freelancer' and _free_method in _username_methods %}{% set access_mode = 'username' %}{% endif %}
 
-  {# ─── قسم البطاقات (يظهر فقط لمشتركي البطاقات) ─── #}
-  {% if access_mode == 'cards' %}
-  <div class="up-card up-card--cards">
-    <h3>
-      <i class="fa-solid fa-ticket"></i>بطاقات المشترك
-      <span class="up-card-tag up-card-tag--cards">نظام البطاقات</span>
-    </h3>
-    <div class="d-table-wrap" style="overflow-x:auto">
-      <table class="up-table" data-paginated="1" data-page-size="8" data-page-sizes="8,20,50" data-persist-key="profile-issued-cards">
-        <thead><tr><th>#</th><th>الفئة</th><th>البطاقة</th><th>الحالة</th><th>المتبقي</th><th>تحميل</th></tr></thead>
-        <tbody>
-          {% for c in issued_cards %}
-          {% set st = c.status or {} %}
-          <tr>
-            <td>#{{ c.id }}</td>
-            <td>{{ c.category_label or (c.duration_minutes ~ ' دقيقة') }}</td>
-            <td><strong style="font-family:monospace">{{ c.card_username }}</strong><div style="color:var(--d-text-muted);font-size:11px">{{ format_dt_short(c.issued_at) or '—' }}</div></td>
-            <td>{{ st.status_label or 'تم الإصدار' }}{% if st.is_online %}<div style="color:#166534;font-size:11px">متصلة الآن</div>{% endif %}</td>
-            <td>{{ st.remaining_label or 'لم تصل قراءة بعد' }}</td>
-            <td>{{ st.total_data_label or 'لم تصل قراءة بعد' }}</td>
-          </tr>
-          {% else %}
-          <tr class="no-paginate"><td colspan="6" class="empty-row"><i class="fa-regular fa-folder-open"></i>لا توجد بطاقات صادرة لهذا المشترك</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% else %}
   {# ─── قسم حساب الإنترنت (يظهر فقط لمشتركي اليوزر) ─── #}
+  {% if access_mode != 'cards' %}
   <div class="up-card up-card--username">
     <h3>
       <i class="fa-solid fa-circle-user"></i>حساب الإنترنت (يوزر)
@@ -396,6 +395,93 @@
   </div>
   {% endif %}
 </div>
+
+{# ─── جدول بطاقات المشترك (عرض كامل — يظهر فقط لمشتركي البطاقات) ─── #}
+{% if access_mode == 'cards' %}
+<div class="up-card up-card--cards" style="margin-top:14px">
+  <h3>
+    <i class="fa-solid fa-ticket"></i>بطاقات المشترك
+    <span class="up-card-tag up-card-tag--cards">نظام البطاقات</span>
+    <span style="margin-inline-start:auto;font-size:11px;color:var(--d-text-muted);font-weight:600">بيانات حية من RADIUS</span>
+  </h3>
+  <div class="d-table-wrap" style="overflow-x:auto">
+    <table class="up-table cards-detail-table" data-paginated="1" data-page-size="10" data-page-sizes="10,20,50,100" data-persist-key="profile-issued-cards">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>الفئة</th>
+          <th>اسم البطاقة</th>
+          <th>الحالة</th>
+          <th>وقت الإصدار</th>
+          <th>وقت الشبك</th>
+          <th>وقت الفصل</th>
+          <th>المتبقي</th>
+          <th>تحميل</th>
+          <th>رفع</th>
+          <th>إجمالي</th>
+          <th>IP</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in issued_cards %}
+        {% set st = c.status or {} %}
+        <tr>
+          <td style="white-space:nowrap"><strong>#{{ c.id }}</strong></td>
+          <td style="white-space:nowrap">
+            <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(244,186,42,.15);color:#7c2d12;font-size:11.5px;font-weight:800">
+              <i class="fa-solid fa-clock"></i>
+              {{ c.category_label or (c.duration_minutes ~ ' دقيقة') }}
+            </span>
+          </td>
+          <td>
+            <strong style="font-family:monospace;font-size:13px;color:#0891b2">{{ c.card_username }}</strong>
+            <div style="color:var(--d-text-muted);font-size:10.5px;font-family:monospace">{{ c.mac_address or st.mac_address or '' }}</div>
+          </td>
+          <td style="white-space:nowrap">
+            {% if st.is_online %}
+              <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:#d1fae5;color:#065f46;font-size:11px;font-weight:800">
+                <i class="fa-solid fa-circle" style="font-size:7px"></i>متصلة الآن
+              </span>
+            {% elif st.status == 'expired' %}
+              <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:#fee2e2;color:#991b1b;font-size:11px;font-weight:800">
+                <i class="fa-solid fa-circle-xmark"></i>منتهية
+              </span>
+            {% elif st.status == 'used' %}
+              <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:800">
+                <i class="fa-solid fa-circle-half-stroke"></i>مستخدمة جزئياً
+              </span>
+            {% elif st.status == 'not_started' %}
+              <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:#f3f4f6;color:#374151;font-size:11px;font-weight:800">
+                <i class="fa-regular fa-circle"></i>غير مستخدمة
+              </span>
+            {% else %}
+              <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:#f3f4f6;color:var(--d-text-muted);font-size:11px;font-weight:800">
+                <i class="fa-solid fa-circle-question"></i>{{ st.status_label or 'غير معروف' }}
+              </span>
+            {% endif %}
+          </td>
+          <td style="font-family:monospace;font-size:11.5px;color:var(--d-text-soft);white-space:nowrap">{{ format_dt_short(c.issued_at) or '—' }}</td>
+          <td style="font-family:monospace;font-size:11.5px;color:#166534;white-space:nowrap">{{ format_dt_short(st.started_at) or '—' }}</td>
+          <td style="font-family:monospace;font-size:11.5px;color:#7c2d12;white-space:nowrap">{{ format_dt_short(st.last_seen_at) if not st.is_online else '— (متصل)' }}</td>
+          <td style="white-space:nowrap"><strong>{{ st.remaining_label or '—' }}</strong></td>
+          <td style="white-space:nowrap;color:#0891b2;font-weight:700"><i class="fa-solid fa-arrow-down" style="font-size:10px"></i> {{ st.download_label or '—' }}</td>
+          <td style="white-space:nowrap;color:#7c3aed;font-weight:700"><i class="fa-solid fa-arrow-up" style="font-size:10px"></i> {{ st.upload_label or '—' }}</td>
+          <td style="white-space:nowrap;font-weight:800">{{ st.total_data_label or '—' }}</td>
+          <td style="font-family:monospace;font-size:11px;color:var(--d-text-muted);white-space:nowrap">{{ st.framed_ip or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr class="no-paginate"><td colspan="12" class="empty-row"><i class="fa-regular fa-folder-open"></i>لا توجد بطاقات صادرة لهذا المشترك</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+<style>
+.cards-detail-table th{font-size:11px;color:var(--d-text-muted);text-transform:uppercase;letter-spacing:.3px;padding:10px 8px;white-space:nowrap}
+.cards-detail-table td{padding:11px 8px;vertical-align:middle;border-bottom:1px solid var(--d-border);font-size:12.5px}
+.cards-detail-table tbody tr:hover{background:#FAFAF8}
+</style>
 
 <style>
 .up-card-tag{

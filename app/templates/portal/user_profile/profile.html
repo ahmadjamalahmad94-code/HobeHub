@@ -226,10 +226,27 @@
   {# ───── كلمة مرور البوابة ───── #}
   <div class="prof-card">
     <h3><i class="fa-solid fa-lock"></i>كلمة مرور البوابة</h3>
-    <div class="locked-note">
-      <i class="fa-solid fa-shield-halved"></i>
-      تغيير كلمة المرور موقوف مؤقتًا من بوابة المشترك. عند الحاجة تواصل مع الإدارة.
+    <p style="font-size:12.5px;color:#8a8675;margin:0 0 14px;line-height:1.7">
+      هذه كلمة مرور دخولك إلى البوابة. لا علاقة لها بحساب الإنترنت أو RADIUS — تغييرها يؤثر فقط على هذه الصفحة.
+    </p>
+    <div class="prof-fields" style="grid-template-columns:repeat(3,1fr)">
+      <div class="prof-field">
+        <label><i class="fa-solid fa-key" style="color:#8a8675;font-size:11px"></i> كلمة المرور الحالية</label>
+        <input type="password" name="current_password" autocomplete="current-password" placeholder="••••••">
+      </div>
+      <div class="prof-field">
+        <label><i class="fa-solid fa-lock" style="color:#F4BA2A;font-size:11px"></i> كلمة المرور الجديدة</label>
+        <input type="password" name="new_password" autocomplete="new-password" placeholder="4 أحرف على الأقل" minlength="4">
+      </div>
+      <div class="prof-field">
+        <label><i class="fa-solid fa-check-double" style="color:#16a34a;font-size:11px"></i> تأكيد الجديدة</label>
+        <input type="password" name="confirm_password" autocomplete="new-password" placeholder="أعد إدخالها" minlength="4">
+      </div>
     </div>
+    <p style="font-size:11.5px;color:#8a8675;margin:10px 0 0">
+      <i class="fa-solid fa-circle-info" style="color:#7c2d12"></i>
+      اترك الحقول فارغة لو ما بدك تغيير كلمة المرور. عند التغيير، اضغط «حفظ التعديلات» في الأسفل.
+    </p>
   </div>
 
   <button type="submit" class="prof-save">

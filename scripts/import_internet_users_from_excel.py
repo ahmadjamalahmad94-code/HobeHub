@@ -338,13 +338,14 @@ def upsert_rows(conn, rows: list[dict], *, dry_run: bool) -> dict:
                 """
                 INSERT INTO beneficiary_portal_accounts (
                     beneficiary_id, username, password_hash, password_plain,
-                    is_active, must_set_password, activated_at
-                ) VALUES (%s,%s,%s,%s,TRUE,FALSE,CURRENT_TIMESTAMP)
+                    is_active, portal_membership_active, must_set_password, activated_at
+                ) VALUES (%s,%s,%s,%s,TRUE,TRUE,FALSE,CURRENT_TIMESTAMP)
                 ON CONFLICT (username) DO UPDATE SET
                     beneficiary_id=EXCLUDED.beneficiary_id,
                     password_hash=EXCLUDED.password_hash,
                     password_plain=EXCLUDED.password_plain,
                     is_active=TRUE,
+                    portal_membership_active=TRUE,
                     must_set_password=FALSE,
                     activated_at=COALESCE(beneficiary_portal_accounts.activated_at, CURRENT_TIMESTAMP),
                     updated_at=CURRENT_TIMESTAMP

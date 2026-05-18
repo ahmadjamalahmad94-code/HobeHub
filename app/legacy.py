@@ -125,7 +125,7 @@ _LEGACY_PARTS = [
     '48s_card_uniqueness_guards.py',
     '48t_power_timer_viewer.py', '48u_fix_admin_aliases.py',
     '48v_force_new_admin_routes.py', '48w_quick_edit_api.py',
-    '48x_portal_accounts_v2.py', '48y_phase1_portal_section.py',
+    '48x_portal_accounts_v2.py', '48y_phase1_portal_section.py', '48ya_portal_access_state.py', '48yb_portal_credentials.py',
     '48z_phase2_user_profile.py', '48aa_phase3_tiers.py',
     '48ab_phase4_attachments.py', '48ac_notifications_schema.py', '48ac_notifications_routes.py',
     '48ad_cards_policies_ajax.py', '48ae_quota_groups.py',

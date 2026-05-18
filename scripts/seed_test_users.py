@@ -63,7 +63,7 @@ def main() -> None:
             cur.execute(
                 """UPDATE beneficiary_portal_accounts
                    SET beneficiary_id=?, username=?, password_hash=?,
-                       is_active=1, must_set_password=0,
+                       is_active=1, portal_membership_active=1, must_set_password=0,
                        activated_at=CURRENT_TIMESTAMP,
                        failed_login_attempts=0, locked_until=NULL,
                        updated_at=CURRENT_TIMESTAMP
@@ -74,8 +74,8 @@ def main() -> None:
         cur.execute(
             """INSERT INTO beneficiary_portal_accounts
                (beneficiary_id, username, password_hash, is_active,
-                must_set_password, activated_at)
-               VALUES (?, ?, ?, 1, 0, CURRENT_TIMESTAMP)""",
+                portal_membership_active, must_set_password, activated_at)
+               VALUES (?, ?, ?, 1, 1, 0, CURRENT_TIMESTAMP)""",
             (beneficiary_id, username, pw_hash),
         )
         return cur.lastrowid

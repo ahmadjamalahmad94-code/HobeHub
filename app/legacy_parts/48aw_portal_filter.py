@@ -20,10 +20,10 @@ def build_beneficiary_filters(args_dict):
     has_portal = (args_dict.get("has_portal") or "").strip()
     if has_portal == "yes":
         filters.append(
-            "EXISTS (SELECT 1 FROM beneficiary_portal_accounts bpa WHERE bpa.beneficiary_id = b.id)"
+            "EXISTS (SELECT 1 FROM beneficiary_portal_accounts bpa WHERE bpa.beneficiary_id = b.id AND COALESCE(bpa.portal_membership_active, FALSE)=TRUE)"
         )
     elif has_portal == "no":
         filters.append(
-            "NOT EXISTS (SELECT 1 FROM beneficiary_portal_accounts bpa WHERE bpa.beneficiary_id = b.id)"
+            "NOT EXISTS (SELECT 1 FROM beneficiary_portal_accounts bpa WHERE bpa.beneficiary_id = b.id AND COALESCE(bpa.portal_membership_active, FALSE)=TRUE)"
         )
     return filters, params

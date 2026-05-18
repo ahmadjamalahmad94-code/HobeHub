@@ -133,10 +133,50 @@ def admin_beneficiary_create_portal_account(bid):
         return jsonify({"ok": False, "message": "المستفيد غير موجود."}), 404
 
     existing = query_one(
-        "SELECT id FROM beneficiary_portal_accounts WHERE beneficiary_id=%s",
+        "SELECT id, username, password_hash, must_set_password FROM beneficiary_portal_accounts WHERE beneficiary_id=%s",
         [bid],
     )
+    gen_code, sha256, expiry_72h = _portal_helpers()
     if existing:
+        needs_code = (not existing.get("password_hash")) or bool(existing.get("must_set_password"))
+        code = gen_code() if needs_code else ""
+        if needs_code:
+            execute_sql(
+                """
+                UPDATE beneficiary_portal_accounts SET
+                    is_active=TRUE,
+                    portal_membership_active=TRUE,
+                    portal_access_state='active',
+                    must_set_password=TRUE,
+                    activation_code_hash=%s,
+                    activation_code_expires_at=%s,
+                    updated_at=CURRENT_TIMESTAMP
+                WHERE id=%s
+                """,
+                [sha256(code), expiry_72h(), existing["id"]],
+            )
+        else:
+            execute_sql(
+                """
+                UPDATE beneficiary_portal_accounts
+                   SET is_active=TRUE,
+                       portal_membership_active=TRUE,
+                       portal_access_state='active',
+                       updated_at=CURRENT_TIMESTAMP
+                 WHERE id=%s
+                """,
+                [existing["id"]],
+            )
+        return jsonify({
+            "ok": True,
+            "message": "تم إدخال المشترك للبوابة من حسابه المحفوظ.",
+            "portal_id": existing["id"],
+            "username": existing.get("username") or "",
+            "code": code,
+            "expires_hours": 72 if code else 0,
+            "phone": ben.get("phone") or "",
+            "full_name": ben.get("full_name") or "",
+        })
         return jsonify({
             "ok": False,
             "message": "للمشترك حساب بوابة مسبقاً. استخدم خيارات «التصفير» بدلاً من «إنشاء».",
@@ -164,15 +204,14 @@ def admin_beneficiary_create_portal_account(bid):
             "message": "اسم المستخدم مستخدم مسبقاً. اختر آخر.",
         }), 400
 
-    gen_code, sha256, expiry_72h = _portal_helpers()
     code = gen_code()
 
     row = execute_sql(
         """
         INSERT INTO beneficiary_portal_accounts
             (beneficiary_id, username, password_hash, password_plain, is_active,
-             must_set_password, activation_code_hash, activation_code_expires_at)
-        VALUES (%s, %s, '', NULL, TRUE, TRUE, %s, %s)
+             portal_membership_active, portal_access_state, must_set_password, activation_code_hash, activation_code_expires_at)
+        VALUES (%s, %s, '', NULL, TRUE, TRUE, 'active', TRUE, %s, %s)
         RETURNING id
         """,
         [bid, username, sha256(code), expiry_72h()],

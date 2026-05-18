@@ -90,30 +90,6 @@
 </div>
 
 <div class="d-nav-group">
-  <div class="d-nav-group-label"><i class="fa-solid fa-satellite-dish"></i><span>RADIUS</span></div>
-  <a class="d-nav-item {% if p in ('/admin/radius/online', '/admin/radius/users-online') %}is-active{% endif %}"
-     href="{{ url_for('admin_radius_online') }}" data-label="المتصلون الآن">
-    <i class="fa-solid fa-wifi"></i><span>المتصلون الآن</span>
-  </a>
-  <a class="d-nav-item {% if p == '/admin/radius/live-monitor' %}is-active{% endif %}"
-     href="/admin/radius/live-monitor" data-label="مراقبة حية">
-    <i class="fa-solid fa-broadcast-tower"></i><span>مراقبة حية</span>
-  </a>
-  <a class="d-nav-item {% if p == '/admin/radius/user-lookup' %}is-active{% endif %}"
-     href="/admin/radius/user-lookup" data-label="بحث مستخدم">
-    <i class="fa-solid fa-magnifying-glass"></i><span>بحث مستخدم</span>
-  </a>
-  <a class="d-nav-item {% if p == '/admin/radius/settings' %}is-active{% endif %}"
-     href="{{ url_for('radius_settings_page') }}" data-label="إعدادات الربط">
-    <i class="fa-solid fa-sliders"></i><span>إعدادات الربط</span>
-  </a>
-  <a class="d-nav-item {% if p.startswith('/admin/api') %}is-active{% endif %}"
-     href="{{ url_for('admin_api_test') }}" data-label="فحص الربط">
-    <i class="fa-solid fa-plug"></i><span>فحص الربط</span>
-  </a>
-</div>
-
-<div class="d-nav-group">
   <div class="d-nav-group-label"><i class="fa-solid fa-folder-tree"></i><span>السجلات والبيانات</span></div>
   <a class="d-nav-item {% if p in ('/admin/audit-log', '/audit-log') %}is-active{% endif %}"
      href="/admin/audit-log" data-label="سجل العمليات">

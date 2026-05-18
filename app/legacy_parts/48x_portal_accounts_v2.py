@@ -69,7 +69,29 @@ def admin_portal_accounts_create():
         [beneficiary_id],
     )
     if existing:
-        return jsonify({"ok": False, "message": "يوجد حساب بوابة لهذا المستفيد بالفعل."}), 400
+        dup_existing = query_one(
+            "SELECT id FROM beneficiary_portal_accounts WHERE username=%s AND id<>%s LIMIT 1",
+            [username, existing["id"]],
+        )
+        if dup_existing:
+            return jsonify({"ok": False, "message": "اسم المستخدم مستخدم مسبقًا."}), 400
+        pw_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
+        execute_sql(
+            """
+            UPDATE beneficiary_portal_accounts
+               SET username=%s,
+                   password_hash=%s,
+                   is_active=%s,
+                   portal_membership_active=TRUE,
+                   portal_access_state='active',
+                   must_set_password=FALSE,
+                   activated_at=COALESCE(activated_at, CURRENT_TIMESTAMP),
+                   updated_at=CURRENT_TIMESTAMP
+             WHERE id=%s
+            """,
+            [username, pw_hash, bool(is_active), existing["id"]],
+        )
+        return jsonify({"ok": True, "message": "تم إدخال المستفيد للبوابة من حسابه المحفوظ."})
 
     dup = query_one(
         "SELECT id FROM beneficiary_portal_accounts WHERE username=%s LIMIT 1", [username]
@@ -81,8 +103,8 @@ def admin_portal_accounts_create():
     row = execute_sql(
         """
         INSERT INTO beneficiary_portal_accounts
-            (beneficiary_id, username, password_hash, is_active, must_set_password, activated_at)
-        VALUES (%s, %s, %s, %s, 0, CURRENT_TIMESTAMP)
+            (beneficiary_id, username, password_hash, is_active, portal_membership_active, portal_access_state, must_set_password, activated_at)
+        VALUES (%s, %s, %s, %s, TRUE, 'active', 0, CURRENT_TIMESTAMP)
         RETURNING id
         """,
         [beneficiary_id, username, pw_hash, bool(is_active)],

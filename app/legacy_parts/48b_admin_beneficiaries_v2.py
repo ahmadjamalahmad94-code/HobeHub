@@ -74,6 +74,7 @@ def _admin_beneficiaries_v2_view():
                pa.last_login_at AS portal_last_login_at
         FROM beneficiaries b
         LEFT JOIN beneficiary_portal_accounts pa ON pa.beneficiary_id = b.id
+             AND COALESCE(pa.portal_membership_active, FALSE)=TRUE
         WHERE {where}
         ORDER BY b.id DESC
         LIMIT %s OFFSET %s
@@ -105,6 +106,13 @@ def _admin_beneficiaries_v2_view():
         WHERE (user_type='university' AND COALESCE(university_internet_method, '') IN ('يوزر إنترنت', 'يمتلك اسم مستخدم', 'username'))
            OR (user_type='freelancer' AND COALESCE(freelancer_internet_method, '') IN ('يوزر إنترنت', 'يمتلك اسم مستخدم', 'username'))
     """) or {}).get("c") or 0)
+    # مستخدمو البوابة — إجمالي الصفوف في beneficiary_portal_accounts (داخل البوابة)
+    try:
+        kpi_portal = int((query_one(
+            "SELECT COUNT(*) AS c FROM beneficiary_portal_accounts WHERE COALESCE(portal_membership_active, FALSE)=TRUE"
+        ) or {}).get("c") or 0)
+    except Exception:
+        kpi_portal = 0
 
     # قوائم القيم المميزة للفلاتر — تعالج list of strings أو list of dicts
     def _flatten(seq):
@@ -157,6 +165,7 @@ def _admin_beneficiaries_v2_view():
         kpi_freelancer=kpi_freelancer,
         kpi_cards=kpi_cards,
         kpi_username=kpi_username,
+        kpi_portal=kpi_portal,
         tawjihi_years=tawjihi_years,
         tawjihi_branches=tawjihi_branches,
         university_names=university_names,

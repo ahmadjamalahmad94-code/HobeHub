@@ -76,7 +76,7 @@ def admin_portal_accounts_page():
             execute_sql(
                 """
                 UPDATE beneficiary_portal_accounts
-                SET username=%s, password_hash=%s, is_active=%s, updated_at=CURRENT_TIMESTAMP
+                SET username=%s, password_hash=%s, is_active=%s, portal_membership_active=TRUE, portal_access_state='active', updated_at=CURRENT_TIMESTAMP
                 WHERE beneficiary_id=%s
                 """,
                 [username, sha256_text(password), is_active, beneficiary_id],
@@ -86,8 +86,8 @@ def admin_portal_accounts_page():
         else:
             row = execute_sql(
                 """
-                INSERT INTO beneficiary_portal_accounts (beneficiary_id, username, password_hash, is_active)
-                VALUES (%s,%s,%s,%s)
+                INSERT INTO beneficiary_portal_accounts (beneficiary_id, username, password_hash, is_active, portal_membership_active, portal_access_state)
+                VALUES (%s,%s,%s,%s,TRUE,'active')
                 RETURNING id
                 """,
                 [beneficiary_id, username, sha256_text(password), is_active],

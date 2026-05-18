@@ -172,8 +172,54 @@ def _user_profile_editable_view():
         # ── تغيير كلمة مرور البوابة (اختياري) ──
         cur_pw = clean_csv_value(request.form.get("current_password"))
         new_pw = clean_csv_value(request.form.get("new_password"))
-        if new_pw:
-            flash("تغيير كلمة المرور موقوف مؤقتًا. عند الحاجة تواصل مع الإدارة.", "warning")
+        confirm_pw = clean_csv_value(request.form.get("confirm_password"))
+        # نشغّل المنطق فقط لو طلب المشترك تغيير كلمة المرور (أحد الحقول مملوء)
+        if cur_pw or new_pw or confirm_pw:
+            if not portal_account:
+                flash("لا يوجد حساب بوابة لتغيير كلمة مروره.", "error")
+            elif not cur_pw or not new_pw or not confirm_pw:
+                flash("لتغيير كلمة المرور، عبّئ الحقول الثلاثة (الحالية، الجديدة، تأكيد الجديدة).", "error")
+            elif new_pw != confirm_pw:
+                flash("كلمة المرور الجديدة لا تطابق التأكيد.", "error")
+            elif len(new_pw) < 4:
+                flash("كلمة المرور الجديدة قصيرة جدًا (4 أحرف على الأقل).", "error")
+            else:
+                # تحقق من كلمة المرور الحالية
+                try:
+                    import hashlib as _h
+                    cur_hash = _h.sha256((cur_pw or "").encode("utf-8")).hexdigest()
+                except Exception:
+                    cur_hash = ""
+                stored_hash = (portal_account.get("password_hash") or "").strip()
+                if stored_hash and stored_hash != cur_hash:
+                    flash("كلمة المرور الحالية غير صحيحة.", "error")
+                else:
+                    try:
+                        import hashlib as _h2
+                        new_hash = _h2.sha256(new_pw.encode("utf-8")).hexdigest()
+                    except Exception:
+                        new_hash = new_pw
+                    execute_sql(
+                        """
+                        UPDATE beneficiary_portal_accounts SET
+                            password_hash=%s,
+                            password_plain=%s,
+                            must_set_password=FALSE,
+                            updated_at=CURRENT_TIMESTAMP
+                        WHERE id=%s
+                        """,
+                        [new_hash, new_pw, portal_account["id"]],
+                    )
+                    try:
+                        log_action(
+                            "beneficiary_change_password",
+                            "beneficiary_portal_account",
+                            portal_account["id"],
+                            "Self-changed portal password from /user/profile",
+                        )
+                    except Exception:
+                        pass
+                    flash("تم تحديث كلمة مرور البوابة بنجاح ✓", "success")
 
         return redirect(url_for("user_profile_page"))
 

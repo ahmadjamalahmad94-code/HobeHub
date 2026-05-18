@@ -321,6 +321,7 @@ def admin_beneficiaries_rows_ajax():
                pa.last_login_at AS portal_last_login_at
         FROM beneficiaries b
         LEFT JOIN beneficiary_portal_accounts pa ON pa.beneficiary_id = b.id
+             AND COALESCE(pa.portal_membership_active, FALSE)=TRUE
         WHERE {where_clause}
         ORDER BY b.id DESC
         LIMIT %s OFFSET %s

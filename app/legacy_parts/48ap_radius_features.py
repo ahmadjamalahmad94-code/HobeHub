@@ -380,6 +380,7 @@ def admin_radius_snapshots_run():
         SELECT b.* FROM beneficiaries b
         JOIN beneficiary_portal_accounts pa ON pa.beneficiary_id = b.id
         WHERE pa.is_active = TRUE
+          AND COALESCE(pa.portal_membership_active, FALSE)=TRUE
         """
     ) or []
     success = 0

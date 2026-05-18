@@ -23,6 +23,7 @@ def admin_cards_subscribers_page():
                pa.id AS portal_account_id
         FROM beneficiaries b
         LEFT JOIN beneficiary_portal_accounts pa ON pa.beneficiary_id = b.id
+             AND COALESCE(pa.portal_membership_active, FALSE)=TRUE
         WHERE (
               b.user_type = 'tawjihi'
            OR (b.user_type='university'
@@ -105,6 +106,7 @@ def admin_cards_subscribers_data_json():
                pa.id AS portal_account_id
         FROM beneficiaries b
         LEFT JOIN beneficiary_portal_accounts pa ON pa.beneficiary_id = b.id
+             AND COALESCE(pa.portal_membership_active, FALSE)=TRUE
         WHERE (
               b.user_type = 'tawjihi'
            OR (b.user_type='university'

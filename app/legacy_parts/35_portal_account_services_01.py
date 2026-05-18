@@ -6,7 +6,9 @@ def get_beneficiary_portal_account_by_username(username: str):
         SELECT pa.*, b.full_name, b.phone
         FROM beneficiary_portal_accounts pa
         JOIN beneficiaries b ON b.id = pa.beneficiary_id
-        WHERE pa.username=%s AND pa.is_active=TRUE
+        WHERE pa.username=%s
+          AND pa.is_active=TRUE
+          AND COALESCE(pa.portal_membership_active, FALSE)=TRUE
         LIMIT 1
         """,
         [normalized],
@@ -84,6 +86,7 @@ def set_portal_session(row: dict):
     session["beneficiary_portal_account_id"] = row["id"]
     session["beneficiary_username"] = row["username"]
     session["beneficiary_full_name"] = row.get("full_name") or ""
+    session["portal_access_state"] = (row.get("portal_access_state") or "active").strip().lower()
 
 
 def finalize_beneficiary_portal_login(row: dict):

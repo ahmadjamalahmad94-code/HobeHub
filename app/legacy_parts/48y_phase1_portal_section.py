@@ -33,6 +33,8 @@ def _is_already_exists_error(err):
 # ────────────────────────────────────────────────────────────────
 for _stmt in (
     "ALTER TABLE beneficiary_portal_accounts ADD COLUMN password_plain TEXT",
+    "ALTER TABLE beneficiary_portal_accounts ADD COLUMN portal_membership_active BOOLEAN DEFAULT FALSE",
+    "ALTER TABLE beneficiary_portal_accounts ADD COLUMN portal_access_state TEXT DEFAULT 'active'",
     # حقول Phase 3 — مستويات السماح والتوثيق (تُضاف الآن لتجنّب SELECT errors)
     "ALTER TABLE beneficiaries ADD COLUMN verification_status TEXT DEFAULT 'unverified'",
     "ALTER TABLE beneficiaries ADD COLUMN verified_until DATE",
@@ -73,16 +75,28 @@ def _with_access_mode(rows):
     return enriched
 
 
+def _portal_access_state(row):
+    if not row:
+        return "active"
+    state = (row.get("portal_access_state") or "").strip().lower()
+    if state in {"active", "frozen", "disabled"}:
+        return state
+    if not row.get("is_active"):
+        return "disabled"
+    return "active"
+
+
 def _fetch_portal_accounts(search=""):
     """مشتركو البوابة (داخل) — مع رقم الجوال والاسم الكامل."""
     sql = (
         "SELECT pa.*, b.full_name, b.phone, b.user_type, b.verification_status, b.tier, "
+        "COALESCE(b.tawjihi_verified, FALSE) AS tawjihi_verified, "
         "b.university_internet_method, b.freelancer_internet_method "
         "FROM beneficiary_portal_accounts pa "
         "JOIN beneficiaries b ON b.id = pa.beneficiary_id "
     )
     params = []
-    where = []
+    where = ["COALESCE(pa.portal_membership_active, FALSE)=TRUE"]
     if search:
         like = "%" + search + "%"
         where.append("(b.full_name ILIKE %s OR b.phone ILIKE %s OR pa.username ILIKE %s)")
@@ -100,6 +114,7 @@ def _fetch_outside_beneficiaries(search=""):
         "b.university_internet_method, b.freelancer_internet_method "
         "FROM beneficiaries b "
         "LEFT JOIN beneficiary_portal_accounts pa ON pa.beneficiary_id = b.id "
+        "AND COALESCE(pa.portal_membership_active, FALSE)=TRUE "
         "WHERE pa.id IS NULL"
     )
     params = []
@@ -115,10 +130,12 @@ def _portal_account_counts(search=""):
     portal_sql = (
         "SELECT "
         "COUNT(*) AS total, "
-        "SUM(CASE WHEN pa.is_active=TRUE THEN 1 ELSE 0 END) AS active, "
-        "SUM(CASE WHEN pa.is_active=TRUE THEN 0 ELSE 1 END) AS inactive "
+        "SUM(CASE WHEN pa.is_active=TRUE AND COALESCE(pa.portal_access_state, 'active') <> 'disabled' THEN 1 ELSE 0 END) AS active, "
+        "SUM(CASE WHEN pa.is_active=TRUE AND COALESCE(pa.portal_access_state, 'active') = 'frozen' THEN 1 ELSE 0 END) AS frozen, "
+        "SUM(CASE WHEN pa.is_active<>TRUE OR COALESCE(pa.portal_access_state, 'active') = 'disabled' THEN 1 ELSE 0 END) AS inactive "
         "FROM beneficiary_portal_accounts pa "
-        "JOIN beneficiaries b ON b.id = pa.beneficiary_id"
+        "JOIN beneficiaries b ON b.id = pa.beneficiary_id "
+        "WHERE COALESCE(pa.portal_membership_active, FALSE)=TRUE"
     )
     portal_params = []
     where = []
@@ -127,13 +144,14 @@ def _portal_account_counts(search=""):
         where.append("(b.full_name ILIKE %s OR b.phone ILIKE %s OR pa.username ILIKE %s)")
         portal_params.extend([like, like, like])
     if where:
-        portal_sql += " WHERE " + " AND ".join(where)
+        portal_sql += " AND " + " AND ".join(where)
     portal = query_one(portal_sql, portal_params) or {}
 
     outside_sql = (
         "SELECT COUNT(*) AS total "
         "FROM beneficiaries b "
         "LEFT JOIN beneficiary_portal_accounts pa ON pa.beneficiary_id = b.id "
+        "AND COALESCE(pa.portal_membership_active, FALSE)=TRUE "
         "WHERE pa.id IS NULL"
     )
     outside_params = []
@@ -146,6 +164,7 @@ def _portal_account_counts(search=""):
     return {
         "inside": int(portal.get("total") or 0),
         "active": int(portal.get("active") or 0),
+        "frozen": int(portal.get("frozen") or 0),
         "inactive": int(portal.get("inactive") or 0),
         "outside": int(outside.get("total") or 0),
     }
@@ -164,6 +183,7 @@ def _portal_accounts_phase1_view():
         inside=inside,
         outside=outside,
         active_count=counts["active"],
+        frozen_count=counts["frozen"],
         inactive_count=counts["inactive"],
         inside_count=counts["inside"],
         outside_count=counts["outside"],
@@ -207,10 +227,11 @@ def admin_portal_accounts_list_ajax():
         "ok": True,
         "inside_html": inside_html,
         "outside_html": outside_html,
-        "counts": {
+            "counts": {
             "inside": counts["inside"],
             "outside": counts["outside"],
             "active": counts["active"],
+            "frozen": counts["frozen"],
             "inactive": counts["inactive"],
         },
     })
@@ -335,9 +356,12 @@ def admin_portal_account_delete(portal_id):
     row = query_one("SELECT username, beneficiary_id FROM beneficiary_portal_accounts WHERE id=%s", [portal_id])
     if not row:
         return jsonify({"ok": False, "message": "الحساب غير موجود."}), 404
-    execute_sql("DELETE FROM beneficiary_portal_accounts WHERE id=%s", [portal_id])
-    log_action("portal_delete", "beneficiary_portal_account", portal_id, f"حذف حساب البوابة {row.get('username')}")
-    return jsonify({"ok": True, "message": "تم حذف حساب البوابة."})
+    execute_sql(
+        "UPDATE beneficiary_portal_accounts SET portal_membership_active=FALSE, updated_at=CURRENT_TIMESTAMP WHERE id=%s",
+        [portal_id],
+    )
+    log_action("portal_disable_membership", "beneficiary_portal_account", portal_id, f"إخراج حساب البوابة {row.get('username')} من التصنيف النشط")
+    return jsonify({"ok": True, "message": "تم إخراج المشترك من البوابة مع حفظ حسابه."})
 
 
 # ────────────────────────────────────────────────────────────────
@@ -368,7 +392,9 @@ def admin_portal_account_move_in():
             execute_sql(
                 """
                 UPDATE beneficiary_portal_accounts
-                SET is_active=TRUE,
+                    SET is_active=TRUE,
+                    portal_membership_active=TRUE,
+                    portal_access_state='active',
                     must_set_password=TRUE,
                     activation_code_hash=%s,
                     activation_code_expires_at=%s,
@@ -379,7 +405,7 @@ def admin_portal_account_move_in():
             )
         else:
             execute_sql(
-                "UPDATE beneficiary_portal_accounts SET is_active=TRUE, updated_at=CURRENT_TIMESTAMP WHERE id=%s",
+                "UPDATE beneficiary_portal_accounts SET is_active=TRUE, portal_membership_active=TRUE, portal_access_state='active', updated_at=CURRENT_TIMESTAMP WHERE id=%s",
                 [existing["id"]],
             )
         final_username = existing.get("username") or username or ben.get("phone") or ""
@@ -412,8 +438,8 @@ def admin_portal_account_move_in():
         """
         INSERT INTO beneficiary_portal_accounts
             (beneficiary_id, username, password_hash, password_plain, is_active,
-             must_set_password, activation_code_hash, activation_code_expires_at)
-        VALUES (%s, %s, '', NULL, TRUE, TRUE, %s, %s)
+             portal_membership_active, portal_access_state, must_set_password, activation_code_hash, activation_code_expires_at)
+        VALUES (%s, %s, '', NULL, TRUE, TRUE, 'active', TRUE, %s, %s)
         RETURNING id
         """,
         [beneficiary_id, username, _sha256(code), _expiry_72h()],
@@ -435,51 +461,4 @@ def admin_portal_account_move_in():
     })
 
 
-# ────────────────────────────────────────────────────────────────
-# POST /admin/portal-accounts/<id>/set-credentials — تعديل يدوي للحساب
-# ────────────────────────────────────────────────────────────────
-@app.route("/admin/portal-accounts/<int:portal_id>/set-credentials", methods=["POST"])
-@login_required
-@permission_required("manage_accounts")
-def admin_portal_account_set_credentials(portal_id):
-    row = query_one("SELECT id, username FROM beneficiary_portal_accounts WHERE id=%s", [portal_id])
-    if not row:
-        return jsonify({"ok": False, "message": "الحساب غير موجود."}), 404
-    new_username = clean_csv_value(request.form.get("username") or "") or row.get("username")
-    new_password = clean_csv_value(request.form.get("password") or "")
-    is_active_raw = request.form.get("is_active", "1")
-    is_active = is_active_raw in ("1", "true", "on")
-
-    # تحقق من تكرار اليوزر
-    if new_username != row.get("username"):
-        dup = query_one(
-            "SELECT id FROM beneficiary_portal_accounts WHERE username=%s AND id<>%s",
-            [new_username, portal_id],
-        )
-        if dup:
-            return jsonify({"ok": False, "message": "اسم المستخدم مستخدم مسبقًا."}), 400
-
-    if new_password:
-        execute_sql(
-            """
-            UPDATE beneficiary_portal_accounts SET
-                username=%s, password_hash=%s, password_plain=%s,
-                is_active=%s, must_set_password=FALSE,
-                activation_code_hash=NULL, activation_code_expires_at=NULL,
-                updated_at=CURRENT_TIMESTAMP
-            WHERE id=%s
-            """,
-            [new_username, _sha256(new_password), new_password, is_active, portal_id],
-        )
-    else:
-        execute_sql(
-            """
-            UPDATE beneficiary_portal_accounts SET
-                username=%s, is_active=%s, updated_at=CURRENT_TIMESTAMP
-            WHERE id=%s
-            """,
-            [new_username, is_active, portal_id],
-        )
-    log_action("portal_set_credentials", "beneficiary_portal_account", portal_id, f"تعديل بيانات حساب البوابة {new_username}")
-    return jsonify({"ok": True, "message": "تم حفظ التعديلات."})
 # phase 1 ready
