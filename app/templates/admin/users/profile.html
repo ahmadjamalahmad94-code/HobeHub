@@ -169,7 +169,37 @@
       {% endif %}
       <button type="button" class="up-act-btn" id="set-verify-btn"><i class="fa-solid fa-shield-halved"></i>تعديل التوثيق</button>
       {% if portal %}
-      <button type="button" class="up-act-btn" id="issue-code-btn" data-pa-id="{{ portal.id }}" data-name="{{ bio.full_name or '' }}" data-phone="{{ bio.phone or '' }}"><i class="fa-solid fa-key"></i>إنشاء رمز تفعيل</button>
+      {# قائمة تصفير الحساب (داخل البوابة فقط — لمنع التصفير العفوي) #}
+      <div class="up-reset-wrap" style="position:relative;display:inline-block">
+        <button type="button" class="up-act-btn" id="reset-menu-toggle-btn" data-pa-id="{{ portal.id }}" data-name="{{ bio.full_name or '' }}">
+          <i class="fa-solid fa-rotate-left"></i>تصفير حساب
+          <i class="fa-solid fa-caret-down" style="font-size:10px;margin-inline-start:4px;opacity:.7"></i>
+        </button>
+        <div class="up-reset-menu" style="display:none;position:absolute;top:100%;inset-inline-end:0;margin-top:6px;background:#fff;color:#1E1E1E;border:1px solid rgba(0,0,0,.08);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.3);min-width:300px;z-index:200;padding:6px">
+          <button type="button" class="up-reset-item up-reset-creds-only" data-pa-id="{{ portal.id }}" data-name="{{ bio.full_name or '' }}"
+                  style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:transparent;border:0;cursor:pointer;font-family:inherit;width:100%;text-align:start;transition:.12s ease">
+            <i class="fa-solid fa-key" style="color:#16a34a;width:18px"></i>
+            <div>
+              <div style="font-weight:800;font-size:13px;color:#1E1E1E">تصفير بيانات الدخول</div>
+              <div style="font-size:11px;color:#666">إلغاء كلمة المرور + كود تفعيل جديد فقط</div>
+            </div>
+          </button>
+          <button type="button" class="up-reset-item up-reset-wipe-data" data-pa-id="{{ portal.id }}" data-name="{{ bio.full_name or '' }}"
+                  style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:transparent;border:0;cursor:pointer;font-family:inherit;width:100%;text-align:start;transition:.12s ease;margin-top:2px">
+            <i class="fa-solid fa-eraser" style="color:#b91c1c;width:18px"></i>
+            <div>
+              <div style="font-weight:800;font-size:13px;color:#1E1E1E">تصفير حساب ومسح البيانات</div>
+              <div style="font-size:11px;color:#666">إلغاء + مسح سجلات الاستخدام والعدّاد</div>
+            </div>
+          </button>
+        </div>
+      </div>
+      {% else %}
+      {# زر إنشاء حساب بوابة (خارج البوابة فقط — يختفي إذا كان داخلها لتفادي التصفير بالغلط) #}
+      <button type="button" class="up-act-btn" id="create-portal-btn" data-bid="{{ bio.id }}" data-name="{{ bio.full_name or '' }}" data-phone="{{ bio.phone or '' }}"
+              style="background:linear-gradient(135deg,#F4BA2A,#FFD96A);color:#1E1E1E;border-color:transparent">
+        <i class="fa-solid fa-id-card-clip"></i>إنشاء حساب بوابة
+      </button>
       {% endif %}
       <a class="up-act-btn" href="/admin/portal-accounts"><i class="fa-solid fa-id-card-clip"></i>إدارة البوابة</a>
     </div>
@@ -924,6 +954,104 @@
     dictateBtn.addEventListener('click', function(){
       codeModal.classList.remove('is-open');
       showToast('تم. تأكد إن المشترك حفظ الكود.', 'success');
+    });
+  }
+
+  // ─── Reset menu dropdown (داخل البوابة فقط) ───
+  var resetToggleBtn = document.getElementById('reset-menu-toggle-btn');
+  if(resetToggleBtn){
+    resetToggleBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var menu = resetToggleBtn.nextElementSibling;
+      if(menu) menu.style.display = (menu.style.display === 'block' ? 'none' : 'block');
+    });
+    document.addEventListener('click', function(e){
+      if(!e.target.closest('.up-reset-wrap')){
+        var menu = resetToggleBtn.nextElementSibling;
+        if(menu) menu.style.display = 'none';
+      }
+    });
+    document.querySelectorAll('.up-reset-item').forEach(function(item){
+      item.addEventListener('mouseenter', function(){ item.style.background = '#FDF6E3'; });
+      item.addEventListener('mouseleave', function(){ item.style.background = 'transparent'; });
+    });
+  }
+
+  function showCodeAfterReset(code, target){
+    var cv = document.getElementById('code-value');
+    var ct = document.getElementById('code-target');
+    var ctp = document.getElementById('code-target-phone');
+    if(cv) cv.textContent = code;
+    if(ct) ct.textContent = target || '—';
+    if(ctp) ctp.textContent = target || '—';
+    codeModal.classList.add('is-open');
+  }
+
+  // Reset credentials only (lightweight reset)
+  var resetCredsOnlyBtn = document.querySelector('.up-reset-creds-only');
+  if(resetCredsOnlyBtn){
+    resetCredsOnlyBtn.addEventListener('click', function(){
+      var paId = this.dataset.paId;
+      var name = this.dataset.name || '';
+      var menu = document.querySelector('.up-reset-menu');
+      if(menu) menu.style.display = 'none';
+      if(!confirm('تصفير بيانات الدخول لـ "'+name+'" وتوليد رمز تفعيل جديد فقط؟\n(لن تُمسّ بيانات الاستخدام)')) return;
+      fetch('/admin/portal-accounts/'+paId+'/reset', {method:'POST', credentials:'same-origin'})
+        .then(r=>r.json()).then(function(d){
+          if(!d.ok){ showToast(d.message || 'فشل', 'error'); return; }
+          lastPaIdForSms = paId;
+          showCodeAfterReset(d.code, name);
+          showToast('تم التصفير. الكود ظاهر أعلاه.', 'success');
+        }).catch(function(){ showToast('فشل الاتصال', 'error'); });
+    });
+  }
+
+  // Reset + wipe data
+  var resetWipeBtn = document.querySelector('.up-reset-wipe-data');
+  if(resetWipeBtn){
+    resetWipeBtn.addEventListener('click', function(){
+      var paId = this.dataset.paId;
+      var name = this.dataset.name || '';
+      var menu = document.querySelector('.up-reset-menu');
+      if(menu) menu.style.display = 'none';
+      var warn = 'تصفير حساب "'+name+'" + مسح جميع بيانات الاستخدام؟\n\nسيتم:\n• إلغاء كلمة المرور + كود تفعيل جديد\n• حذف كل سجلات الاستخدام للمشترك\n• تصفير العدّاد الأسبوعي\n• حذف تسليمات البطاقات\n\nهذا الإجراء لا يمكن التراجع عنه.';
+      if(!confirm(warn)) return;
+      fetch('/admin/portal-accounts/'+paId+'/wipe-and-reset', {method:'POST', credentials:'same-origin'})
+        .then(r=>r.json()).then(function(d){
+          if(!d.ok){ showToast(d.message || 'فشل', 'error'); return; }
+          lastPaIdForSms = paId;
+          showCodeAfterReset(d.code, name);
+          showToast(d.message || 'تم التصفير والمسح', 'success');
+          setTimeout(function(){ location.reload(); }, 2500);
+        }).catch(function(){ showToast('فشل الاتصال', 'error'); });
+    });
+  }
+
+  // ─── Create portal account (خارج البوابة فقط) ───
+  var createPortalBtn = document.getElementById('create-portal-btn');
+  if(createPortalBtn){
+    createPortalBtn.addEventListener('click', function(){
+      var bid = this.dataset.bid;
+      var name = this.dataset.name || '';
+      var phone = this.dataset.phone || '';
+      if(!confirm('إنشاء حساب بوابة لـ "'+name+'" واسم المستخدم "'+phone+'" + كود تفعيل صالح 72 ساعة؟')) return;
+      var btn = this; btn.disabled = true;
+      var origHtml = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الإنشاء…';
+      var fd = new FormData();
+      fd.append('username', phone || name);
+      fetch('/admin/beneficiaries/'+bid+'/create-portal-account', {method:'POST', credentials:'same-origin', body:fd})
+        .then(r=>r.json()).then(function(d){
+          btn.disabled = false; btn.innerHTML = origHtml;
+          if(!d.ok){ showToast(d.message || 'فشل', 'error'); return; }
+          lastPaIdForSms = d.portal_id;
+          showCodeAfterReset(d.code, name);
+          showToast(d.message || 'تم الإنشاء', 'success');
+          setTimeout(function(){ location.reload(); }, 3000);
+        }).catch(function(){
+          btn.disabled = false; btn.innerHTML = origHtml;
+          showToast('فشل الاتصال', 'error');
+        });
     });
   }
 

@@ -1,6 +1,6 @@
-{# Partial: portal accounts rows #}
+{# Partial: portal accounts rows — same inline action buttons as /admin/portal-accounts #}
 {% for r in rows %}
-<tr class="beneficiary-row" data-bid="{{ r.id }}">
+<tr class="beneficiary-row pa-row" data-bid="{{ r.id }}" data-pa-id="{{ r.portal_id or '' }}" data-username="{{ r.portal_username or '' }}" data-name="{{ r.full_name or '' }}" data-phone="{{ r.phone or '' }}" data-active="{{ '1' if r.is_active else '0' }}">
   <td><input type="checkbox" class="row-cb" data-bid="{{ r.id }}"></td>
   <td style="white-space:nowrap"><strong>{{ r.full_name or '—' }}</strong></td>
   <td style="font-family:monospace;white-space:nowrap">{{ r.phone or '—' }}</td>
@@ -22,35 +22,89 @@
   </td>
   <td><span class="last-login">{{ r.last_login_fmt }}</span></td>
   <td>
-    <div class="action-wrap">
-      <a class="act-icon act-profile" href="/admin/users/{{ r.id }}/profile" title="الملف الكامل" style="text-decoration:none">
-        <i class="fa-solid fa-id-card-clip" style="color:#0891b2"></i>
-      </a>
-      <button type="button" class="act-icon portal-manage-btn"
-              data-bid="{{ r.id }}"
-              data-name="{{ r.full_name or r.id }}"
-              data-phone="{{ r.phone or '' }}"
-              data-portal-id="{{ r.portal_id or '' }}"
-              data-portal-username="{{ r.portal_username or '' }}"
-              data-portal-status="{{ r.portal_status }}"
-              title="إدارة حساب البوابة">
-        <i class="fa-solid fa-id-card" style="color:#0f766e"></i>
+    <div class="action-wrap" style="display:flex;gap:4px;flex-wrap:wrap">
+
+      {# 1) عرض كلمة المرور #}
+      <button type="button" class="act-icon act-creds show-creds-btn"
+              data-pa-id="{{ r.portal_id }}"
+              title="عرض كلمة المرور">
+        <i class="fa-solid fa-key"></i>
       </button>
+
+      {# 2) إنشاء رمز تفعيل (تصفير بيانات الدخول + كود جديد) #}
+      <button type="button" class="act-icon act-issue-code issue-code-btn"
+              data-pa-id="{{ r.portal_id }}"
+              data-name="{{ r.full_name or '' }}"
+              data-phone="{{ r.phone or '' }}"
+              title="تصفير بيانات الدخول وإنشاء رمز تفعيل جديد">
+        <i class="fa-solid fa-shield-halved"></i>
+      </button>
+
+      {# 3) قائمة "تصفير حساب" بنوعين — Dropdown #}
+      <div class="reset-menu-wrap" style="position:relative;display:inline-block">
+        <button type="button" class="act-icon act-reset reset-menu-btn"
+                data-pa-id="{{ r.portal_id }}"
+                data-name="{{ r.full_name or '' }}"
+                data-phone="{{ r.phone or '' }}"
+                title="تصفير الحساب">
+          <i class="fa-solid fa-rotate-left"></i>
+        </button>
+        <div class="reset-menu" style="display:none">
+          <button type="button" class="reset-menu-item reset-creds-only"
+                  data-pa-id="{{ r.portal_id }}"
+                  data-name="{{ r.full_name or '' }}"
+                  data-phone="{{ r.phone or '' }}">
+            <i class="fa-solid fa-key" style="color:#16a34a"></i>
+            <div style="text-align:start">
+              <div style="font-weight:800;font-size:13px">تصفير بيانات الدخول</div>
+              <div style="font-size:11px;color:var(--d-text-muted)">إلغاء كلمة المرور + كود تفعيل جديد فقط</div>
+            </div>
+          </button>
+          <button type="button" class="reset-menu-item reset-wipe-data"
+                  data-pa-id="{{ r.portal_id }}"
+                  data-name="{{ r.full_name or '' }}"
+                  data-phone="{{ r.phone or '' }}">
+            <i class="fa-solid fa-eraser" style="color:#b91c1c"></i>
+            <div style="text-align:start">
+              <div style="font-weight:800;font-size:13px">تصفير حساب ومسح البيانات</div>
+              <div style="font-size:11px;color:var(--d-text-muted)">إلغاء + مسح سجلات الاستخدام والعدّاد</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {# 4) تعديل اليوزر/الباسوورد #}
+      <button type="button" class="act-icon edit-pa-btn"
+              data-pa-id="{{ r.portal_id }}"
+              data-bid="{{ r.id }}"
+              data-username="{{ r.portal_username or '' }}"
+              data-active="{{ '1' if r.is_active else '0' }}"
+              title="تعديل بيانات الحساب">
+        <i class="fa-solid fa-pen"></i>
+      </button>
+
+      {# 5) إصدار بطاقة — لو معتمد على البطاقات #}
       {% if has_permission('usage_counter') and r.access_mode == 'cards' %}
-      <button type="button" class="act-icon act-issue issue-card-btn" data-bid="{{ r.id }}" data-name="{{ r.full_name }}" title="إصدار بطاقة">
+      <button type="button" class="act-icon act-issue issue-card-btn"
+              data-bid="{{ r.id }}" data-name="{{ r.full_name }}"
+              title="إصدار بطاقة">
         <i class="fa-solid fa-ticket"></i>
       </button>
       {% endif %}
-      {% if has_permission('edit') %}
-      <button type="button" class="act-icon quick-edit-btn" data-bid="{{ r.id }}" title="تعديل بيانات المشترك">
-        <i class="fa-solid fa-pen"></i>
-      </button>
-      {% endif %}
-      {% if has_permission('delete') %}
-      <button type="button" class="act-icon act-delete delete-btn" data-bid="{{ r.id }}" data-name="{{ r.full_name }}" title="حذف">
+
+      {# 6) الملف الشخصي #}
+      <a class="act-icon act-profile" href="/admin/users/{{ r.id }}/profile"
+         title="الملف الكامل" style="text-decoration:none">
+        <i class="fa-solid fa-id-card-clip"></i>
+      </a>
+
+      {# 7) حذف حساب البوابة فقط (يبقى المستفيد) #}
+      <button type="button" class="act-icon act-delete delete-pa-btn"
+              data-pa-id="{{ r.portal_id }}"
+              data-name="{{ r.full_name or '' }}"
+              title="حذف حساب البوابة (يبقى المستفيد)">
         <i class="fa-solid fa-trash"></i>
       </button>
-      {% endif %}
     </div>
   </td>
 </tr>

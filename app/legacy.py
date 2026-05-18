@@ -135,7 +135,7 @@ _LEGACY_PARTS = [
     '48aq_master_admin_portal.py', '48aq2_admin_auth_endpoints.py', '48ar_signup_phone_check.py',
     '48as_card_eligibility.py', '48as_portal_redirect.py', '48at_segment_redirects.py', '48au_auto_card_fulfill.py',
     '48av_verification_tiers.py', '48aw_portal_filter.py', '48ax_portal_list_route.py',
-    '49_main_entrypoint.py',
+    '48ay_portal_unified_actions.py', '49_main_entrypoint.py',
 ]
 def _legacy_template_text(filename: str) -> str:
     return (_LEGACY_TEMPLATES_DIR / filename).read_text(encoding="utf-8")

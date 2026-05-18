@@ -25,12 +25,8 @@ TIER_LABELS = {0: "افتراضي", 1: "معتمد", 2: "مؤكد", 3: "سوبر
 TIER_COLORS = {0: "muted", 1: "blue", 2: "green", 3: "gold"}
 
 
-# ─── تصحيح السياسة الافتراضية عند أول تشغيل ──────────────────────────────
 def _fix_default_policy():
-    """يتأكد أن السياسة الافتراضية = نصف ساعة + ساعة فقط (default tier).
-
-    باقي الفئات (ساعتين/3/4) تفتح فقط لمن يحصل على tier > 0 (per-user policy).
-    """
+    """يتأكد أن السياسة الافتراضية = نصف ساعة + ساعة فقط."""
     try:
         execute_sql(
             """
@@ -51,8 +47,7 @@ except Exception:
     pass
 
 
-# ─── مساعدات ─────────────────────────────────────────────────────────────
-def _codes_to_tier(codes_csv: str) -> int:
+def _codes_to_tier(codes_csv):
     codes = {c.strip().lower() for c in (codes_csv or "").split(",") if c.strip()}
     if "four_hours" in codes:
         return 3
@@ -63,8 +58,7 @@ def _codes_to_tier(codes_csv: str) -> int:
     return 0
 
 
-def _get_default_limits() -> tuple[int | None, int | None]:
-    """يقرأ daily_limit وweekly_limit من السياسة الافتراضية."""
+def _get_default_limits():
     try:
         row = query_one(
             "SELECT daily_limit, weekly_limit FROM card_quota_policies "
@@ -77,11 +71,7 @@ def _get_default_limits() -> tuple[int | None, int | None]:
     return 1, 7
 
 
-def get_beneficiary_tiers(beneficiary_id: int) -> list[dict]:
-    """
-    يرجع قائمة per-user policies النشطة للمشترك مرتبةً بالأولوية،
-    كل عنصر فيه: id, tier, tier_label, tier_color, valid_until, priority, expired
-    """
+def get_beneficiary_tiers(beneficiary_id):
     today_iso = date.today().isoformat()
     rows = query_all(
         """
@@ -111,15 +101,12 @@ def get_beneficiary_tiers(beneficiary_id: int) -> list[dict]:
     return result
 
 
-def get_effective_tier(beneficiary_id: int) -> int:
-    """المستوى الفعلي النشط الآن (الأعلى بين السياسات غير المنتهية)."""
-    today_iso = date.today().isoformat()
+def get_effective_tier(beneficiary_id):
     tiers = get_beneficiary_tiers(beneficiary_id)
     active = [t for t in tiers if not t["expired"]]
     return max((t["tier"] for t in active), default=0)
 
 
-# ─── endpoint: معلومات التوثيق ──────────────────────────────────────────
 @app.route("/admin/beneficiaries/<int:bid>/tier-info", methods=["GET"])
 @admin_login_required
 def admin_beneficiary_tier_info(bid):
@@ -142,21 +129,13 @@ def admin_beneficiary_tier_info(bid):
     })
 
 
-# ─── endpoint: تعيين مستوى التوثيق ────────────────────────────────────
 @app.route("/admin/beneficiaries/<int:bid>/set-tier", methods=["POST"])
 @admin_login_required
 def admin_beneficiary_set_tier(bid):
-    """
-    body (JSON أو form):
-      tier         : 0-3
-      valid_until  : 'YYYY-MM-DD' أو '' (اختياري)
-      fallback_tier: 0-3 (يظهر فقط لو valid_until مضبوط)
-    """
     b = query_one("SELECT full_name FROM beneficiaries WHERE id=%s", [bid])
     if not b:
         return jsonify({"ok": False, "message": "المشترك غير موجود."}), 404
 
-    # قراءة البيانات من JSON أو form
     data = request.get_json(silent=True) or {}
     if not data:
         data = {k: request.form.get(k, "") for k in ("tier", "valid_until", "fallback_tier")}
@@ -187,16 +166,14 @@ def admin_beneficiary_set_tier(bid):
     actor = session.get("username") or "admin"
     daily_lim, weekly_lim = _get_default_limits()
 
-    # ── حذف كل per-user policies الحالية لهذا المشترك ─────────────────
     execute_sql(
         "DELETE FROM card_quota_policies WHERE scope='user' AND target_id=%s",
         [bid],
     )
 
-    # ── إنشاء السياسة الرئيسية ────────────────────────────────────────
     if tier > 0:
         codes = ",".join(TIER_CODES[tier])
-        until_note = f" حتى {valid_until}" if valid_until else " (دائم)"
+        until_note = (" حتى " + valid_until) if valid_until else " (دائم)"
         execute_sql(
             """
             INSERT INTO card_quota_policies
@@ -209,11 +186,10 @@ def admin_beneficiary_set_tier(bid):
             """,
             [
                 bid, codes, daily_lim, weekly_lim, valid_until,
-                f"توثيق {TIER_LABELS[tier]}{until_note} — {actor}",
+                "توثيق " + TIER_LABELS[tier] + until_note + " — " + actor,
             ],
         )
 
-    # ── إنشاء السياسة الاحتياطية (بعد انتهاء الرئيسية) ───────────────
     if valid_until and fallback_tier > 0:
         fb_codes = ",".join(TIER_CODES[fallback_tier])
         execute_sql(
@@ -228,11 +204,10 @@ def admin_beneficiary_set_tier(bid):
             """,
             [
                 bid, fb_codes, daily_lim, weekly_lim,
-                f"توثيق احتياطي {TIER_LABELS[fallback_tier]} (بعد انتهاء المؤقت) — {actor}",
+                "توثيق احتياطي " + TIER_LABELS[fallback_tier] + " (بعد انتهاء المؤقت) — " + actor,
             ],
         )
 
-    # ── تدقيق ─────────────────────────────────────────────────────────
     try:
         insert_audit_log(
             action="beneficiary_tier_set",
@@ -248,11 +223,11 @@ def admin_beneficiary_set_tier(bid):
     except Exception:
         pass
 
-    msg = f"تم تعيين مستوى «{TIER_LABELS[tier]}»"
+    msg = "تم تعيين مستوى «" + TIER_LABELS[tier] + "»"
     if valid_until:
-        msg += f" حتى {valid_until}"
+        msg += " حتى " + valid_until
         if fallback_tier > 0:
-            msg += f"، ثم يرجع لـ «{TIER_LABELS[fallback_tier]}»"
+            msg += "، ثم يرجع لـ «" + TIER_LABELS[fallback_tier] + "»"
     elif tier == 0:
         msg = "تم إعادة المشترك للمستوى الافتراضي"
 

@@ -11,13 +11,12 @@ from flask import jsonify, render_template, request
 @app.route("/admin/beneficiaries/portal-stats")
 @login_required
 def admin_portal_stats():
-    # ⚡ PostgreSQL boolean columns: استخدام TRUE/FALSE بدل 1/0
     stats = query_one("""
         SELECT
-          COUNT(*)                                                                  AS total,
+          COUNT(*) AS total,
           SUM(CASE WHEN is_active=TRUE  AND must_set_password=FALSE THEN 1 ELSE 0 END) AS active,
           SUM(CASE WHEN is_active=TRUE  AND must_set_password=TRUE  THEN 1 ELSE 0 END) AS reset_pw,
-          SUM(CASE WHEN is_active=FALSE                             THEN 1 ELSE 0 END) AS disabled
+          SUM(CASE WHEN is_active=FALSE THEN 1 ELSE 0 END) AS disabled
         FROM beneficiary_portal_accounts
     """) or {}
     outside = query_one("""
@@ -36,7 +35,6 @@ def admin_portal_stats():
 
 # ══════════════════════════════════════════════════════
 # GET /admin/beneficiaries/portal-rows
-# params: q, status (active|reset|disabled|"")
 # ══════════════════════════════════════════════════════
 @app.route("/admin/beneficiaries/portal-rows")
 @login_required
@@ -47,7 +45,6 @@ def admin_portal_rows():
     conditions = []
     params = []
 
-    # فلتر البحث
     if q:
         conditions.append(
             "(b.full_name LIKE %s OR b.phone LIKE %s OR bpa.username LIKE %s)"
@@ -55,7 +52,6 @@ def admin_portal_rows():
         like = "%" + q + "%"
         params += [like, like, like]
 
-    # فلتر الحالة — استخدام TRUE/FALSE للتوافق مع PostgreSQL
     if status == "active":
         conditions.append("bpa.is_active=TRUE AND bpa.must_set_password=FALSE")
     elif status == "reset":
@@ -81,7 +77,6 @@ def admin_portal_rows():
         LIMIT 1000
     """, params)
 
-    # حساب portal_status + access_mode لكل صف
     def _access_mode(r):
         ut = (r.get("user_type") or "").lower()
         if ut == "university":
@@ -90,7 +85,7 @@ def admin_portal_rows():
             return "username" if (r.get("freelancer_internet_method") or "") in ("يوزر إنترنت", "username") else "cards"
         return "cards"
 
-    from app.services.formatting import format_dt_short  # noqa
+    _fmt = globals().get("format_dt_short") or (lambda v: str(v) if v else "")
     enriched = []
     for r in rows:
         r = dict(r)
@@ -104,7 +99,10 @@ def admin_portal_rows():
         else:
             r["portal_status"] = "active"
             r["portal_status_label"] = "نشط"
-        r["last_login_fmt"] = format_dt_short(r.get("last_login_at")) or "—"
+        try:
+            r["last_login_fmt"] = _fmt(r.get("last_login_at")) or "—"
+        except Exception:
+            r["last_login_fmt"] = "—"
         enriched.append(r)
 
     html = render_template(

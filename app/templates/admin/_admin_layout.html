@@ -25,6 +25,14 @@
      href="/admin/beneficiaries" data-label="كل المستفيدين">
     <i class="fa-solid fa-users-viewfinder"></i><span>كل المستفيدين</span>
   </a>
+  <a class="d-nav-item {% if p.startswith('/admin/portal-accounts') %}is-active{% endif %}"
+     href="/admin/portal-accounts" data-label="حسابات البوابة">
+    <i class="fa-solid fa-id-card-clip"></i><span>حسابات البوابة</span>
+  </a>
+  <a class="d-nav-item {% if p == '/admin/beneficiaries/add' %}is-active{% endif %}"
+     href="/admin/beneficiaries/add" data-label="إضافة مستفيد">
+    <i class="fa-solid fa-user-plus"></i><span>إضافة مستفيد</span>
+  </a>
   <a class="d-nav-item {% if p == '/admin/beneficiaries' and seg == 'cards' %}is-active{% endif %}"
      href="/admin/beneficiaries?segment=cards" data-label="مستفيد بطاقات">
     <i class="fa-solid fa-ticket"></i><span>مستفيد بطاقات</span>
@@ -32,14 +40,6 @@
   <a class="d-nav-item {% if p == '/admin/beneficiaries' and seg == 'username' %}is-active{% endif %}"
      href="/admin/beneficiaries?segment=username" data-label="مستفيد اشتراك">
     <i class="fa-solid fa-id-card"></i><span>مستفيد اشتراك</span>
-  </a>
-  <a class="d-nav-item {% if p == '/admin/beneficiaries/add' %}is-active{% endif %}"
-     href="/admin/beneficiaries/add" data-label="إضافة مستفيد">
-    <i class="fa-solid fa-user-plus"></i><span>إضافة مستفيد</span>
-  </a>
-  <a class="d-nav-item {% if p.startswith('/admin/portal-accounts') %}is-active{% endif %}"
-     href="/admin/portal-accounts" data-label="حسابات البوابة">
-    <i class="fa-solid fa-id-card-clip"></i><span>حسابات البوابة</span>
   </a>
 </div>
 

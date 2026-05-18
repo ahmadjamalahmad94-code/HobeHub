@@ -200,15 +200,13 @@
         <i class="fa-solid fa-user-plus"></i>إضافة مستفيد
       </button>
       {% endif %}
-      <button type="button" class="hub-pill view-toggle-btn active" id="view-all-btn"
-              style="background:#1E1E1E;color:#fff;border-color:#1E1E1E;gap:6px">
-        <i class="fa-solid fa-users"></i>كل المستفيدين
-      </button>
-      <button type="button" class="hub-pill view-toggle-btn" id="view-portal-btn"
-              style="border-color:#0f766e;color:#0f766e;gap:6px">
+      {# تم نقل تبويب «حسابات البوابة» إلى صفحة /admin/portal-accounts المنفصلة لتخفيف التشويش #}
+      <a class="hub-pill" href="/admin/portal-accounts"
+         style="border-color:#0f766e;color:#0f766e;gap:6px;text-decoration:none"
+         title="افتح صفحة حسابات البوابة الكاملة">
         <i class="fa-solid fa-id-card"></i>حسابات البوابة
-        <span class="qa-count" id="portal-count-badge" style="background:#0f766e;color:#fff">…</span>
-      </button>
+        <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:10px;opacity:.65"></i>
+      </a>
     </div>
     <div style="display:inline-flex;gap:6px;flex-wrap:wrap">
       <button type="button" class="hub-pill tab-pill {% if not filters.user_type %}active{% endif %}" data-type=""><i class="fa-solid fa-grip"></i>الكل<span class="qa-count pill-count" id="cnt-all">{{ kpi_total }}</span></button>
@@ -276,80 +274,8 @@
   </div>
 </section>
 
-<!-- ═══════════════════════════════════════════════════════════
-     Portal Accounts View — عرض حسابات البوابة
-════════════════════════════════════════════════════════════ -->
-<div id="portal-view" style="display:none;margin-top:8px">
-  <!-- Mini stats -->
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
-    <div style="background:#fff;border:1.5px solid #d1fae5;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px">
-      <div style="width:40px;height:40px;border-radius:50%;background:#d1fae5;display:flex;align-items:center;justify-content:center">
-        <i class="fa-solid fa-circle-check" style="color:#059669;font-size:18px"></i>
-      </div>
-      <div><div style="font-size:22px;font-weight:900;color:#1E1E1E" id="ps-active">…</div><div style="font-size:11px;color:#6b7280;font-weight:600">نشط</div></div>
-    </div>
-    <div style="background:#fff;border:1.5px solid #fef3c7;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px">
-      <div style="width:40px;height:40px;border-radius:50%;background:#fef3c7;display:flex;align-items:center;justify-content:center">
-        <i class="fa-solid fa-circle-exclamation" style="color:#d97706;font-size:18px"></i>
-      </div>
-      <div><div style="font-size:22px;font-weight:900;color:#1E1E1E" id="ps-reset">…</div><div style="font-size:11px;color:#6b7280;font-weight:600">مصفّر</div></div>
-    </div>
-    <div style="background:#fff;border:1.5px solid #fee2e2;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px">
-      <div style="width:40px;height:40px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center">
-        <i class="fa-solid fa-circle-pause" style="color:#dc2626;font-size:18px"></i>
-      </div>
-      <div><div style="font-size:22px;font-weight:900;color:#1E1E1E" id="ps-disabled">…</div><div style="font-size:11px;color:#6b7280;font-weight:600">معطّل</div></div>
-    </div>
-    <div style="background:#fff;border:1.5px solid #e0e7ef;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px">
-      <div style="width:40px;height:40px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center">
-        <i class="fa-solid fa-user-slash" style="color:#6b7280;font-size:18px"></i>
-      </div>
-      <div><div style="font-size:22px;font-weight:900;color:#1E1E1E" id="ps-outside">…</div><div style="font-size:11px;color:#6b7280;font-weight:600">خارج البوابة</div></div>
-    </div>
-  </div>
+<!-- تم نقل عرض «حسابات البوابة» إلى صفحة /admin/portal-accounts المنفصلة -->
 
-  <!-- Search + status filter -->
-  <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
-    <div style="position:relative;flex:1;min-width:200px">
-      <i class="fa-solid fa-magnifying-glass" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--d-text-muted);font-size:13px"></i>
-      <input type="text" id="portal-search" placeholder="ابحث بالاسم / الجوال / اسم المستخدم…"
-             style="width:100%;padding:9px 36px 9px 12px;border-radius:10px;border:1.5px solid var(--d-border-strong);font-family:inherit;font-size:13px;background:#FAFAF8;box-sizing:border-box;direction:rtl">
-    </div>
-    <div style="display:flex;gap:6px;flex-shrink:0">
-      <button type="button" class="portal-status-pill" data-status="" style="padding:8px 14px;border-radius:10px;border:2px solid #1E1E1E;background:#1E1E1E;color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">الكل</button>
-      <button type="button" class="portal-status-pill" data-status="active" style="padding:8px 14px;border-radius:10px;border:2px solid #059669;color:#059669;background:#fff;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">نشط</button>
-      <button type="button" class="portal-status-pill" data-status="reset" style="padding:8px 14px;border-radius:10px;border:2px solid #d97706;color:#d97706;background:#fff;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">مصفّر</button>
-      <button type="button" class="portal-status-pill" data-status="disabled" style="padding:8px 14px;border-radius:10px;border:2px solid #dc2626;color:#dc2626;background:#fff;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">معطّل</button>
-    </div>
-  </div>
-
-  <!-- Portal table -->
-  <div style="border-radius:14px;border:1.5px solid var(--d-border);overflow:hidden;background:#fff">
-    <div style="padding:12px 16px;border-bottom:1px solid var(--d-border);display:flex;align-items:center">
-      <span style="font-size:13px;font-weight:700;color:var(--d-text-soft)">
-        <i class="fa-solid fa-id-card" style="color:#0f766e;margin-left:6px"></i>
-        المشتركون داخل البوابة — <strong id="portal-row-count" style="color:#1E1E1E">…</strong> حساب
-      </span>
-    </div>
-    <table class="d-table" data-paginated="1" data-page-size="20" data-page-sizes="10,20,50,100" data-persist-key="portal-accounts">
-      <thead>
-        <tr>
-          <th style="width:34px"><input type="checkbox" id="portal-head-cb"></th>
-          <th>المستفيد</th>
-          <th>الجوال</th>
-          <th style="color:#0891b2">اسم المستخدم</th>
-          <th>النوع</th>
-          <th>الحالة</th>
-          <th>آخر دخول</th>
-          <th>إجراءات</th>
-        </tr>
-      </thead>
-      <tbody id="portal-rows">
-        <tr class="no-paginate"><td colspan="8" style="text-align:center;padding:24px;color:var(--d-text-muted)">جارٍ التحميل…</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
 
 <!-- ── Quick-edit Modal (FULL fields) ── -->
 <div class="qe-backdrop" id="qe-modal">
@@ -1205,130 +1131,7 @@
     }
   });
 
-  // ─── View Toggle: كل المستفيدين ↔ حسابات البوابة ───
-  (function(){
-    var viewAllBtn    = document.getElementById('view-all-btn');
-    var viewPortalBtn = document.getElementById('view-portal-btn');
-    var mainView      = document.getElementById('ben-table-wrap');
-    var portalView    = document.getElementById('portal-view');
-    var filterHub     = document.querySelector('.hub-filter-bar');
-    var portalRows    = document.getElementById('portal-rows');
-    var portalCount   = document.getElementById('portal-row-count');
-    var portalBadge   = document.getElementById('portal-count-badge');
-    var portalSearch  = document.getElementById('portal-search');
-    var portalStatus  = '';
-    var portalDebTimer = null;
-    var portalLoaded  = false;
-
-    // ── load portal stats badge on page load ──
-    fetch('/admin/beneficiaries/portal-stats', {credentials:'same-origin'})
-      .then(function(r){ return r.json(); }).then(function(d){
-        if(!d.ok) return;
-        if(portalBadge) portalBadge.textContent = d.total;
-        var fill = function(id, v){ var el=document.getElementById(id); if(el) el.textContent=v; };
-        fill('ps-active', d.active); fill('ps-reset', d.reset);
-        fill('ps-disabled', d.disabled); fill('ps-outside', d.outside);
-      }).catch(function(){});
-
-    function loadPortalRows(){
-      var q = portalSearch ? portalSearch.value.trim() : '';
-      var url = '/admin/beneficiaries/portal-rows?status='+encodeURIComponent(portalStatus)+'&q='+encodeURIComponent(q);
-      if(portalRows) portalRows.innerHTML = '<tr class="no-paginate"><td colspan="8" style="text-align:center;padding:24px;color:var(--d-text-muted)">جارٍ التحميل…</td></tr>';
-      fetch(url, {credentials:'same-origin'}).then(function(r){ return r.json(); }).then(function(d){
-        if(d.ok){
-          if(portalRows) portalRows.innerHTML = d.html;
-          if(portalCount) portalCount.textContent = d.count;
-          // re-init pagination on portal table
-          if(typeof initPagination === 'function'){
-            var tbl = portalRows && portalRows.closest('table');
-            if(tbl) initPagination(tbl);
-          }
-        }
-      }).catch(function(){
-        if(portalRows) portalRows.innerHTML = '<tr class="no-paginate"><td colspan="8" style="text-align:center;padding:24px;color:#b91c1c">فشل الاتصال</td></tr>';
-      });
-    }
-
-    function showPortal(){
-      if(mainView)   mainView.style.display   = 'none';
-      if(filterHub)  filterHub.style.display  = 'none';
-      if(portalView) portalView.style.display = '';
-      viewAllBtn    && viewAllBtn.classList.remove('active');
-      viewPortalBtn && viewPortalBtn.classList.add('active');
-      viewAllBtn    && (viewAllBtn.style.background    = '#FAFAF8');
-      viewAllBtn    && (viewAllBtn.style.color         = '#1E1E1E');
-      viewAllBtn    && (viewAllBtn.style.borderColor   = 'var(--d-border-strong)');
-      viewPortalBtn && (viewPortalBtn.style.background = '#0f766e');
-      viewPortalBtn && (viewPortalBtn.style.color      = '#fff');
-      viewPortalBtn && (viewPortalBtn.style.borderColor= '#0f766e');
-      if(!portalLoaded){ portalLoaded=true; loadPortalRows(); }
-    }
-
-    function showAll(){
-      if(mainView)   mainView.style.display   = '';
-      if(filterHub)  filterHub.style.display  = '';
-      if(portalView) portalView.style.display = 'none';
-      viewPortalBtn && viewPortalBtn.classList.remove('active');
-      viewAllBtn    && viewAllBtn.classList.add('active');
-      viewAllBtn    && (viewAllBtn.style.background    = '#1E1E1E');
-      viewAllBtn    && (viewAllBtn.style.color         = '#fff');
-      viewAllBtn    && (viewAllBtn.style.borderColor   = '#1E1E1E');
-      viewPortalBtn && (viewPortalBtn.style.background = '#fff');
-      viewPortalBtn && (viewPortalBtn.style.color      = '#0f766e');
-      viewPortalBtn && (viewPortalBtn.style.borderColor= '#0f766e');
-    }
-
-    viewAllBtn    && viewAllBtn.addEventListener('click',    showAll);
-    viewPortalBtn && viewPortalBtn.addEventListener('click', function(){ showPortal(); });
-
-    // status pills
-    document.querySelectorAll('.portal-status-pill').forEach(function(pill){
-      pill.addEventListener('click', function(){
-        document.querySelectorAll('.portal-status-pill').forEach(function(p){
-          p.style.background = '#fff';
-          p.style.color = p.dataset.status === ''  ? '#1E1E1E'
-                        : p.dataset.status === 'active'   ? '#059669'
-                        : p.dataset.status === 'reset'    ? '#d97706'
-                        : '#dc2626';
-        });
-        pill.style.background = pill.dataset.status === ''       ? '#1E1E1E'
-                               : pill.dataset.status === 'active'   ? '#059669'
-                               : pill.dataset.status === 'reset'    ? '#d97706'
-                               : '#dc2626';
-        pill.style.color = '#fff';
-        portalStatus = pill.dataset.status;
-        loadPortalRows();
-      });
-    });
-
-    // portal search debounce
-    portalSearch && portalSearch.addEventListener('input', function(){
-      if(portalDebTimer) clearTimeout(portalDebTimer);
-      portalDebTimer = setTimeout(function(){ loadPortalRows(); }, 280);
-    });
-
-    // portal head checkbox
-    var phCb = document.getElementById('portal-head-cb');
-    phCb && phCb.addEventListener('change', function(){
-      document.querySelectorAll('#portal-rows .row-cb').forEach(function(cb){ cb.checked = phCb.checked; });
-    });
-
-    // reload portal after PM modal actions (portal account created/updated)
-    document.addEventListener('portal-updated', function(){
-      if(portalView && portalView.style.display !== 'none'){
-        portalLoaded = false;
-        loadPortalRows();
-        fetch('/admin/beneficiaries/portal-stats',{credentials:'same-origin'})
-          .then(function(r){return r.json();}).then(function(d){
-            if(!d.ok) return;
-            if(portalBadge) portalBadge.textContent = d.total;
-            var fill = function(id, v){ var el=document.getElementById(id); if(el) el.textContent=v; };
-            fill('ps-active', d.active); fill('ps-reset', d.reset);
-            fill('ps-disabled', d.disabled); fill('ps-outside', d.outside);
-          }).catch(function(){});
-      }
-    });
-  })();
+  // تم إلغاء كتلة View Toggle لـ «حسابات البوابة» — الصفحة المخصصة في /admin/portal-accounts
 
 })();
 </script>
@@ -1842,6 +1645,373 @@ headers:{'Content-Type':'application/json'},
   document.addEventListener('click',function(e){
     var btn=e.target.closest&&e.target.closest('.tier-btn');
     if(btn) tmOpen(btn);
+  });
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     Portal Row Actions — أزرار الإجراءات المضمّنة في حسابات البوابة
+══════════════════════════════════════════════════════════════════ -->
+<style>
+/* Reset dropdown menu */
+.reset-menu{position:absolute;top:100%;inset-inline-end:0;margin-top:6px;background:#fff;border:1px solid var(--d-border-strong);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.18);min-width:280px;z-index:200;padding:6px;overflow:hidden;animation:rmFade .15s ease}
+@keyframes rmFade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.reset-menu-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:transparent;border:0;cursor:pointer;font-family:inherit;width:100%;text-align:start;transition:.12s ease}
+.reset-menu-item:hover{background:#FDF6E3}
+.reset-menu-item i{font-size:15px;width:20px;text-align:center}
+
+/* Inline portal-row action icons (match portal-accounts page) */
+.act-icon.act-creds i{color:#7c3aed}
+.act-icon.act-creds:hover{border-color:#7c3aed}
+.act-icon.act-issue-code i{color:#16a34a}
+.act-icon.act-issue-code:hover{border-color:#16a34a;background:rgba(22,163,74,.06)}
+.act-icon.act-reset i{color:#1c52a8}
+.act-icon.act-reset:hover{border-color:#1c52a8}
+.act-icon.act-profile i{color:#0891b2}
+.act-icon.act-profile:hover{border-color:#0891b2}
+
+/* Modals reused for code/creds/edit */
+.par-backdrop{position:fixed;inset:0;background:rgba(30,30,30,.65);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px;backdrop-filter:blur(3px)}
+.par-backdrop.is-open{display:flex;animation:qeFade .2s ease}
+.par-modal{background:#fff;border-radius:18px;max-width:520px;width:100%;padding:22px 26px;box-shadow:0 30px 80px rgba(0,0,0,.4)}
+.par-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:12px;border-bottom:1px dashed var(--d-border)}
+.par-head h3{margin:0;font-size:17px;font-weight:800;color:var(--d-black);display:flex;align-items:center;gap:8px}
+.par-head h3 i{color:var(--d-gold)}
+.par-close{background:none;border:0;color:var(--d-text-muted);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:8px}
+.par-code-box{background:linear-gradient(135deg,#1E1E1E 0%,#2a2724 100%);color:#fff;padding:22px 18px;border-radius:14px;text-align:center;margin-bottom:14px}
+.par-code-box .lbl{font-size:11.5px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.par-code-box .val{font-family:monospace;font-size:36px;font-weight:900;color:var(--d-gold);letter-spacing:8px;line-height:1}
+.par-code-box .meta{font-size:11.5px;color:rgba(255,255,255,.55);margin-top:8px}
+.par-cred-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--d-border)}
+.par-cred-row:last-child{border-bottom:0}
+.par-cred-row .l{font-size:11.5px;font-weight:700;color:var(--d-text-muted);text-transform:uppercase;letter-spacing:.3px}
+.par-cred-row .v{font-family:monospace;font-size:14px;font-weight:800;color:var(--d-black)}
+.par-wipe-warn{background:#fde2e2;border:1px solid rgba(185,28,28,.3);border-radius:10px;padding:10px 14px;color:#7f1d1d;font-size:12.5px;line-height:1.7;margin-bottom:12px}
+.par-wipe-warn strong{color:#b91c1c}
+</style>
+
+<!-- ── Modal: Activation code display ── -->
+<div class="par-backdrop" id="par-code-modal">
+  <div class="par-modal">
+    <div class="par-head">
+      <h3><i class="fa-solid fa-key"></i>رمز تفعيل البوابة</h3>
+      <button type="button" class="par-close" data-par-close>✕</button>
+    </div>
+    <div class="par-code-box">
+      <div class="lbl">رمز التفعيل</div>
+      <div class="val" id="par-code-val">— — — — — —</div>
+      <button type="button" id="par-code-copy" style="margin-top:12px;font-size:12px;font-weight:700;background:rgba(244,186,42,.15);color:var(--d-gold);padding:6px 14px;border-radius:8px;border:1px solid rgba(244,186,42,.3);cursor:pointer;font-family:inherit"><i class="fa-solid fa-copy"></i> نسخ الكود</button>
+      <div class="meta">صالح <strong style="color:#F4BA2A">72</strong> ساعة • للمشترك: <strong id="par-code-target">—</strong></div>
+    </div>
+    <p style="font-size:11.5px;color:var(--d-text-muted);text-align:center;margin:6px 0 0">انقل الكود للمشترك يدوياً، أو SMS بعد ربط مزوّد الرسائل.</p>
+  </div>
+</div>
+
+<!-- ── Modal: Credentials display ── -->
+<div class="par-backdrop" id="par-creds-modal">
+  <div class="par-modal">
+    <div class="par-head">
+      <h3><i class="fa-solid fa-eye"></i>بيانات الدخول</h3>
+      <button type="button" class="par-close" data-par-close>✕</button>
+    </div>
+    <div style="background:#FAFAF8;border:1px dashed var(--d-border-strong);border-radius:12px;padding:14px 16px;margin-bottom:12px">
+      <div class="par-cred-row"><span class="l">المستفيد</span><span class="v" id="par-creds-name">—</span></div>
+      <div class="par-cred-row"><span class="l">اسم المستخدم</span><span class="v" id="par-creds-user">—</span></div>
+      <div class="par-cred-row"><span class="l">كلمة المرور</span><span class="v" id="par-creds-pw">—</span></div>
+    </div>
+    <p style="font-size:11.5px;color:var(--d-text-muted);margin:6px 0 0">إذا ظهرت كلمة المرور «—» فهذا يعني أن المشترك غيّرها من بوابته، أو أن الحساب مصفّر بانتظار التفعيل.</p>
+  </div>
+</div>
+
+<!-- ── Modal: Edit portal account inline ── -->
+<div class="par-backdrop" id="par-edit-modal">
+  <div class="par-modal">
+    <div class="par-head">
+      <h3><i class="fa-solid fa-pen"></i>تعديل حساب البوابة</h3>
+      <button type="button" class="par-close" data-par-close>✕</button>
+    </div>
+    <div class="qe-msg" id="par-edit-msg"></div>
+    <form id="par-edit-form" autocomplete="off">
+      <input type="hidden" id="par-edit-paid">
+      <div class="qe-field" style="margin-bottom:10px">
+        <label>اسم المستخدم</label>
+        <input type="text" id="par-edit-username" required style="direction:ltr;text-align:left">
+      </div>
+      <div class="qe-field" style="margin-bottom:10px">
+        <label>كلمة المرور <span class="hint">(فارغ = بدون تغيير)</span></label>
+        <input type="text" id="par-edit-password" autocomplete="new-password">
+      </div>
+      <div class="qe-field" style="margin-bottom:10px">
+        <label>الحالة</label>
+        <select id="par-edit-active">
+          <option value="1">نشط</option>
+          <option value="0">معطَّل</option>
+        </select>
+      </div>
+      <div class="qe-actions">
+        <button type="button" class="qe-btn qe-btn-cancel" data-par-close>إلغاء</button>
+        <button type="submit" class="qe-btn qe-btn-save"><i class="fa-solid fa-floppy-disk"></i> حفظ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Modal: Wipe-and-reset confirmation ── -->
+<div class="par-backdrop" id="par-wipe-modal">
+  <div class="par-modal">
+    <div class="par-head">
+      <h3 style="color:#b91c1c"><i class="fa-solid fa-eraser"></i>تأكيد تصفير + مسح البيانات</h3>
+      <button type="button" class="par-close" data-par-close>✕</button>
+    </div>
+    <div class="par-wipe-warn">
+      <strong>سيتم:</strong>
+      <ul style="margin:6px 0 0;padding-inline-start:20px">
+        <li>إلغاء كلمة المرور لـ <strong id="par-wipe-target">—</strong></li>
+        <li>توليد رمز تفعيل جديد صالح <strong>72 ساعة</strong></li>
+        <li><strong>حذف</strong> كل سجلات الاستخدام للمشترك</li>
+        <li>تصفير العدّاد الأسبوعي إلى الصفر</li>
+        <li>حذف تسليمات البطاقات للمشترك</li>
+      </ul>
+      <p style="margin:8px 0 0;font-weight:700">هذا الإجراء لا يمكن التراجع عنه.</p>
+    </div>
+    <div class="qe-actions">
+      <button type="button" class="qe-btn qe-btn-cancel" data-par-close>إلغاء</button>
+      <button type="button" class="qe-btn" id="par-wipe-confirm" style="background:#b91c1c;color:#fff"><i class="fa-solid fa-eraser"></i> نعم، صفّر وامسح</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ─── Helpers ───
+  function showToast(text, type){
+    var t=document.createElement('div');
+    t.style.cssText='position:fixed;top:18px;left:50%;transform:translateX(-50%);padding:12px 22px;border-radius:12px;font-weight:800;font-size:13.5px;z-index:10001;box-shadow:0 8px 24px rgba(0,0,0,.18);color:#fff;'+
+      (type==='success'?'background:#1f8f51':type==='info'?'background:#1c52a8':'background:#b91c1c');
+    t.textContent=text; document.body.appendChild(t);
+    setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .35s';},2200);
+    setTimeout(()=>{try{document.body.removeChild(t);}catch(e){}},2700);
+  }
+
+  function refreshPortalRows(){
+    // إعادة تحميل تبويب حسابات البوابة لو فاتح
+    var portalTab=document.getElementById('portal-rows-tbody');
+    if(portalTab && typeof loadPortalRows==='function'){
+      try{ loadPortalRows(); }catch(e){}
+    }
+    if(typeof loadRows==='function' && typeof readState==='function'){
+      try{ loadRows(readState(),false); }catch(e){}
+    }
+  }
+
+  // ─── Modal open/close ───
+  function openModal(id){ document.getElementById(id).classList.add('is-open'); }
+  function closeAllPar(){
+    document.querySelectorAll('.par-backdrop.is-open').forEach(function(m){m.classList.remove('is-open');});
+  }
+  document.addEventListener('click',function(e){
+    var c=e.target.closest && e.target.closest('[data-par-close]');
+    if(c){ closeAllPar(); return; }
+    var b=e.target.classList && e.target.classList.contains('par-backdrop');
+    if(b){ e.target.classList.remove('is-open'); }
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape') closeAllPar();
+  });
+
+  // ─── Show code modal ───
+  function showCode(code, target){
+    document.getElementById('par-code-val').textContent=code||'';
+    document.getElementById('par-code-target').textContent=target||'—';
+    var cb=document.getElementById('par-code-copy');
+    cb.innerHTML='<i class="fa-solid fa-copy"></i> نسخ الكود';
+    openModal('par-code-modal');
+  }
+  document.getElementById('par-code-copy').addEventListener('click',function(){
+    var code=document.getElementById('par-code-val').textContent;
+    if(navigator.clipboard) navigator.clipboard.writeText(code);
+    this.innerHTML='<i class="fa-solid fa-check"></i> تم النسخ';
+    setTimeout(()=>{this.innerHTML='<i class="fa-solid fa-copy"></i> نسخ الكود';},1500);
+  });
+
+  // ─── 1) Show credentials ───
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest && e.target.closest('.show-creds-btn');
+    if(!btn) return;
+    var paId=btn.dataset.paId;
+    if(!paId) return;
+    fetch('/admin/portal-accounts/'+paId+'/credentials',{credentials:'same-origin'})
+      .then(r=>r.json()).then(function(d){
+        if(!d.ok){ showToast(d.message||'فشل','error'); return; }
+        document.getElementById('par-creds-name').textContent=d.full_name||'—';
+        document.getElementById('par-creds-user').textContent=d.username||'—';
+        document.getElementById('par-creds-pw').textContent=d.password||(d.must_set_password?'— (مصفّر، بانتظار التفعيل)':'—');
+        openModal('par-creds-modal');
+      }).catch(function(){ showToast('فشل الاتصال','error'); });
+  });
+
+  // ─── 2) Issue activation code (lightweight reset) ───
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest && e.target.closest('.issue-code-btn');
+    if(!btn) return;
+    var paId=btn.dataset.paId;
+    var name=btn.dataset.name||'';
+    if(!paId) return;
+    if(!confirm('سيتم تصفير بيانات الدخول لـ "'+name+'" وتوليد رمز تفعيل جديد. متابعة؟')) return;
+    fetch('/admin/portal-accounts/'+paId+'/reset',{method:'POST',credentials:'same-origin'})
+      .then(r=>r.json()).then(function(d){
+        if(!d.ok){ showToast(d.message||'فشل','error'); return; }
+        showCode(d.code, name);
+        refreshPortalRows();
+      }).catch(function(){ showToast('فشل الاتصال','error'); });
+  });
+
+  // ─── 3) Reset menu dropdown ───
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest && e.target.closest('.reset-menu-btn');
+    if(btn){
+      // أغلق كل القوائم الأخرى
+      document.querySelectorAll('.reset-menu').forEach(function(m){
+        if(m !== btn.nextElementSibling) m.style.display='none';
+      });
+      var menu=btn.nextElementSibling;
+      menu.style.display=(menu.style.display==='block'?'none':'block');
+      e.stopPropagation();
+      return;
+    }
+    // كلك خارج → إغلاق
+    if(!e.target.closest('.reset-menu')){
+      document.querySelectorAll('.reset-menu').forEach(function(m){m.style.display='none';});
+    }
+  });
+
+  // ─── 3a) Reset credentials only ───
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest && e.target.closest('.reset-creds-only');
+    if(!btn) return;
+    var paId=btn.dataset.paId;
+    var name=btn.dataset.name||'';
+    document.querySelectorAll('.reset-menu').forEach(m=>m.style.display='none');
+    if(!paId) return;
+    if(!confirm('تصفير بيانات الدخول لـ "'+name+'" وتوليد رمز تفعيل جديد فقط؟ (لن تُمسّ بيانات الاستخدام)')) return;
+    fetch('/admin/portal-accounts/'+paId+'/reset',{method:'POST',credentials:'same-origin'})
+      .then(r=>r.json()).then(function(d){
+        if(!d.ok){ showToast(d.message||'فشل','error'); return; }
+        showCode(d.code, name);
+        refreshPortalRows();
+      }).catch(function(){ showToast('فشل الاتصال','error'); });
+  });
+
+  // ─── 3b) Wipe data + reset ───
+  var pendingWipePaId=null;
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest && e.target.closest('.reset-wipe-data');
+    if(!btn) return;
+    var paId=btn.dataset.paId;
+    var name=btn.dataset.name||'';
+    document.querySelectorAll('.reset-menu').forEach(m=>m.style.display='none');
+    if(!paId) return;
+    pendingWipePaId={id:paId, name:name};
+    document.getElementById('par-wipe-target').textContent=name||'—';
+    openModal('par-wipe-modal');
+  });
+  document.getElementById('par-wipe-confirm').addEventListener('click',function(){
+    if(!pendingWipePaId) return;
+    var paId=pendingWipePaId.id, name=pendingWipePaId.name;
+    var btn=this; btn.disabled=true;
+    var orig=btn.innerHTML;
+    btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> جاري…';
+    fetch('/admin/portal-accounts/'+paId+'/wipe-and-reset',{method:'POST',credentials:'same-origin'})
+      .then(r=>r.json()).then(function(d){
+        btn.disabled=false; btn.innerHTML=orig;
+        if(!d.ok){ showToast(d.message||'فشل','error'); return; }
+        closeAllPar();
+        showCode(d.code, name);
+        showToast(d.message,'success');
+        refreshPortalRows();
+        pendingWipePaId=null;
+      }).catch(function(){
+        btn.disabled=false; btn.innerHTML=orig;
+        showToast('فشل الاتصال','error');
+      });
+  });
+
+  // ─── 4) Edit portal account ───
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest && e.target.closest('.edit-pa-btn');
+    if(!btn) return;
+    var paId=btn.dataset.paId;
+    if(!paId) return;
+    document.getElementById('par-edit-paid').value=paId;
+    document.getElementById('par-edit-username').value=btn.dataset.username||'';
+    document.getElementById('par-edit-password').value='';
+    document.getElementById('par-edit-active').value=btn.dataset.active==='1'?'1':'0';
+    var m=document.getElementById('par-edit-msg'); m.className='qe-msg';
+    openModal('par-edit-modal');
+  });
+  document.getElementById('par-edit-form').addEventListener('submit',function(e){
+    e.preventDefault();
+    var paId=document.getElementById('par-edit-paid').value;
+    var fd=new FormData();
+    fd.append('username',document.getElementById('par-edit-username').value||'');
+    fd.append('password',document.getElementById('par-edit-password').value||'');
+    fd.append('is_active',document.getElementById('par-edit-active').value);
+    fetch('/admin/portal-accounts/'+paId+'/set-credentials',{method:'POST',credentials:'same-origin',body:fd})
+      .then(r=>r.json()).then(function(d){
+        if(d.ok){
+          showToast(d.message,'success');
+          closeAllPar();
+          refreshPortalRows();
+        } else {
+          var m=document.getElementById('par-edit-msg');
+          m.className='qe-msg is-show error'; m.textContent=d.message||'فشل الحفظ';
+        }
+      }).catch(function(){
+        var m=document.getElementById('par-edit-msg');
+        m.className='qe-msg is-show error'; m.textContent='فشل الاتصال';
+      });
+  });
+
+  // ─── 5) Delete portal account ───
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest && e.target.closest('.delete-pa-btn');
+    if(!btn) return;
+    var paId=btn.dataset.paId;
+    var name=btn.dataset.name||'';
+    if(!paId) return;
+    if(!confirm('حذف حساب بوابة "'+name+'"؟ المستفيد يبقى لكن يفقد دخول البوابة.')) return;
+    fetch('/admin/portal-accounts/'+paId+'/delete',{method:'POST',credentials:'same-origin'})
+      .then(r=>r.json()).then(function(d){
+        showToast(d.message||(d.ok?'تم':'فشل'), d.ok?'success':'error');
+        if(d.ok) refreshPortalRows();
+      }).catch(function(){ showToast('فشل الاتصال','error'); });
+  });
+
+  // ─── 6) Create portal account from beneficiary row (one-click) ───
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest && e.target.closest('.create-portal-row-btn');
+    if(!btn) return;
+    var bid=btn.dataset.bid;
+    var name=btn.dataset.name||'';
+    var phone=btn.dataset.phone||'';
+    if(!bid) return;
+    if(!confirm('إنشاء حساب بوابة لـ "'+name+'" بـ اسم المستخدم = "'+(phone||'الاسم')+'" + توليد كود تفعيل صالح 72 ساعة؟')) return;
+    btn.disabled=true;
+    var origHtml=btn.innerHTML;
+    btn.innerHTML='<i class="fa-solid fa-spinner fa-spin" style="color:#1E1E1E"></i>';
+    var fd=new FormData();
+    fd.append('username', phone||name);
+    fetch('/admin/beneficiaries/'+bid+'/create-portal-account',{method:'POST',credentials:'same-origin',body:fd})
+      .then(r=>r.json()).then(function(d){
+        btn.disabled=false; btn.innerHTML=origHtml;
+        if(!d.ok){ showToast(d.message||'فشل','error'); return; }
+        showCode(d.code, name||phone);
+        showToast(d.message||'تم الإنشاء','success');
+        refreshPortalRows();
+      }).catch(function(){
+        btn.disabled=false; btn.innerHTML=origHtml;
+        showToast('فشل الاتصال','error');
+      });
   });
 })();
 </script>
