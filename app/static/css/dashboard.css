@@ -73,6 +73,7 @@ button{font-family:inherit;cursor:pointer}
   transition:grid-template-columns var(--d-transition);
 }
 .d-shell.is-collapsed{grid-template-columns:var(--d-sidebar-w-collapsed) 1fr}
+.d-overlay{display:none;pointer-events:none}
 
 /* ── Sidebar ─────────────────────────────────── */
 .d-sidebar{
@@ -474,17 +475,19 @@ button{font-family:inherit;cursor:pointer}
   .d-shell{grid-template-columns:1fr}
   .d-sidebar{
     position:fixed;top:0;inset-inline-start:-100%;
-    z-index:1100;width:var(--d-sidebar-w);
+    z-index:1100;width:min(var(--d-sidebar-w),86vw);
     transition:inset-inline-start var(--d-transition);
   }
-  .d-shell.is-open .d-sidebar{inset-inline-start:0}
   .d-shell.is-collapsed{grid-template-columns:1fr}
   .d-shell.is-collapsed .d-sidebar{inset-inline-start:-100%}
+  .d-shell.is-open .d-sidebar,
+  .d-shell.is-open.is-collapsed .d-sidebar{inset-inline-start:0}
   .d-content{padding:18px}
   .d-topbar{padding:0 18px}
   .d-search{width:auto;flex:1}
-  .d-overlay{display:none;position:fixed;inset:0;background:rgba(15,15,15,.45);z-index:1090}
-  .d-shell.is-open .d-overlay{display:block}
+  .d-overlay{display:none;position:fixed;inset:0;background:rgba(15,15,15,.45);z-index:1090;pointer-events:none}
+  .d-shell.is-open .d-overlay{display:block;pointer-events:auto}
+  body.d-sidebar-open{overflow:hidden}
 }
 @media (max-width:520px){
   .d-search{display:none}

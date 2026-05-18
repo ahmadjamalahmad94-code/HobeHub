@@ -765,6 +765,12 @@
     setTimeout(()=>{ t.style.opacity='0';t.style.transition='opacity .35s'; }, 2200);
     setTimeout(()=>{ try{ document.body.removeChild(t); }catch(e){} }, 2700);
   }
+  function csrfToken(){
+    var el = document.querySelector('input[name="_csrf_token"]') || document.querySelector('input[name="csrf_token"]');
+    if(el && el.value) return el.value;
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return (meta && meta.content) || window.HOBEHUB_CSRF_TOKEN || '';
+  }
 
   // ─── Selection (checkboxes + bulk bar) ───
   var bulkBar = document.getElementById('bulk-bar');
@@ -807,6 +813,7 @@
     if(!confirm('سيتم تطبيق "'+actionLabel+'" على '+ids.length+' مستفيد. متابعة؟')) return;
     var fd = new FormData();
     fd.append('action', action);
+    if(csrfToken()) fd.append('_csrf_token', csrfToken());
     ids.forEach(id => fd.append('ids', id));
     fetch('/admin/beneficiaries/bulk-action', {method:'POST', credentials:'same-origin', body:fd})
       .then(r => r.json()).then(d => {

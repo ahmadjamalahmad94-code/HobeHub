@@ -50,11 +50,26 @@ def admin_portal_rows():
     params = []
 
     if q:
-        conditions.append(
-            "(b.full_name LIKE %s OR b.phone LIKE %s OR bpa.username LIKE %s)"
+        from app.services.smart_search import smart_search_clause
+
+        clause, clause_params = smart_search_clause(
+            q,
+            text_columns=("b.search_name", "b.full_name"),
+            phone_columns=("b.phone", "bpa.username"),
+            extra_columns=(
+                "b.tawjihi_year",
+                "b.tawjihi_branch",
+                "b.university_name",
+                "b.university_number",
+                "b.university_college",
+                "b.university_specialization",
+                "b.freelancer_specialization",
+                "b.freelancer_company",
+            ),
         )
-        like = "%" + q + "%"
-        params += [like, like, like]
+        if clause:
+            conditions.append(clause)
+            params.extend(clause_params)
 
     if status == "active":
         conditions.append("bpa.is_active=TRUE AND bpa.must_set_password=FALSE")

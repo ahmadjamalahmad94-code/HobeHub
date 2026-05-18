@@ -1,6 +1,7 @@
 from flask import flash, jsonify, redirect, render_template, request, session, url_for
 
 _USERNAME_USER_TYPES = ('university', 'freelancer')
+_USERNAME_METHODS = ("يوزر إنترنت", "يمتلك اسم مستخدم", "username")
 
 _USER_ACTION_TYPES = {
     "reset_password": "إعادة كلمة المرور",
@@ -30,7 +31,81 @@ def _beneficiary_access_mode(row):
         method = (row.get("freelancer_internet_method") or "").strip()
     else:
         return 'cards'
-    return 'username' if method in {"يوزر إنترنت", "username"} else 'cards'
+    return 'username' if method in _USERNAME_METHODS else 'cards'
+
+
+def _load_username_subscribers(q="", user_type_filter="", limit=None):
+    """يبني قائمة مشتركي حساب الإنترنت من نفس مصدر الجدول والعدادات."""
+    from app.services.access_rules import can_switch_to
+
+    sql = """
+        SELECT b.id, b.full_name, b.phone, b.user_type, b.weekly_usage_count,
+               b.university_internet_method, b.freelancer_internet_method,
+               pa.id AS portal_account_id,
+               pa.username AS portal_username,
+               ra.external_username AS radius_username,
+               ra.plain_password    AS radius_password
+        FROM beneficiaries b
+        LEFT JOIN beneficiary_portal_accounts pa ON pa.beneficiary_id = b.id
+             AND COALESCE(pa.portal_membership_active, FALSE)=TRUE
+        LEFT JOIN beneficiary_radius_accounts  ra ON ra.beneficiary_id = b.id
+        WHERE b.user_type IN ('university','freelancer')
+    """
+    params = []
+    if q:
+        from app.services.smart_search import smart_search_clause
+        clause, clause_params = smart_search_clause(
+            q,
+            text_columns=("b.search_name", "b.full_name"),
+            phone_columns=("b.phone", "pa.username", "ra.external_username"),
+            extra_columns=(
+                "b.university_name", "b.university_number", "b.university_college",
+                "b.university_specialization", "b.freelancer_specialization", "b.freelancer_company",
+            ),
+        )
+        if clause:
+            sql += " AND " + clause
+            params.extend(clause_params)
+    if user_type_filter in _USERNAME_USER_TYPES:
+        sql += " AND b.user_type=%s"
+        params.append(user_type_filter)
+    sql += " ORDER BY b.id DESC"
+
+    users = []
+    for r in query_all(sql, params):
+        ut = (r.get("user_type") or "").strip().lower()
+        access_mode = _beneficiary_access_mode(r)
+        if access_mode != 'username':
+            continue
+        can, reason = can_switch_to(ut, 'cards')
+        radius_user = r.get("radius_username") or r.get("portal_username") or r.get("phone") or ""
+        radius_pwd = r.get("radius_password") or ""
+        users.append({
+            "id": r["id"],
+            "full_name": r["full_name"],
+            "phone": r.get("phone") or "",
+            "user_type": ut,
+            "user_type_label": _user_type_label(ut),
+            "access_mode": access_mode,
+            "has_portal_account": bool(r.get("portal_account_id")),
+            "portal_account_id": r.get("portal_account_id"),
+            "portal_username": radius_user,
+            "portal_password": radius_pwd,
+            "weekly_usage_count": int(r.get("weekly_usage_count") or 0),
+            "can_switch": bool(can),
+            "switch_reason": reason or "",
+        })
+        if limit and len(users) >= limit:
+            break
+    return users
+
+
+def _active_speed_upgrades_count():
+    row = query_one(
+        "SELECT COUNT(*) AS c FROM temporary_speed_upgrades WHERE status IN ('pending','active')"
+    ) or {}
+    return int(row.get("c") or 0)
+
 # /admin/users-account — overview
 @app.route("/admin/users-account", methods=["GET"])
 @app.route("/admin/users-account/", methods=["GET"])
@@ -39,12 +114,6 @@ def _beneficiary_access_mode(row):
 def admin_users_account_overview():
     """صفحة موحّدة: KPIs + أنواع الطلبات + قائمة المشتركين الكاملة مع الفلترة."""
     from app.services.radius_client import get_radius_client
-    from app.services.access_rules import can_switch_to
-
-    users_count_row = query_one(
-        "SELECT COUNT(*) AS c FROM beneficiary_portal_accounts WHERE is_active=TRUE AND COALESCE(portal_membership_active, FALSE)=TRUE"
-    ) or {}
-    users_count = int(users_count_row.get("c") or 0)
 
     client = get_radius_client()
     user_action_types = list(_USER_ACTION_TYPES.keys())
@@ -66,63 +135,11 @@ def admin_users_account_overview():
     # ─── قائمة مشتركي اليوزر فقط (access_mode='username') ───
     q = clean_csv_value(request.args.get("q")) or ""
     user_type_filter = clean_csv_value(request.args.get("user_type")) or ""
-
-    sql = """
-        SELECT b.id, b.full_name, b.phone, b.user_type,
-               b.university_internet_method, b.freelancer_internet_method,
-               pa.id AS portal_account_id,
-               pa.username AS portal_username,
-               ra.external_username AS radius_username,
-               ra.plain_password    AS radius_password
-        FROM beneficiaries b
-        LEFT JOIN beneficiary_portal_accounts pa ON pa.beneficiary_id = b.id
-             AND COALESCE(pa.portal_membership_active, FALSE)=TRUE
-        LEFT JOIN beneficiary_radius_accounts  ra ON ra.beneficiary_id = b.id
-        WHERE b.user_type IN ('university','freelancer')
-          AND (
-            (b.user_type='university'
-             AND COALESCE(b.university_internet_method,'') IN ('يوزر إنترنت','يمتلك اسم مستخدم','username'))
-            OR
-            (b.user_type='freelancer'
-             AND COALESCE(b.freelancer_internet_method,'') IN ('يوزر إنترنت','يمتلك اسم مستخدم','username'))
-          )
-    """
-    params = []
-    if q:
-        sql += " AND (b.full_name LIKE %s OR b.phone LIKE %s)"
-        params.extend([f"%{q}%", f"%{q}%"])
-    if user_type_filter in _USERNAME_USER_TYPES:
-        sql += " AND b.user_type=%s"
-        params.append(user_type_filter)
-    sql += " ORDER BY b.id DESC LIMIT 300"
-
-    rows = query_all(sql, params)
-    users = []
-    for r in rows:
-        ut = (r.get("user_type") or "").strip().lower()
-        access_mode = _beneficiary_access_mode(r)
-        # طبقة أمان: استثناء أي مشترك ليس في وضع username
-        # (في حال تغيّر طريقة الإنترنت لاحقًا، يختفي تلقائيًا من هذه الصفحة)
-        if access_mode != 'username':
-            continue
-        target = 'cards'
-        can, reason = can_switch_to(ut, target)
-        # ─ بيانات RADIUS (للـ API) مستقلّة عن بيانات البوابة ─
-        radius_user = r.get("radius_username") or r.get("portal_username") or r.get("phone") or ""
-        radius_pwd  = r.get("radius_password") or ""
-        users.append({
-            "id": r["id"],
-            "full_name": r["full_name"],
-            "phone": r.get("phone"),
-            "user_type": ut,
-            "user_type_label": _user_type_label(ut),
-            "access_mode": access_mode,
-            "has_portal_account": bool(r.get("portal_account_id")),
-            "portal_username": radius_user,
-            "portal_password": radius_pwd,
-            "can_switch": can,
-            "switch_reason": reason,
-        })
+    all_username_users = _load_username_subscribers()
+    filtered_username_users = _load_username_subscribers(q, user_type_filter)
+    users_count = len(all_username_users)
+    filtered_users_count = len(filtered_username_users)
+    users = filtered_username_users[:300]
 
     # ─ بيانات RADIUS API ─
     from app.services.radius_dashboard import (
@@ -137,7 +154,9 @@ def admin_users_account_overview():
     return render_template(
         "admin/users_account/overview.html",
         users_count=users_count,
+        filtered_users_count=filtered_users_count,
         user_requests_count=user_requests_count,
+        speed_upgrades_count=_active_speed_upgrades_count(),
         counts=counts,
         users=users,
         filters={"q": q, "user_type": user_type_filter},
@@ -157,64 +176,10 @@ def admin_users_account_list():
 @admin_login_required
 def admin_users_account_data_json():
     """يرجع قائمة مشتركي حساب الإنترنت كـ JSON — نفس الفلترة والاستعلام كـ overview."""
-    from app.services.access_rules import can_switch_to
-
     q = clean_csv_value(request.args.get("q")) or ""
     user_type_filter = clean_csv_value(request.args.get("user_type")) or ""
-
-    sql = """
-        SELECT b.id, b.full_name, b.phone, b.user_type,
-               b.university_internet_method, b.freelancer_internet_method,
-               pa.id AS portal_account_id,
-               pa.username AS portal_username,
-               ra.external_username AS radius_username,
-               ra.plain_password    AS radius_password
-        FROM beneficiaries b
-        LEFT JOIN beneficiary_portal_accounts pa ON pa.beneficiary_id = b.id
-             AND COALESCE(pa.portal_membership_active, FALSE)=TRUE
-        LEFT JOIN beneficiary_radius_accounts  ra ON ra.beneficiary_id = b.id
-        WHERE b.user_type IN ('university','freelancer')
-          AND (
-            (b.user_type='university'
-             AND COALESCE(b.university_internet_method,'') IN ('يوزر إنترنت','يمتلك اسم مستخدم','username'))
-            OR
-            (b.user_type='freelancer'
-             AND COALESCE(b.freelancer_internet_method,'') IN ('يوزر إنترنت','يمتلك اسم مستخدم','username'))
-          )
-    """
-    params = []
-    if q:
-        sql += " AND (b.full_name LIKE %s OR b.phone LIKE %s)"
-        params.extend([f"%{q}%", f"%{q}%"])
-    if user_type_filter in _USERNAME_USER_TYPES:
-        sql += " AND b.user_type=%s"
-        params.append(user_type_filter)
-    sql += " ORDER BY b.id DESC LIMIT 300"
-
-    rows = query_all(sql, params)
-    users = []
-    for r in rows:
-        ut = (r.get("user_type") or "").strip().lower()
-        access_mode = _beneficiary_access_mode(r)
-        if access_mode != 'username':
-            continue
-        can, reason = can_switch_to(ut, 'cards')
-        radius_user = r.get("radius_username") or r.get("portal_username") or r.get("phone") or ""
-        radius_pwd  = r.get("radius_password") or ""
-        users.append({
-            "id": r["id"],
-            "full_name": r["full_name"],
-            "phone": r.get("phone") or "",
-            "user_type": ut,
-            "user_type_label": _user_type_label(ut),
-            "access_mode": access_mode,
-            "has_portal_account": bool(r.get("portal_account_id")),
-            "portal_username": radius_user,
-            "portal_password": radius_pwd,
-            "can_switch": bool(can),
-            "switch_reason": reason or "",
-        })
-    return jsonify({"ok": True, "users": users, "count": len(users)})
+    users = _load_username_subscribers(q, user_type_filter)
+    return jsonify({"ok": True, "users": users[:300], "count": len(users)})
 # /admin/users-account/requests
 @app.route("/admin/users-account/create", methods=["POST"])
 @admin_login_required
@@ -300,16 +265,48 @@ def admin_users_account_create():
         if not beneficiary_id:
             raise ValueError("missing beneficiary id")
 
-        execute_sql(
+        portal_row = execute_sql(
             """
             INSERT INTO beneficiary_portal_accounts (
                 beneficiary_id, username, password_hash, password_plain,
                 is_active, portal_membership_active, portal_access_state, must_set_password, activated_at
-            ) VALUES (%s,%s,%s,%s,TRUE,TRUE,'active',FALSE,CURRENT_TIMESTAMP)
+            ) VALUES (%s,%s,'',NULL,TRUE,TRUE,'active',TRUE,NULL)
+            RETURNING id
             """,
-            [beneficiary_id, username, portal_password_hash(password), password],
+            [beneficiary_id, username],
+            fetchone=True,
         )
-        upsert_radius_account(beneficiary_id, external_username=username, status="pending")
+        portal_id = int(portal_row["id"]) if portal_row and portal_row.get("id") else None
+        activation_code = issue_activation_code_for_portal_account(portal_id) if portal_id else ""
+
+        import hashlib as _hashlib
+        password_md5 = _hashlib.md5(password.encode("utf-8")).hexdigest()
+        existing_radius = query_one(
+            "SELECT id FROM beneficiary_radius_accounts WHERE beneficiary_id=%s LIMIT 1",
+            [beneficiary_id],
+        )
+        if existing_radius:
+            execute_sql(
+                """
+                UPDATE beneficiary_radius_accounts
+                SET external_username=%s,
+                    plain_password=%s,
+                    password_md5=%s,
+                    status='pending',
+                    updated_at=CURRENT_TIMESTAMP
+                WHERE beneficiary_id=%s
+                """,
+                [username, password, password_md5, beneficiary_id],
+            )
+        else:
+            execute_sql(
+                """
+                INSERT INTO beneficiary_radius_accounts
+                    (beneficiary_id, external_username, plain_password, password_md5, status)
+                VALUES (%s,%s,%s,%s,'pending')
+                """,
+                [beneficiary_id, username, password, password_md5],
+            )
         execute_sql(
             """
             INSERT INTO radius_pending_actions (
@@ -343,9 +340,10 @@ def admin_users_account_create():
         pass
     return jsonify({
         "ok": True,
-        "message": f"تم إنشاء حساب الإنترنت لـ {data['full_name']}. اسم الدخول هو رقم الجوال.",
+        "message": f"تم إنشاء مشترك حساب الإنترنت لـ {data['full_name']}. كلمة مرور حساب الإنترنت محفوظة للربط، وكلمة مرور البوابة سيعينها المشترك برمز التفعيل.",
         "id": beneficiary_id,
         "username": username,
+        "activation_code": activation_code,
     })
 
 

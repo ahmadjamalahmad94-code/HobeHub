@@ -7,19 +7,25 @@ def build_beneficiary_filters(args_dict):
     params = []
     q = args_dict["q"]
     if q:
-        normalized_q = normalize_search_ar(q)
-        filters.append("""
-        (
-            search_name ILIKE %s OR phone ILIKE %s OR
-            COALESCE(tawjihi_year,'') ILIKE %s OR COALESCE(tawjihi_branch,'') ILIKE %s OR
-            COALESCE(freelancer_specialization,'') ILIKE %s OR COALESCE(freelancer_company,'') ILIKE %s OR
-            COALESCE(university_name,'') ILIKE %s OR COALESCE(university_number,'') ILIKE %s OR COALESCE(university_college,'') ILIKE %s OR
-            COALESCE(university_specialization,'') ILIKE %s
+        from app.services.smart_search import smart_search_clause
+        clause, clause_params = smart_search_clause(
+            q,
+            text_columns=("search_name", "full_name"),
+            phone_columns=("phone",),
+            extra_columns=(
+                "tawjihi_year",
+                "tawjihi_branch",
+                "freelancer_specialization",
+                "freelancer_company",
+                "university_name",
+                "university_number",
+                "university_college",
+                "university_specialization",
+            ),
         )
-        """)
-        like_q = f"%{normalized_q}%"
-        raw_like = f"%{q}%"
-        params.extend([like_q, raw_like, raw_like, raw_like, raw_like, raw_like, raw_like, raw_like, raw_like, raw_like])
+        if clause:
+            filters.append(clause)
+            params.extend(clause_params)
 
     if args_dict["user_type"]:
         filters.append("user_type = %s")

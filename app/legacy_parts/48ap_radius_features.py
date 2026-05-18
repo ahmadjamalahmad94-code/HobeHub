@@ -53,6 +53,24 @@ def _ensure_usage_snapshots_schema():
 _ensure_usage_snapshots_schema()
 
 
+def _status_snapshot_as_api_payload(snapshot):
+    return {
+        "conn_code": "online" if snapshot.get("is_online") else "offline",
+        "is_online": 1 if snapshot.get("is_online") else 0,
+        "profile_name": snapshot.get("profile_name") or "",
+        "expiration": snapshot.get("expires_at") or "",
+        "down_speed": snapshot.get("download_speed") or snapshot.get("down_speed") or "",
+        "up_speed": snapshot.get("upload_speed") or snapshot.get("up_speed") or "",
+        "val_usage_qouta": snapshot.get("usage_bytes") or 0,
+        "val_rem": snapshot.get("remaining_bytes") or 0,
+        "framed_ip": snapshot.get("framed_ip") or "",
+        "mac_address": snapshot.get("mac_address") or "",
+        "status": snapshot.get("status") or "",
+        "status_label": snapshot.get("status_label") or "",
+        "last_seen_at": snapshot.get("last_seen_at") or "",
+    }
+
+
 # ════════════════════════════════════════════════════════════════
 # 1) /portal/account/api/status — الـ status JSON للمشترك (للـ widget)
 # ════════════════════════════════════════════════════════════════
@@ -86,10 +104,17 @@ def portal_account_status_api():
             "error": "لا يوجد اسم مستخدم RADIUS مرتبط بحسابك. تواصل مع الإدارة.",
         })
     if not password:
+        from app.services.subscriber_radius_status import get_subscriber_radius_status
+
+        snapshot = get_subscriber_radius_status(bid, username)
         return jsonify({
-            "ok": False,
-            "error": "لا توجد كلمة مرور RADIUS محفوظة لحسابك.",
-            "hint": "تواصل مع الإدارة لإدخال بيانات RADIUS الخاصة بك.",
+            "ok": True,
+            "source": snapshot.get("source") or "local",
+            "username": username,
+            "details": _status_snapshot_as_api_payload(snapshot),
+            "status": {},
+            "account": {},
+            "warning": "كلمة مرور حساب الإنترنت غير محفوظة، لذلك تظهر القراءة المتاحة محليًا فقط.",
         })
 
     # نستدعي subscriber API مباشرة بكريدنشيال RADIUS
@@ -104,10 +129,17 @@ def portal_account_status_api():
             "account": result.get("account") or {},
         })
 
+    from app.services.subscriber_radius_status import get_subscriber_radius_status
+
+    snapshot = get_subscriber_radius_status(bid, username)
     return jsonify({
-        "ok": False,
-        "error": result.get("error") or "تعذّر الاتصال بـ RADIUS API.",
-        "hint": "تأكّد أن كلمة مرور RADIUS المخزّنة هي ذاتها في خادم RADIUS.",
+        "ok": True,
+        "source": snapshot.get("source") or "local_fallback",
+        "username": username,
+        "details": _status_snapshot_as_api_payload(snapshot),
+        "status": {},
+        "account": {},
+        "warning": result.get("error") or "تعذّر الاتصال بواجهة المصادقة، لذلك تظهر القراءة المتاحة محليًا.",
     })
 
 
@@ -257,9 +289,18 @@ def admin_user_api_status(beneficiary_id):
             "error": "لا يوجد اسم مستخدم RADIUS لهذا المشترك.",
         })
     if not password:
+        from app.services.subscriber_radius_status import get_subscriber_radius_status
+
+        snapshot = get_subscriber_radius_status(beneficiary_id, username)
         return jsonify({
-            "ok": False,
-            "error": "لا توجد كلمة مرور RADIUS لهذا المشترك. أدخلها من عمود «كلمة المرور» في الجدول.",
+            "ok": True,
+            "source": snapshot.get("source") or "local",
+            "username": username,
+            "beneficiary_id": beneficiary_id,
+            "details": _status_snapshot_as_api_payload(snapshot),
+            "status": {},
+            "account": {},
+            "warning": "كلمة مرور حساب الإنترنت غير محفوظة لهذا المشترك، لذلك تظهر القراءة المتاحة محليًا فقط.",
         })
 
     result = fetch_subscriber_details_via_self(username, password)
@@ -272,10 +313,18 @@ def admin_user_api_status(beneficiary_id):
             "status": result.get("status") or {},
             "account": result.get("account") or {},
         })
+    from app.services.subscriber_radius_status import get_subscriber_radius_status
+
+    snapshot = get_subscriber_radius_status(beneficiary_id, username)
     return jsonify({
-        "ok": False,
-        "error": result.get("error") or "فشل الاتصال بـ RADIUS API.",
+        "ok": True,
+        "source": snapshot.get("source") or "local_fallback",
         "username": username,
+        "beneficiary_id": beneficiary_id,
+        "details": _status_snapshot_as_api_payload(snapshot),
+        "status": {},
+        "account": {},
+        "warning": result.get("error") or "تعذّر الاتصال بواجهة المصادقة، لذلك تظهر القراءة المتاحة محليًا.",
     })
 
 

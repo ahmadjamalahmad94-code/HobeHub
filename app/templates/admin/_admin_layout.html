@@ -37,9 +37,9 @@
      href="/admin/beneficiaries?segment=cards" data-label="مستفيد بطاقات">
     <i class="fa-solid fa-ticket"></i><span>مستفيد بطاقات</span>
   </a>
-  <a class="d-nav-item {% if p == '/admin/beneficiaries' and seg == 'username' %}is-active{% endif %}"
-     href="/admin/beneficiaries?segment=username" data-label="مستفيد اشتراك">
-    <i class="fa-solid fa-id-card"></i><span>مستفيد اشتراك</span>
+  <a class="d-nav-item {% if p.startswith('/admin/users-account') %}is-active{% endif %}"
+     href="/admin/users-account" data-label="مشتركو حساب الإنترنت">
+    <i class="fa-solid fa-id-card"></i><span>مشتركو حساب الإنترنت</span>
   </a>
 </div>
 

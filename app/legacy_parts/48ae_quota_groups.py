@@ -215,16 +215,30 @@ def admin_beneficiaries_search():
     q = clean_csv_value(request.args.get("q") or "")
     if not q or len(q) < 2:
         return jsonify({"ok": True, "results": []})
-    like = "%" + q + "%"
+    from app.services.smart_search import smart_search_clause
+
+    clause, params = smart_search_clause(
+        q,
+        text_columns=("search_name", "full_name"),
+        phone_columns=("phone",),
+        extra_columns=("tawjihi_year", "tawjihi_branch", "university_number"),
+    )
+    if q.strip().isdigit():
+        if clause:
+            clause = f"({clause} OR CAST(id AS TEXT) = %s)"
+            params.append(q.strip())
+        else:
+            clause = "CAST(id AS TEXT) = %s"
+            params = [q.strip()]
     rows = query_all(
-        """
+        f"""
         SELECT id, full_name, phone, user_type
         FROM beneficiaries
-        WHERE full_name ILIKE %s OR phone ILIKE %s OR CAST(id AS TEXT) = %s
+        WHERE {clause or "1=0"}
         ORDER BY id DESC
         LIMIT 12
         """,
-        [like, like, q.strip()],
+        params,
     ) or []
     return jsonify({
         "ok": True,

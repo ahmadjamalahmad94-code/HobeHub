@@ -42,6 +42,18 @@ function closeSidebar(){
   return false;
 }
 
+function initMobileSidebarState(){
+  var layout = document.getElementById('app-layout');
+  if(!layout) return;
+  var isMobile = window.matchMedia && window.matchMedia('(max-width:900px)').matches;
+  if(isMobile){
+    applySidebarState(true);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', initMobileSidebarState);
+window.addEventListener('resize', initMobileSidebarState);
+
 function renderToast(message, category){
   const stack = document.getElementById('toast-stack');
   if(!stack || !message) return;

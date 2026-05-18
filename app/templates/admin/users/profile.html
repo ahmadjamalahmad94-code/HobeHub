@@ -370,13 +370,37 @@
   {% if access_mode != 'cards' %}
   <div class="up-card up-card--username">
     <h3>
-      <i class="fa-solid fa-circle-user"></i>حساب الإنترنت (يوزر)
-      <span class="up-card-tag up-card-tag--username">يوزر إنترنت</span>
+      <i class="fa-solid fa-circle-user"></i>ملخص حساب الإنترنت
+      <span class="up-card-tag up-card-tag--username">حساب اشتراك</span>
     </h3>
     <div class="up-mini-grid">
       <div class="up-mini">
+        <span class="lbl">اسم مستخدم الإنترنت</span>
+        <span class="val mono">{{ radius_account.external_username if radius_account and radius_account.external_username else (bio.phone or '—') }}</span>
+      </div>
+      <div class="up-mini">
+        <span class="lbl">حالة الربط</span>
+        <span class="val">
+          {% if radius_account and radius_account.external_username and radius_account.plain_password %}
+            جاهز للقراءة من الواجهة
+          {% elif radius_account and radius_account.external_username %}
+            ناقص كلمة مرور الإنترنت
+          {% else %}
+            غير مربوط بعد
+          {% endif %}
+        </span>
+      </div>
+      <div class="up-mini">
+        <span class="lbl">الباقة المحفوظة محليًا</span>
+        <span class="val">{{ radius_account.current_profile_name if radius_account and radius_account.current_profile_name else '—' }}</span>
+      </div>
+      <div class="up-mini">
+        <span class="lbl">حالة المزامنة</span>
+        <span class="val">{{ radius_account.sync_status if radius_account and radius_account.sync_status else (radius_account.status if radius_account and radius_account.status else 'محلي') }}</span>
+      </div>
+      <div class="up-mini">
         <span class="lbl">طريقة الإنترنت</span>
-        <span class="val">{{ _uni_method if bio.user_type == 'university' else _free_method or 'يوزر إنترنت' }}</span>
+        <span class="val">{{ _uni_method if bio.user_type == 'university' else _free_method or 'حساب إنترنت' }}</span>
       </div>
       {% if bio.user_type == 'university' %}
       <div class="up-mini"><span class="lbl">أيام الجامعة</span><span class="val">{{ bio.university_days or '—' }}</span></div>
@@ -390,8 +414,46 @@
     </div>
     <p style="margin:14px 0 0;font-size:12.5px;color:var(--d-text-soft);line-height:1.7;padding:10px 12px;background:#eef4ff;border:1px dashed #c7d8ff;border-radius:10px">
       <i class="fa-solid fa-info-circle" style="color:#1d4ed8"></i>
-      هذا المشترك يستخدم <b>حسابًا دائمًا</b> لا يحتاج بطاقات. لإدارة طلبات الإنترنت/كلمة المرور استخدم <b>مركز الطلبات</b>.
+      هذا القسم يخص <b>حساب الإنترنت التشغيلي</b> على واجهة المصادقة، وليس كلمة مرور الدخول إلى الموقع. منه نراجع الباقة، حالة الاتصال، السرعة، والاستهلاك عند توفر بيانات الربط.
     </p>
+  </div>
+  {% endif %}
+
+  {% if access_mode != 'cards' %}
+  <div class="up-card up-card--username up-live-radius-card" style="grid-column:1 / -1">
+    <h3>
+      <i class="fa-solid fa-signal"></i>القراءة الحية من واجهة المصادقة
+      <span class="up-card-tag up-card-tag--username">قراءة مباشرة</span>
+      <button type="button" id="admin-live-radius-refresh" class="up-live-radius-btn"
+              data-beneficiary-id="{{ bio.id }}" style="margin-inline-start:auto">
+        <i class="fa-solid fa-rotate"></i> جلب الحالة
+      </button>
+    </h3>
+    <div id="admin-live-radius-body" class="up-live-radius-body">
+      <div class="up-live-radius-empty">
+        <i class="fa-solid fa-spinner fa-spin"></i>
+        جارٍ جلب بيانات المشترك مباشرة من واجهة المصادقة...
+      </div>
+    </div>
+    <form id="admin-live-radius-credentials" class="up-live-radius-credentials">
+      {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
+      <div>
+        <label>اسم مستخدم حساب الإنترنت</label>
+        <input name="username" value="{{ radius_account.external_username if radius_account else (bio.phone or '') }}" autocomplete="off">
+      </div>
+      <div>
+        <label>كلمة مرور حساب الإنترنت</label>
+        <input name="password" type="password" value="{{ radius_account.plain_password if radius_account and radius_account.plain_password else '' }}" autocomplete="new-password" placeholder="أدخل كلمة المرور ثم احفظ">
+      </div>
+      <button type="submit"><i class="fa-solid fa-floppy-disk"></i> حفظ بيانات حساب الإنترنت</button>
+      <span id="admin-live-radius-cred-state" class="up-live-radius-cred-state {% if radius_account and radius_account.plain_password %}is-ok{% endif %}">
+        {% if radius_account and radius_account.plain_password %}
+          بيانات حساب الإنترنت محفوظة
+        {% else %}
+          يلزم حفظ كلمة المرور أولاً
+        {% endif %}
+      </span>
+    </form>
   </div>
   {% endif %}
 </div>
@@ -494,6 +556,29 @@
 .up-card--username{border-color:#c7d8ff;background:linear-gradient(180deg,#f5f9ff,#fff)}
 .up-card--cards h3{border-bottom-color:#f1d993}
 .up-card--username h3{border-bottom-color:#c7d8ff}
+.up-live-radius-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:10px;border:0;background:linear-gradient(135deg,#F4BA2A,#FFD96A);color:#1E1E1E;font-family:inherit;font-size:12px;font-weight:900;cursor:pointer}
+.up-live-radius-btn:disabled{opacity:.65;cursor:wait}
+.up-live-radius-body{min-height:84px}
+.up-live-radius-empty,.up-live-radius-error,.up-live-radius-loading{padding:16px;border-radius:12px;background:#fbfaf7;border:1px dashed var(--d-border-strong);color:var(--d-text-soft);font-size:13px;font-weight:700;line-height:1.8}
+.up-live-radius-error{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+.up-live-radius-loading{text-align:center}
+.up-live-radius-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.up-live-radius-stat{display:flex;align-items:center;gap:10px;padding:13px 14px;border-radius:13px;background:#fff;border:1px solid #e8e2d5}
+.up-live-radius-stat .ico{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;flex-shrink:0}
+.up-live-radius-stat .ico.ok{background:#e8f6ee;color:#166534}
+.up-live-radius-stat .ico.bad{background:#fde2e2;color:#b91c1c}
+.up-live-radius-stat .ico.info{background:#eef4ff;color:#1d4ed8}
+.up-live-radius-stat .ico.warn{background:#fff7df;color:#92400e}
+.up-live-radius-stat .lbl{display:block;font-size:10.5px;font-weight:900;color:var(--d-text-muted);margin-bottom:2px}
+.up-live-radius-stat .val{display:block;font-size:14px;font-weight:900;color:#1E1E1E;line-height:1.3;word-break:break-word}
+.up-live-radius-credentials{margin-top:12px;display:grid;grid-template-columns:minmax(160px,1fr) minmax(160px,1fr) auto auto;gap:10px;align-items:end;padding-top:12px;border-top:1px dashed #c7d8ff}
+.up-live-radius-credentials label{display:block;font-size:11px;font-weight:900;color:var(--d-text-muted);margin-bottom:5px}
+.up-live-radius-credentials input{width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--d-border-strong);border-radius:10px;background:#fff;font-family:inherit;font-size:13px}
+.up-live-radius-credentials button{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 14px;border:0;border-radius:10px;background:#1E1E1E;color:#fff;font-family:inherit;font-size:12px;font-weight:900;cursor:pointer;white-space:nowrap}
+.up-live-radius-credentials button:disabled{opacity:.65;cursor:wait}
+.up-live-radius-cred-state{font-size:11.5px;font-weight:900;color:#92400e;background:#fff7df;border:1px solid #f1d993;border-radius:999px;padding:7px 10px;white-space:nowrap;text-align:center}
+.up-live-radius-cred-state.is-ok{color:#166534;background:#e8f6ee;border-color:#bce5cb}
+@media(max-width:900px){.up-live-radius-credentials{grid-template-columns:1fr}.up-live-radius-credentials button,.up-live-radius-cred-state{width:100%}}
 .tm-tier-opt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 8px;border-radius:12px;background:#FAFAF8;border:2px solid var(--d-border);cursor:pointer;font-family:inherit;transition:.18s ease;text-align:center;width:100%}
 .tm-tier-opt:hover{border-color:var(--d-gold);background:#fff}
 .tm-tier-opt.is-sel[data-color="muted"]{border-color:#9ca3af;background:#f3f4f6}
@@ -1667,6 +1752,132 @@
     });
   }
 
+})();
+</script>
+<script>
+(function(){
+  var btn = document.getElementById('admin-live-radius-refresh');
+  var body = document.getElementById('admin-live-radius-body');
+  var credForm = document.getElementById('admin-live-radius-credentials');
+  var credState = document.getElementById('admin-live-radius-cred-state');
+  if(!btn || !body) return;
+
+  function esc(v){
+    return String(v == null || v === '' ? '—' : v).replace(/[&<>"']/g, function(ch){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
+    });
+  }
+  function bytesLabel(v){
+    var n = Number(v || 0);
+    if(!isFinite(n) || n <= 0) return '—';
+    if(n >= 1073741824) return (n / 1073741824).toFixed(2) + ' GB';
+    if(n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
+    if(n >= 1024) return (n / 1024).toFixed(0) + ' KB';
+    return n + ' B';
+  }
+  function pick(){
+    for(var i=0;i<arguments.length;i++){
+      var v = arguments[i];
+      if(v !== undefined && v !== null && String(v).trim() !== '') return v;
+    }
+    return '';
+  }
+  function stat(icon, cls, label, value){
+    return '<div class="up-live-radius-stat">'
+      + '<span class="ico '+cls+'"><i class="fa-solid fa-'+icon+'"></i></span>'
+      + '<div><span class="lbl">'+esc(label)+'</span><span class="val">'+esc(value)+'</span></div>'
+      + '</div>';
+  }
+  function render(payload){
+    if(!payload || !payload.ok){
+      body.innerHTML = '<div class="up-live-radius-error"><i class="fa-solid fa-triangle-exclamation"></i> '
+        + esc((payload && payload.error) || 'تعذر جلب بيانات المشترك من واجهة المصادقة.') + '</div>';
+      return;
+    }
+    var d = payload.details || payload.status || {};
+    var s = payload.status || {};
+    var account = payload.account || {};
+    var online = d.conn_code === 'online' || s.conn_code === 'online' || d.is_online == 1 || s.is_online == 1 || d.online == 1 || s.online == 1;
+    var usedBytes = pick(d.val_usage_qouta, s.val_usage_qouta, d.usage_bytes, s.usage_bytes, d.total_usage, s.total_usage);
+    var remainingBytes = pick(d.val_rem, s.val_rem, d.remaining_bytes, s.remaining_bytes, d.remaining_quota, s.remaining_quota);
+    var html = '<div class="up-live-radius-grid">'
+      + stat(online ? 'wifi' : 'plug-circle-xmark', online ? 'ok' : 'bad', 'حالة الاتصال', online ? 'متصل الآن' : 'غير متصل')
+      + stat('box', 'info', 'الباقة الحالية', pick(d.profile_name, s.profile_name, account.profile_name, d.groupname))
+      + stat('calendar-day', 'warn', 'ينتهي في', pick(d.expiration, s.expiration, d.expire_date, d.expires_at))
+      + stat('arrow-down', 'ok', 'سرعة التنزيل', pick(d.down_speed, s.down_speed, d.download_speed))
+      + stat('arrow-up', 'info', 'سرعة الرفع', pick(d.up_speed, s.up_speed, d.upload_speed))
+      + stat('chart-simple', 'warn', 'الاستهلاك', bytesLabel(usedBytes))
+      + stat('hard-drive', 'info', 'المتبقي', bytesLabel(remainingBytes))
+      + stat('network-wired', 'info', 'عنوان الشبكة', pick(d.framed_ip, s.framed_ip, d.ip, s.ip))
+      + stat('desktop', 'info', 'عنوان الجهاز', pick(d.mac_address, s.mac_address, d.mac, d.calling_station_id))
+      + stat('clock', 'info', 'وقت القراءة', pick(d.timenow, s.timenow, d.now))
+      + '</div>';
+    body.innerHTML = html;
+  }
+  function loadLiveRadiusStatus(){
+    var id = btn.getAttribute('data-beneficiary-id');
+    btn.disabled = true;
+    body.innerHTML = '<div class="up-live-radius-loading"><i class="fa-solid fa-spinner fa-spin"></i> جارٍ جلب بيانات المشترك من واجهة المصادقة...</div>';
+    fetch('/admin/users/' + encodeURIComponent(id) + '/api/status', {
+      credentials: 'same-origin',
+      headers: {'Accept': 'application/json'}
+    })
+      .then(function(r){ return r.json(); })
+      .then(render)
+      .catch(function(){
+        body.innerHTML = '<div class="up-live-radius-error">تعذر الاتصال بالخادم.</div>';
+      })
+      .finally(function(){ btn.disabled = false; });
+  }
+
+  btn.addEventListener('click', loadLiveRadiusStatus);
+
+  var savedPasswordInput = credForm ? credForm.querySelector('input[name="password"]') : null;
+  if(savedPasswordInput && savedPasswordInput.value){
+    loadLiveRadiusStatus();
+  } else {
+    body.innerHTML = '<div class="up-live-radius-empty"><i class="fa-solid fa-circle-info"></i> احفظ اسم مستخدم الإنترنت وكلمة مروره أولاً، ثم اضغط «جلب الحالة» لقراءة الباقة والاتصال والاستهلاك من واجهة المصادقة.</div>';
+  }
+
+  if(credForm){
+    credForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      var id = btn.getAttribute('data-beneficiary-id');
+      var saveBtn = credForm.querySelector('button[type="submit"]');
+      var fd = new FormData(credForm);
+      if(saveBtn) saveBtn.disabled = true;
+      if(credState){
+        credState.classList.remove('is-ok');
+        credState.textContent = 'جارٍ الحفظ...';
+      }
+      fetch('/admin/users/' + encodeURIComponent(id) + '/api/set-password', {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: fd,
+        headers: {'Accept': 'application/json'}
+      })
+        .then(function(r){ return r.json(); })
+        .then(function(payload){
+          if(!payload || !payload.ok){
+            throw new Error((payload && payload.error) || 'تعذر حفظ بيانات الواجهة.');
+          }
+          if(credState){
+            credState.classList.add('is-ok');
+            credState.textContent = 'تم حفظ بيانات حساب الإنترنت. يمكنك جلب الحالة الآن';
+          }
+          loadLiveRadiusStatus();
+        })
+        .catch(function(err){
+          if(credState){
+            credState.classList.remove('is-ok');
+            credState.textContent = err.message || 'تعذر الحفظ';
+          }
+        })
+        .finally(function(){
+          if(saveBtn) saveBtn.disabled = false;
+        });
+    });
+  }
 })();
 </script>
 {% endblock %}

@@ -40,9 +40,17 @@ def build_usage_logs_where(filters):
     where = ["1=1"]
     params = []
     if filters["q"]:
-        normalized_q = normalize_search_ar(filters["q"])
-        where.append("(b.search_name ILIKE %s OR b.phone ILIKE %s)")
-        params.extend([f"%{normalized_q}%", f"%{filters['q']}%"])
+        from app.services.smart_search import smart_search_clause
+
+        clause, clause_params = smart_search_clause(
+            filters["q"],
+            text_columns=("b.search_name", "b.full_name"),
+            phone_columns=("b.phone",),
+            extra_columns=("l.card_type", "l.usage_reason"),
+        )
+        if clause:
+            where.append(clause)
+            params.extend(clause_params)
     if filters["reason"]:
         where.append("l.usage_reason = %s")
         params.append(filters["reason"])

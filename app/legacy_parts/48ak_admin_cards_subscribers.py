@@ -34,8 +34,25 @@ def admin_cards_subscribers_page():
     """
     params = []
     if q:
-        sql += " AND (b.full_name LIKE %s OR b.phone LIKE %s)"
-        params.extend([f"%{q}%", f"%{q}%"])
+        from app.services.smart_search import smart_search_clause
+        clause, clause_params = smart_search_clause(
+            q,
+            text_columns=("b.search_name", "b.full_name"),
+            phone_columns=("b.phone", "pa.username"),
+            extra_columns=(
+                "b.tawjihi_year",
+                "b.tawjihi_branch",
+                "b.university_name",
+                "b.university_number",
+                "b.university_college",
+                "b.university_specialization",
+                "b.freelancer_specialization",
+                "b.freelancer_company",
+            ),
+        )
+        if clause:
+            sql += " AND " + clause
+            params.extend(clause_params)
     if user_type_filter in ("tawjihi", "university", "freelancer"):
         sql += " AND b.user_type=%s"
         params.append(user_type_filter)
@@ -117,8 +134,25 @@ def admin_cards_subscribers_data_json():
     """
     params = []
     if q:
-        sql += " AND (b.full_name LIKE %s OR b.phone LIKE %s)"
-        params.extend([f"%{q}%", f"%{q}%"])
+        from app.services.smart_search import smart_search_clause
+        clause, clause_params = smart_search_clause(
+            q,
+            text_columns=("b.search_name", "b.full_name"),
+            phone_columns=("b.phone", "pa.username"),
+            extra_columns=(
+                "b.tawjihi_year",
+                "b.tawjihi_branch",
+                "b.university_name",
+                "b.university_number",
+                "b.university_college",
+                "b.university_specialization",
+                "b.freelancer_specialization",
+                "b.freelancer_company",
+            ),
+        )
+        if clause:
+            sql += " AND " + clause
+            params.extend(clause_params)
     if user_type_filter in ("tawjihi", "university", "freelancer"):
         sql += " AND b.user_type=%s"
         params.append(user_type_filter)

@@ -161,8 +161,8 @@
       </div>
     </div>
     <div class="kid-cred is-status">
-      <div class="label">حالة الاشتراك</div>
-      <div class="value {% if (account_status or '') == 'active' %}kid-status-on{% else %}kid-status-off{% endif %}">
+      <div class="label">حالة حساب الإنترنت</div>
+      <div class="value {% if (account_status or '') == 'active' %}kid-status-on{% else %}kid-status-off{% endif %}" id="account-subscription-status">
         {% if (account_status or '') == 'active' %}
           <i class="fa-solid fa-circle-check"></i> نشط
         {% elif (account_status or '') == 'suspended' %}
@@ -180,7 +180,7 @@
 {# ───── status widget (live from API) ───── #}
 <section id="acc-status-card" class="acc-status-card">
   <div class="acc-status-head">
-    <h3><i class="fa-solid fa-signal"></i> حالة حسابي الآن</h3>
+    <h3><i class="fa-solid fa-signal"></i> ملخص حساب الإنترنت الآن</h3>
     <button type="button" id="acc-status-refresh" class="acc-status-refresh"><i class="fa-solid fa-rotate"></i></button>
   </div>
   <div id="acc-status-body" class="acc-status-body">
@@ -328,6 +328,13 @@
     if(b >= 1024) return (b/1024).toFixed(0) + ' KB';
     return b + ' B';
   }
+  function pick(){
+    for(var i=0;i<arguments.length;i++){
+      var v = arguments[i];
+      if(v !== undefined && v !== null && String(v).trim() !== '') return v;
+    }
+    return '';
+  }
 
   function renderStatus(payload){
     if(!payload.ok){
@@ -336,14 +343,17 @@
     }
     // البيانات قد تيجي من /details (الـ self API) أو من /get_user_usage (admin API)
     var d = payload.details || payload.usage || {};
-    var isOnline = d.conn_code === 'online' || d.is_online == 1;
-    var usageBytes = Number(d.val_usage_qouta || 0);
+    var s = payload.status || {};
+    var account = payload.account || {};
+    var isOnline = d.conn_code === 'online' || s.conn_code === 'online' || d.is_online == 1 || s.is_online == 1 || d.online == 1 || s.online == 1;
+    var usageBytes = Number(pick(d.val_usage_qouta, s.val_usage_qouta, d.usage_bytes, s.usage_bytes, d.total_usage) || 0);
+    var remainingBytes = Number(pick(d.val_rem, s.val_rem, d.remaining_bytes, s.remaining_bytes, d.remaining_quota) || 0);
     var usageGb = (usageBytes / 1073741824).toFixed(2);
-    var profile = d.profile_name || '—';
-    var expir = d.expiration || '—';
-    var dn = d.down_speed || '—';
-    var up = d.up_speed || '—';
-    var status = d.status || d.status_code || '—';
+    var profile = pick(d.profile_name, s.profile_name, account.profile_name, d.groupname) || '—';
+    var expir = pick(d.expiration, s.expiration, d.expire_date, d.expires_at) || '—';
+    var dn = pick(d.down_speed, s.down_speed, d.download_speed) || '—';
+    var up = pick(d.up_speed, s.up_speed, d.upload_speed) || '—';
+    updateSubscriptionStatus(d, isOnline);
 
     var html = '<div class="acc-stats">'
              + '<div class="acc-stat"><span class="acc-stat-ico ' + (isOnline ? 'g' : 'r') + '"><i class="fa-solid fa-' + (isOnline ? 'wifi' : 'plug-circle-xmark') + '"></i></span>'
@@ -356,6 +366,10 @@
              +   '<div><span class="l">سرعة التنزيل</span><span class="v">' + dn + '</span></div></div>'
              + '<div class="acc-stat"><span class="acc-stat-ico b"><i class="fa-solid fa-arrow-up"></i></span>'
              +   '<div><span class="l">سرعة الرفع</span><span class="v">' + up + '</span></div></div>'
+             + '<div class="acc-stat"><span class="acc-stat-ico y"><i class="fa-solid fa-chart-simple"></i></span>'
+             +   '<div><span class="l">الاستهلاك</span><span class="v">' + fmtBytes(usageBytes) + '</span></div></div>'
+             + '<div class="acc-stat"><span class="acc-stat-ico b"><i class="fa-solid fa-hard-drive"></i></span>'
+             +   '<div><span class="l">المتبقّي</span><span class="v">' + (remainingBytes ? fmtBytes(remainingBytes) : '—') + '</span></div></div>'
              + '</div>';
 
     // شريط استهلاك بصري
@@ -365,6 +379,33 @@
           + '</div>';
 
     body.innerHTML = html;
+  }
+
+  function updateSubscriptionStatus(data, isOnline){
+    var el = document.getElementById('account-subscription-status');
+    if(!el) return;
+    var rawStatus = String(data.status || data.status_code || '').trim().toLowerCase();
+    var profileName = String(data.profile_name || '').trim();
+    var expiration = String(data.expiration || data.expire_date || data.expires_at || '').trim();
+    var hasSubscription = !!(profileName || expiration || rawStatus === 'active' || rawStatus === 'نشط');
+
+    el.classList.remove('kid-status-on', 'kid-status-off');
+    if(isOnline){
+      el.classList.add('kid-status-on');
+      el.innerHTML = '<i class="fa-solid fa-wifi"></i> متصل الآن';
+    } else if(rawStatus === 'expired' || rawStatus === 'منتهي'){
+      el.classList.add('kid-status-off');
+      el.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> منتهي';
+    } else if(rawStatus === 'suspended' || rawStatus === 'موقوف'){
+      el.classList.add('kid-status-off');
+      el.innerHTML = '<i class="fa-solid fa-circle-pause"></i> موقوف';
+    } else if(hasSubscription){
+      el.classList.add('kid-status-on');
+      el.innerHTML = '<i class="fa-solid fa-circle-check"></i> اشتراك فعّال';
+    } else {
+      el.classList.add('kid-status-off');
+      el.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> بانتظار التفعيل';
+    }
   }
 
   function fetchStatus(){

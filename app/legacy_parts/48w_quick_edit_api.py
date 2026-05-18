@@ -68,6 +68,13 @@ def admin_beneficiary_quick_edit(beneficiary_id):
     if ut not in ("tawjihi", "university", "freelancer"):
         ut = (row.get("user_type") or "").lower()
 
+    old_ut = (row.get("user_type") or "").lower()
+    old_internet_method = ""
+    if old_ut == "university":
+        old_internet_method = row.get("university_internet_method") or ""
+    elif old_ut == "freelancer":
+        old_internet_method = row.get("freelancer_internet_method") or ""
+
     # Fields per user_type
     tawjihi_year = clean_csv_value(f.get("tawjihi_year", row.get("tawjihi_year") or "")) if ut == "tawjihi" else (row.get("tawjihi_year") or "")
     tawjihi_branch = clean_csv_value(f.get("tawjihi_branch", row.get("tawjihi_branch") or "")) if ut == "tawjihi" else (row.get("tawjihi_branch") or "")
@@ -79,6 +86,8 @@ def admin_beneficiary_quick_edit(beneficiary_id):
         university_specialization = clean_csv_value(f.get("university_specialization", row.get("university_specialization") or ""))
         university_days = clean_csv_value(f.get("university_days", row.get("university_days") or ""))
         university_internet_method = clean_csv_value(f.get("university_internet_method", row.get("university_internet_method") or ""))
+        if old_ut != "university" and not university_internet_method:
+            university_internet_method = old_internet_method or "يوزر إنترنت"
     else:
         university_name = row.get("university_name") or ""
         university_number = row.get("university_number") or ""
@@ -92,6 +101,8 @@ def admin_beneficiary_quick_edit(beneficiary_id):
         freelancer_company = clean_csv_value(f.get("freelancer_company", row.get("freelancer_company") or ""))
         freelancer_schedule_type = clean_csv_value(f.get("freelancer_schedule_type", row.get("freelancer_schedule_type") or ""))
         freelancer_internet_method = clean_csv_value(f.get("freelancer_internet_method", row.get("freelancer_internet_method") or ""))
+        if old_ut != "freelancer" and not freelancer_internet_method:
+            freelancer_internet_method = old_internet_method or "يوزر إنترنت"
     else:
         freelancer_specialization = row.get("freelancer_specialization") or ""
         freelancer_company = row.get("freelancer_company") or ""
@@ -122,7 +133,6 @@ def admin_beneficiary_quick_edit(beneficiary_id):
          freelancer_schedule_type, freelancer_internet_method,
          notes, beneficiary_id],
     )
-    old_ut = (row.get("user_type") or "").lower()
     if ut != old_ut:
         log_action("type_change", "beneficiary", beneficiary_id, f"تغيير النوع: {old_ut or '—'} ← {ut}")
     log_action("quick_edit_full", "beneficiary", beneficiary_id, f"تعديل كامل: {full_name}")

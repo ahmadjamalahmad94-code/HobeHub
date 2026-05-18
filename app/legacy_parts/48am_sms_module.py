@@ -297,8 +297,17 @@ def admin_sms_log_page():
     sql = "SELECT * FROM sms_log WHERE 1=1"
     params = []
     if q:
-        sql += " AND (recipient_phone LIKE %s OR content LIKE %s)"
-        params.extend([f"%{q}%", f"%{q}%"])
+        from app.services.smart_search import smart_search_clause
+
+        clause, clause_params = smart_search_clause(
+            q,
+            text_columns=("content",),
+            phone_columns=("recipient_phone",),
+            extra_columns=("service_code", "status"),
+        )
+        if clause:
+            sql += " AND " + clause
+            params.extend(clause_params)
     if status in ("pending", "sent", "delivered", "failed", "read"):
         sql += " AND status=%s"
         params.append(status)

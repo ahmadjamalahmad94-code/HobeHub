@@ -20,6 +20,13 @@ def _profile_portal_account(beneficiary_id):
     )
 
 
+def _profile_radius_account(beneficiary_id):
+    return query_one(
+        "SELECT * FROM beneficiary_radius_accounts WHERE beneficiary_id=%s LIMIT 1",
+        [beneficiary_id],
+    )
+
+
 def _profile_usage_stats(beneficiary_id):
     """آخر 20 سجل + إجمالي عبر الأسبوع/الشهر/الكل (متوافق SQLite + Postgres)."""
     from datetime import datetime, timedelta
@@ -107,6 +114,7 @@ def admin_user_profile_page(beneficiary_id):
     if not bio:
         abort(404)
     portal = _profile_portal_account(beneficiary_id)
+    radius_account = _profile_radius_account(beneficiary_id)
     usage, totals = _profile_usage_stats(beneficiary_id)
     issued_cards = _profile_issued_cards(beneficiary_id)
     requests = _profile_requests(beneficiary_id)
@@ -142,6 +150,7 @@ def admin_user_profile_page(beneficiary_id):
         "admin/users/profile.html",
         bio=bio,
         portal=portal,
+        radius_account=radius_account,
         usage=usage,
         issued_cards=issued_cards,
         requests=requests,

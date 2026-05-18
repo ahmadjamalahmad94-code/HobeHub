@@ -75,6 +75,21 @@ def _with_access_mode(rows):
     return enriched
 
 
+def _portal_search_clause(search, *, with_portal_username=False):
+    from app.services.smart_search import smart_search_clause
+
+    return smart_search_clause(
+        search,
+        text_columns=("b.search_name", "b.full_name"),
+        phone_columns=("b.phone", "pa.username") if with_portal_username else ("b.phone",),
+        extra_columns=(
+            "b.tawjihi_year", "b.tawjihi_branch", "b.university_name", "b.university_number",
+            "b.university_college", "b.university_specialization",
+            "b.freelancer_specialization", "b.freelancer_company",
+        ),
+    )
+
+
 def _portal_access_state(row):
     if not row:
         return "active"
@@ -98,9 +113,10 @@ def _fetch_portal_accounts(search=""):
     params = []
     where = ["COALESCE(pa.portal_membership_active, FALSE)=TRUE"]
     if search:
-        like = "%" + search + "%"
-        where.append("(b.full_name ILIKE %s OR b.phone ILIKE %s OR pa.username ILIKE %s)")
-        params.extend([like, like, like])
+        clause, clause_params = _portal_search_clause(search, with_portal_username=True)
+        if clause:
+            where.append(clause)
+            params.extend(clause_params)
     if where:
         sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY pa.id DESC LIMIT 500"
@@ -119,9 +135,10 @@ def _fetch_outside_beneficiaries(search=""):
     )
     params = []
     if search:
-        like = "%" + search + "%"
-        sql += " AND (b.full_name ILIKE %s OR b.phone ILIKE %s)"
-        params.extend([like, like])
+        clause, clause_params = _portal_search_clause(search)
+        if clause:
+            sql += " AND " + clause
+            params.extend(clause_params)
     sql += " ORDER BY b.id DESC LIMIT 500"
     return _with_access_mode(query_all(sql, params))
 
@@ -140,9 +157,10 @@ def _portal_account_counts(search=""):
     portal_params = []
     where = []
     if search:
-        like = "%" + search + "%"
-        where.append("(b.full_name ILIKE %s OR b.phone ILIKE %s OR pa.username ILIKE %s)")
-        portal_params.extend([like, like, like])
+        clause, clause_params = _portal_search_clause(search, with_portal_username=True)
+        if clause:
+            where.append(clause)
+            portal_params.extend(clause_params)
     if where:
         portal_sql += " AND " + " AND ".join(where)
     portal = query_one(portal_sql, portal_params) or {}
@@ -156,9 +174,10 @@ def _portal_account_counts(search=""):
     )
     outside_params = []
     if search:
-        like = "%" + search + "%"
-        outside_sql += " AND (b.full_name ILIKE %s OR b.phone ILIKE %s)"
-        outside_params.extend([like, like])
+        clause, clause_params = _portal_search_clause(search)
+        if clause:
+            outside_sql += " AND " + clause
+            outside_params.extend(clause_params)
     outside = query_one(outside_sql, outside_params) or {}
 
     return {

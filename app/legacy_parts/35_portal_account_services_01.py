@@ -87,6 +87,13 @@ def set_portal_session(row: dict):
     session["beneficiary_username"] = row["username"]
     session["beneficiary_full_name"] = row.get("full_name") or ""
     session["portal_access_state"] = (row.get("portal_access_state") or "active").strip().lower()
+    try:
+        beneficiary = query_one("SELECT * FROM beneficiaries WHERE id=%s LIMIT 1", [row["beneficiary_id"]]) or {}
+        session["beneficiary_access_mode"] = get_beneficiary_access_mode(beneficiary)
+        session["portal_entry"] = "card" if session["beneficiary_access_mode"] == "cards" else "user"
+    except Exception:
+        session["beneficiary_access_mode"] = "cards"
+        session["portal_entry"] = "card"
 
 
 def finalize_beneficiary_portal_login(row: dict):

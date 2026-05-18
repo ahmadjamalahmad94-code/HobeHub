@@ -1,7 +1,7 @@
 # /beneficiaries بالتصميم الجديد — override يستخدم القالب الجديد بدل البناء اليدوي.
 
 from urllib.parse import urlencode as _urlencode
-from flask import render_template, request
+from flask import redirect, render_template, request, url_for
 
 
 def _enrich_beneficiary_rows(rows):
@@ -49,6 +49,16 @@ def _admin_beneficiaries_v2_view():
 
     # نستخدم نفس الـ helpers الموجودة
     args_dict = build_request_args_dict()
+    if (request.args.get("segment") or "").strip() == "username":
+        query_args = {}
+        if request.args.get("q"):
+            query_args["q"] = request.args.get("q")
+        if request.args.get("user_type") in ("university", "freelancer"):
+            query_args["user_type"] = request.args.get("user_type")
+        target = "/admin/users-account"
+        if query_args:
+            target += "?" + _urlencode(query_args)
+        return redirect(target, code=302)
     try:
         page = max(1, int(request.args.get("page", "1") or "1"))
     except ValueError:

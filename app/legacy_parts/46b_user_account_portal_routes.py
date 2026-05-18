@@ -12,6 +12,21 @@ def _build_context(extra=None):
 
     beneficiary = get_current_portal_beneficiary() or {}
     beneficiary_id = int(session.get("beneficiary_id") or 0)
+    radius_account = query_one(
+        """
+        SELECT external_username, current_profile_name
+        FROM beneficiary_radius_accounts
+        WHERE beneficiary_id=%s
+        LIMIT 1
+        """,
+        [beneficiary_id],
+    ) or {}
+    radius_username = (
+        radius_account.get("external_username")
+        or session.get("beneficiary_username")
+        or beneficiary.get("phone")
+        or ""
+    )
 
     client = get_radius_client()
     all_pending = client.list_pending_actions(action_type="", status="pending", limit=200)
@@ -22,12 +37,22 @@ def _build_context(extra=None):
         [beneficiary_id],
     ) or {}
 
+    radius_status = get_subscriber_radius_status(beneficiary_id, radius_username)
+    account_status = "active" if (
+        radius_status.get("is_online")
+        or radius_status.get("available")
+        or radius_account.get("current_profile_name")
+        or radius_account.get("external_username")
+    ) else (radius_status.get("status") or "pending")
+
     ctx = {
         "beneficiary_full_name": beneficiary.get("full_name") or session.get("beneficiary_full_name", ""),
         "beneficiary_first_name": (beneficiary.get("full_name") or "").split(" ")[0],
         "beneficiary_phone": beneficiary.get("phone"),
-        "radius_username": session.get("beneficiary_username") or "",
-        "radius_status": get_subscriber_radius_status(beneficiary_id, session.get("beneficiary_username") or ""),
+        "radius_username": radius_username,
+        "current_profile_name": radius_account.get("current_profile_name") or "",
+        "radius_status": radius_status,
+        "account_status": account_status,
         "whatsapp_group_url": whatsapp_group_url_for_user_type(beneficiary.get("user_type") or ""),
         "pending_count": len(my_pending),
         "done_count": int(done_row.get("c") or 0),

@@ -4,26 +4,27 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow, noarchive">
-<title>HobeHub — Master Gateway</title>
+<title>هوب هب — بوابة الإدارة</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{
   font-family:'Cairo','Tajawal',system-ui,-apple-system,sans-serif;
-  background:#0a0a0a;color:#fff;overflow:hidden;
+  background:#191612;color:#fff;overflow:hidden;
   display:grid;place-items:center;min-height:100vh;
   -webkit-font-smoothing:antialiased;
+  isolation:isolate;
 }
 
 /* ─── Animated background layers ─── */
 .bg-grid{
   position:fixed;inset:0;
   background-image:
-    linear-gradient(rgba(244,186,42,.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(244,186,42,.04) 1px, transparent 1px);
+    linear-gradient(rgba(244,186,42,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(244,186,42,.055) 1px, transparent 1px);
   background-size:60px 60px;
-  pointer-events:none;z-index:0;
+  pointer-events:none;z-index:0;opacity:.55;
   animation:gridFloat 30s linear infinite;
 }
 @keyframes gridFloat{
@@ -33,13 +34,13 @@ body{
 .bg-gradient{
   position:fixed;inset:0;
   background:
-    radial-gradient(ellipse at 20% 30%, rgba(244,186,42,.18), transparent 50%),
-    radial-gradient(ellipse at 80% 70%, rgba(124,58,237,.15), transparent 50%),
-    radial-gradient(ellipse at 50% 100%, rgba(239,68,68,.08), transparent 60%),
-    linear-gradient(135deg, #0a0a0a 0%, #1a1614 50%, #0f0c0a 100%);
+    radial-gradient(ellipse at 24% 24%, rgba(244,186,42,.18), transparent 46%),
+    radial-gradient(ellipse at 78% 74%, rgba(124,58,237,.08), transparent 52%),
+    linear-gradient(135deg, #211c15 0%, #2a241b 52%, #171411 100%);
   z-index:0;pointer-events:none;
 }
 .bg-orb{
+  display:none;
   position:fixed;border-radius:50%;filter:blur(60px);opacity:.45;
   pointer-events:none;z-index:0;
 }
@@ -53,17 +54,17 @@ body{
 /* ─── Card ─── */
 .gateway{
   position:relative;z-index:10;
-  width:min(440px, calc(100vw - 32px));
+  width:min(460px, calc(100vw - 32px));
   padding:42px 36px 36px;
   border-radius:24px;
-  background:rgba(20,18,16,.65);
-  backdrop-filter:blur(28px) saturate(140%);
-  -webkit-backdrop-filter:blur(28px) saturate(140%);
-  border:1px solid rgba(255,255,255,.10);
+  background:#211d17;
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+  border:1px solid rgba(255,217,106,.30);
   box-shadow:
-    0 0 0 1px rgba(244,186,42,.08) inset,
+    0 0 0 1px rgba(244,186,42,.18) inset,
     0 30px 60px -20px rgba(0,0,0,.7),
-    0 0 80px -20px rgba(244,186,42,.22);
+    0 0 70px -22px rgba(244,186,42,.34);
   animation:cardIn .9s cubic-bezier(.16,1,.3,1);
 }
 @keyframes cardIn{
@@ -74,9 +75,10 @@ body{
 /* Premium top border glow */
 .gateway::before{
   content:"";position:absolute;inset:-1px;border-radius:24px;
-  background:linear-gradient(135deg, rgba(244,186,42,.55), transparent 40%, transparent 60%, rgba(244,186,42,.30));
-  z-index:-1;opacity:.7;
-  filter:blur(.5px);
+  background:linear-gradient(135deg, rgba(244,186,42,.38), transparent 35%, transparent 65%, rgba(244,186,42,.24));
+  z-index:-1;opacity:.28;
+  filter:none;
+  pointer-events:none;
 }
 
 /* ─── Brand ─── */
@@ -110,7 +112,7 @@ body{
 .brand-text{text-align:center}
 .brand-name{font-size:22px;font-weight:900;letter-spacing:-.5px;line-height:1}
 .brand-name span{color:#F4BA2A}
-.brand-tag{font-size:11.5px;font-weight:700;color:rgba(255,255,255,.45);margin-top:6px;letter-spacing:1.5px;text-transform:uppercase}
+.brand-tag{font-size:11.5px;font-weight:800;color:rgba(255,255,255,.88);margin-top:6px;letter-spacing:1.5px;text-transform:uppercase}
 
 /* ─── Heading ─── */
 .head{text-align:center;margin-bottom:24px}
@@ -118,33 +120,34 @@ body{
   display:inline-flex;align-items:center;gap:6px;
   padding:6px 14px;border-radius:999px;
   background:rgba(244,186,42,.12);border:1px solid rgba(244,186,42,.25);
-  color:#F4BA2A;font-size:11px;font-weight:800;letter-spacing:.5px;
+  color:#FFD96A;font-size:11px;font-weight:900;letter-spacing:.5px;
   margin-bottom:14px;
 }
 .head-badge i{font-size:10px}
 .head h1{font-size:20px;font-weight:900;color:#fff;letter-spacing:-.5px;margin-bottom:6px}
-.head p{font-size:12.5px;color:rgba(255,255,255,.55);line-height:1.8;max-width:320px;margin:0 auto}
+.head p{font-size:12.5px;color:rgba(255,255,255,.90);line-height:1.8;max-width:320px;margin:0 auto}
 
 /* ─── Form ─── */
 .field{margin-bottom:14px}
 .field-label{
   display:block;font-size:11px;font-weight:800;letter-spacing:.4px;
-  color:rgba(255,255,255,.55);margin-bottom:7px;text-transform:uppercase;
+  color:rgba(255,255,255,.92);margin-bottom:7px;text-transform:uppercase;
 }
 .field-wrap{
   position:relative;display:flex;align-items:center;
-  background:rgba(255,255,255,.04);
-  border:1.5px solid rgba(255,255,255,.10);
+  background:#2f2a22;
+  border:1.5px solid rgba(255,217,106,.34);
   border-radius:13px;
   transition:all .25s cubic-bezier(.16,1,.3,1);
+  z-index:2;
 }
 .field-wrap:focus-within{
-  background:rgba(255,255,255,.07);
-  border-color:rgba(244,186,42,.55);
+  background:#373025;
+  border-color:rgba(255,217,106,.95);
   box-shadow:0 0 0 4px rgba(244,186,42,.14), 0 8px 22px -8px rgba(244,186,42,.25);
 }
 .field-wrap > i{
-  position:absolute;inset-inline-start:14px;color:rgba(255,255,255,.40);
+  position:absolute;inset-inline-start:14px;color:#FFD96A;
   font-size:13px;pointer-events:none;transition:color .2s;
 }
 .field-wrap:focus-within > i{color:#F4BA2A}
@@ -153,8 +156,9 @@ body{
   padding:13px 14px 13px 42px;
   font-family:inherit;font-size:14px;font-weight:700;color:#fff;
   letter-spacing:.3px;
+  position:relative;z-index:3;
 }
-.field-wrap input::placeholder{color:rgba(255,255,255,.30);font-weight:600}
+.field-wrap input::placeholder{color:rgba(255,255,255,.78);font-weight:700}
 .field-wrap input[type="password"]{letter-spacing:6px}
 .field-wrap input[type="password"]::placeholder{letter-spacing:0}
 
@@ -178,11 +182,13 @@ body{
   box-shadow:0 14px 36px -8px rgba(244,186,42,.55), inset 0 1px 0 rgba(255,255,255,.40);
   transition:all .3s cubic-bezier(.16,1,.3,1);
   position:relative;overflow:hidden;
+  z-index:2;
 }
 .cta::before{
   content:"";position:absolute;inset:0;
   background:linear-gradient(135deg, transparent 30%, rgba(255,255,255,.30) 50%, transparent 70%);
   transform:translateX(-100%);transition:transform .6s ease;
+  pointer-events:none;
 }
 .cta:hover{
   background-position:100% 0;
@@ -213,7 +219,7 @@ body{
   text-align:center;
 }
 .foot small{
-  font-size:10.5px;color:rgba(255,255,255,.32);letter-spacing:.5px;
+  font-size:10.5px;color:rgba(255,255,255,.76);letter-spacing:.5px;
   display:inline-flex;align-items:center;gap:6px;
 }
 .foot small i{color:#F4BA2A;font-size:9px}
@@ -251,7 +257,7 @@ body{
     <div class="brand-logo">H</div>
     <div class="brand-text">
       <div class="brand-name">Hobe<span>Hub</span></div>
-      <div class="brand-tag">Master Gateway</div>
+      <div class="brand-tag">بوابة الإدارة</div>
     </div>
   </div>
 
@@ -307,7 +313,7 @@ body{
   </section>
 
   <div class="foot">
-    <small><i class="fa-solid fa-lock"></i>اتصال مشفّر • Hobe<span style="color:#F4BA2A">Hub</span> Console</small>
+    <small><i class="fa-solid fa-lock"></i>اتصال مشفّر • لوحة تحكم هوب هب</small>
   </div>
 </main>
 

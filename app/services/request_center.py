@@ -4,6 +4,7 @@ import json
 from typing import Any
 
 from app import legacy
+from app.services.smart_search import smart_search_clause
 
 
 USER_ACTION_TYPES = {
@@ -150,9 +151,15 @@ def _internet_items(*, status: str, query: str, beneficiary_id: int | None, date
         where.append("r.beneficiary_id=%s")
         params.append(beneficiary_id)
     if query:
-        where.append("(b.full_name LIKE %s OR b.phone LIKE %s OR r.request_type LIKE %s OR r.requested_by LIKE %s)")
-        like = f"%{query}%"
-        params.extend([like, like, like, like])
+        clause, clause_params = smart_search_clause(
+            query,
+            text_columns=("b.search_name", "b.full_name"),
+            phone_columns=("b.phone",),
+            extra_columns=("r.request_type", "r.requested_by"),
+        )
+        if clause:
+            where.append(clause)
+            params.extend(clause_params)
     if date_from:
         where.append("DATE(r.created_at) >= %s")
         params.append(date_from)
@@ -269,9 +276,15 @@ def _pending_action_items(
         where.append("a.beneficiary_id=%s")
         params.append(beneficiary_id)
     if query:
-        where.append("(b.full_name LIKE %s OR b.phone LIKE %s OR a.action_type LIKE %s OR a.notes LIKE %s)")
-        like = f"%{query}%"
-        params.extend([like, like, like, like])
+        clause, clause_params = smart_search_clause(
+            query,
+            text_columns=("b.search_name", "b.full_name"),
+            phone_columns=("b.phone",),
+            extra_columns=("a.action_type", "a.notes"),
+        )
+        if clause:
+            where.append(clause)
+            params.extend(clause_params)
     if date_from:
         where.append("DATE(a.requested_at) >= %s")
         params.append(date_from)

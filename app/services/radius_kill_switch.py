@@ -19,6 +19,10 @@ from __future__ import annotations
 import os
 
 
+def _enabled(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 # ────────────────────────────────────────────────────────────────
 # المفتاح الرئيسي
 # ────────────────────────────────────────────────────────────────
@@ -26,8 +30,10 @@ def is_radius_offline() -> bool:
     """يرجع True إذا كان RADIUS API معطّل بالكامل في النظام.
 
     افتراضياً معطّل. للتفعيل: RADIUS_API_LIVE=1 في البيئة.
+    نقبل RADIUS_API_READY=1 كاسم قديم/محلي للقراءة فقط حتى لا تتعطل واجهات
+    الاستعلام عند تشغيل البيئة المحلية أو Render بإعدادات سابقة.
     """
-    return os.getenv("RADIUS_API_LIVE", "").strip().lower() not in {"1", "true", "yes", "on"}
+    return not (_enabled("RADIUS_API_LIVE") or _enabled("RADIUS_API_READY"))
 
 
 # ────────────────────────────────────────────────────────────────

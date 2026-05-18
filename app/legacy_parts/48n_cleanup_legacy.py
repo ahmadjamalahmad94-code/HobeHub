@@ -10,6 +10,14 @@
 from flask import redirect, request, session
 
 
+def _portal_access_mode_for_beneficiary(beneficiary_row):
+    try:
+        mode = get_beneficiary_access_mode(beneficiary_row)
+    except Exception:
+        mode = ""
+    return (mode or "cards").strip().lower()
+
+
 def _portal_target_for_beneficiary(beneficiary_id):
     """يحدد البوابة المناسبة للمشترك حسب نوعه وطريقة الاتصال."""
     if not beneficiary_id:
@@ -24,22 +32,8 @@ def _portal_target_for_beneficiary(beneficiary_id):
     except Exception:
         return "/card"
 
-    ut = (ben.get("user_type") or "").strip().lower()
-
-    # توجيهي → دائمًا بطاقات
-    if ut == "tawjihi":
-        return "/card"
-
-    # جامعي / فري لانسر → حسب طريقة الاتصال
-    method = ""
-    if ut == "university":
-        method = (ben.get("university_internet_method") or "").strip()
-    elif ut == "freelancer":
-        method = (ben.get("freelancer_internet_method") or "").strip()
-
-    if "يوزر" in method:
+    if _portal_access_mode_for_beneficiary(ben) == "username":
         return "/user/account"
-    # الافتراضي = بطاقات
     return "/card"
 
 
@@ -213,6 +207,14 @@ _STRICT_PREFIX_REDIRECTS = [
 @app.before_request
 def _enforce_three_layer_paths():
     path = request.path.rstrip("/") if request.path != "/" else request.path
+    if session.get("portal_type") == "beneficiary" and session.get("beneficiary_id"):
+        current_target = _portal_target_for_beneficiary(session.get("beneficiary_id"))
+        if current_target == "/user/account" and (path == "/card" or path.startswith("/card/")):
+            if path != "/card/logout":
+                return _redirect_with_query("/user/account")
+        if current_target == "/card" and (path == "/user/account" or path.startswith("/user/account/")):
+            return _redirect_with_query("/card")
+
     target = _STRICT_EXACT_REDIRECTS.get(path)
     if target:
         return _redirect_with_query(target)

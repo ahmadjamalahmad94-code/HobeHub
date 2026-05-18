@@ -36,6 +36,7 @@ from .quota_engine import (
 )
 from .radius_client import get_radius_client
 from .radius_client.base import RadiusClientError, RadiusClientNotImplemented
+from .smart_search import smart_search_clause
 
 
 @dataclass
@@ -499,16 +500,27 @@ def list_deliveries(
             params.append(int(category["duration_minutes"]))
     if q:
         # بحث بالاسم أو اسم/كلمة مرور البطاقة أو رقم التسليم (#xxx)
-        like = f"%{q}%"
-        if q.isdigit():
-            sql += " AND (b.full_name LIKE %s OR bic.card_username LIKE %s OR bic.id=%s OR bic.beneficiary_id=%s)"
-            params.extend([like, like, int(q), int(q)])
-        else:
-            sql += " AND (b.full_name LIKE %s OR bic.card_username LIKE %s)"
-            params.extend([like, like])
+        clause, clause_params = smart_search_clause(
+            q,
+            text_columns=("b.search_name", "b.full_name", "bic.card_username", "bic.card_password"),
+            phone_columns=("b.phone",),
+            extra_columns=("bic.issued_by",),
+        )
+        q_digits = str(q).strip()
+        if clause and q_digits.isdigit():
+            sql += f" AND ({clause} OR bic.id=%s OR bic.beneficiary_id=%s)"
+            params.extend([*clause_params, int(q_digits), int(q_digits)])
+        elif clause:
+            sql += " AND " + clause
+            params.extend(clause_params)
+        elif q_digits.isdigit():
+            sql += " AND (bic.id=%s OR bic.beneficiary_id=%s)"
+            params.extend([int(q_digits), int(q_digits)])
     if phone:
-        sql += " AND b.phone LIKE %s"
-        params.append(f"%{phone}%")
+        clause, clause_params = smart_search_clause(phone, phone_columns=("b.phone",))
+        if clause:
+            sql += " AND " + clause
+            params.extend(clause_params)
     if date_from:
         sql += " AND bic.issued_at >= %s"
         params.append(date_from)

@@ -7,7 +7,7 @@
   <title>{% block title %}HobeHub{% endblock %} — Hobe Hub</title>
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css', v='20260518-auth-unlock') }}">
   {% block head_extra %}{% endblock %}
 </head>
 <body class="auth-body">
@@ -40,7 +40,7 @@
     </header>
 
     {# ─── Main ────────────────────────────────────────────────── #}
-    <main class="auth-main">
+    <main class="auth-main" tabindex="-1">
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
           <div class="auth-flashes" role="status" aria-live="polite">
@@ -70,5 +70,43 @@
   </div>
 
   {% block scripts %}{% endblock %}
+  <script>
+  (function(){
+    function unlockAuthPage(){
+      document.body.classList.remove(
+        'modal-open',
+        'd-sidebar-open',
+        'is-open',
+        'show-modal',
+        'has-overlay'
+      );
+      document.documentElement.classList.remove(
+        'modal-open',
+        'd-sidebar-open',
+        'is-open',
+        'show-modal',
+        'has-overlay'
+      );
+      document.querySelectorAll(
+        '.modal-backdrop,.d-overlay,.mobile-sidebar-overlay,.overlay,.backdrop,[data-auth-overlay]'
+      ).forEach(function(el){
+        el.classList.remove('is-open','show','show-modal');
+        el.setAttribute('aria-hidden', 'true');
+        el.style.display = 'none';
+        el.style.pointerEvents = 'none';
+      });
+      var main = document.querySelector('.auth-main');
+      if(main && document.activeElement === document.body){
+        try { main.focus({ preventScroll: true }); } catch(e) { try { main.focus(); } catch(_) {} }
+      }
+    }
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', unlockAuthPage);
+    } else {
+      unlockAuthPage();
+    }
+    window.addEventListener('pageshow', unlockAuthPage);
+  })();
+  </script>
 </body>
 </html>

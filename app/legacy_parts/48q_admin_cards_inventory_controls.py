@@ -50,14 +50,16 @@ def _available_where(filters):
             sql += " AND mac.duration_minutes=%s"
             params.append(duration)
     if filters.get("q"):
-        like = f"%{filters['q']}%"
-        sql += """
-        AND (
-            mac.card_username LIKE %s OR mac.card_password LIKE %s
-            OR mac.source_file LIKE %s OR mac.imported_by_username LIKE %s
+        from app.services.smart_search import smart_search_clause
+
+        clause, clause_params = smart_search_clause(
+            filters["q"],
+            text_columns=("mac.card_username", "mac.card_password"),
+            extra_columns=("mac.source_file", "mac.imported_by_username"),
         )
-        """
-        params.extend([like, like, like, like])
+        if clause:
+            sql += " AND " + clause
+            params.extend(clause_params)
     return sql, params
 
 
@@ -72,14 +74,17 @@ def _issued_where(filters):
             sql += " AND bic.duration_minutes=%s"
             params.append(duration)
     if filters.get("q"):
-        like = f"%{filters['q']}%"
-        sql += """
-        AND (
-            bic.card_username LIKE %s OR bic.card_password LIKE %s
-            OR bic.issued_by LIKE %s OR b.full_name LIKE %s OR b.phone LIKE %s
+        from app.services.smart_search import smart_search_clause
+
+        clause, clause_params = smart_search_clause(
+            filters["q"],
+            text_columns=("bic.card_username", "bic.card_password", "b.search_name", "b.full_name"),
+            phone_columns=("b.phone",),
+            extra_columns=("bic.issued_by",),
         )
-        """
-        params.extend([like, like, like, like, like])
+        if clause:
+            sql += " AND " + clause
+            params.extend(clause_params)
     return sql, params
 
 

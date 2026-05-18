@@ -29,6 +29,28 @@
 .ua-act--api{background:#eef4ff;color:#1d4ed8;border-color:#c7d8ff}
 .ua-act--api:hover{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
 .ua-table td{vertical-align:middle}
+.ua-row-cb,.ua-head-cb{width:18px;height:18px;cursor:pointer;accent-color:var(--d-gold)}
+.ua-bulk-bar{
+  position:sticky;top:8px;z-index:100;
+  display:none;margin-bottom:14px;padding:12px 18px;border-radius:14px;
+  background:linear-gradient(135deg,#1E1E1E 0%,#2a2724 100%);color:#fff;
+  align-items:center;gap:12px;flex-wrap:wrap;
+  box-shadow:0 10px 24px rgba(30,30,30,.25);
+}
+.ua-bulk-bar.is-show{display:flex}
+.ua-bulk-count{
+  background:var(--d-gold);color:#1E1E1E;padding:6px 12px;border-radius:999px;
+  font-size:13px;font-weight:900;font-family:monospace;
+}
+.ua-bulk-bar .sep{flex:1}
+.ua-bulk-btn{
+  display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:10px;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+  color:#fff;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit;transition:.18s ease;
+}
+.ua-bulk-btn:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.3)}
+.ua-bulk-btn-gold{background:var(--d-gold);color:#1E1E1E;border-color:var(--d-gold)}
+.ua-bulk-btn-danger{background:#b91c1c;border-color:#b91c1c}
 
 /* ─── Password column ─── */
 .ua-pwd{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;
@@ -196,8 +218,8 @@
     <div class="hub-stat">
       <span class="hub-stat-ico muted"><i class="fa-solid fa-bolt"></i></span>
       <div>
-        <span class="lbl">whitelist السرعة</span>
-        <span class="val">0</span>
+        <span class="lbl">رفع سرعة نشط</span>
+        <span class="val">{{ speed_upgrades_count | default(0) }}</span>
       </div>
     </div>
   </div>
@@ -238,11 +260,23 @@
   </form>
 </section>
 
+<div class="ua-bulk-bar" id="ua-bulk-bar">
+  <span class="ua-bulk-count" id="ua-bulk-count">0</span>
+  <span style="font-size:13px;font-weight:800">مشترك محدد</span>
+  <span class="sep"></span>
+  <button type="button" class="ua-bulk-btn" data-action="reset_weekly"><i class="fa-solid fa-rotate-left"></i>تصفير عداد الأسبوع</button>
+  <button type="button" class="ua-bulk-btn ua-bulk-btn-gold" data-action="switch_to_cards"><i class="fa-solid fa-ticket"></i>تحويل المحدد لبطاقات</button>
+  {% if has_permission('delete') %}
+  <button type="button" class="ua-bulk-btn ua-bulk-btn-danger" data-action="delete"><i class="fa-solid fa-trash"></i>حذف المحدد</button>
+  {% endif %}
+  <button type="button" class="ua-bulk-btn" id="ua-bulk-clear" title="إلغاء التحديد"><i class="fa-solid fa-xmark"></i></button>
+</div>
+
 <section class="d-card">
   <div class="d-card-head">
     <h3 class="d-card-title"><i class="fa-solid fa-users-viewfinder"></i>قائمة مشتركي حساب الإنترنت</h3>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:12px;color:var(--d-text-muted)"><span id="ua-results-count">{{ users | length }}</span> نتيجة (جامعي + عمل حر فقط)</span>
+      <span style="font-size:12px;color:var(--d-text-muted)"><span id="ua-results-count">{{ filtered_users_count | default(users | length) }}</span> نتيجة (جامعي + عمل حر فقط)</span>
       <button type="button" class="d-pill-btn d-pill-btn--gold" id="ua-open-add">
         <i class="fa-solid fa-user-plus"></i>إضافة مشترك حساب إنترنت
       </button>
@@ -252,18 +286,21 @@
     <table class="d-table ua-table" id="ua-table" data-paginated="1" data-page-size="20" data-page-sizes="10,20,50,100" data-persist-key="users-account-overview">
       <thead>
         <tr>
+          <th style="width:30px"><input type="checkbox" class="ua-head-cb" id="ua-head-cb" title="تحديد الكل في الصفحة"></th>
           <th>#</th>
           <th>الاسم</th>
-          <th>يوزر RADIUS</th>
-          <th title="كلمة مرور RADIUS — تُستخدم في كل اتصال API. مستقلّة عن كلمة مرور البوابة.">كلمة مرور RADIUS</th>
+          <th>اسم مستخدم حساب الإنترنت</th>
+          <th title="كلمة مرور حساب الإنترنت — تطابق كلمة المرور في واجهة المصادقة، وهي مستقلة عن كلمة مرور البوابة.">كلمة مرور حساب الإنترنت</th>
           <th>النوع</th>
           <th>حالة الحساب</th>
+          <th>الاستخدام</th>
           <th style="white-space:nowrap">إجراءات</th>
         </tr>
       </thead>
       <tbody id="ua-tbody">
         {% for u in users %}
         <tr>
+          <td><input type="checkbox" class="ua-row-cb" data-bid="{{ u.id }}"></td>
           <td>#{{ u.id }}</td>
           <td><strong>{{ u.full_name }}</strong></td>
           <td style="font-family:monospace">{{ u.portal_username or u.phone or '—' }}</td>
@@ -287,6 +324,7 @@
               <span class="d-badge d-badge--warn">بانتظار التفعيل</span>
             {% endif %}
           </td>
+          <td style="text-align:center;white-space:nowrap"><strong>{{ u.weekly_usage_count | default(0) }}</strong></td>
           <td style="white-space:nowrap">
             <div class="ua-row-actions">
               <form method="POST" action="{{ url_for('admin_beneficiary_convert_access', beneficiary_id=u.id) }}"
@@ -311,6 +349,22 @@
               <a class="ua-act ua-act--icon" href="{{ url_for('admin_user_profile_page', beneficiary_id=u.id) }}" title="الملف الشخصي" aria-label="الملف الشخصي">
                 <i class="fa-solid fa-id-card-clip"></i>
               </a>
+              <a class="ua-act ua-act--icon" href="{{ url_for('admin_request_center', beneficiary_id=u.id) }}" title="كل طلبات المشترك" aria-label="كل طلبات المشترك">
+                <i class="fa-solid fa-inbox"></i>
+              </a>
+              {% if u.portal_account_id %}
+              <a class="ua-act ua-act--icon" href="{{ url_for('admin_portal_accounts_page') }}?q={{ (u.phone or u.portal_username or u.full_name)|urlencode }}" title="إدارة حساب البوابة" aria-label="إدارة حساب البوابة">
+                <i class="fa-solid fa-id-card"></i>
+              </a>
+              {% else %}
+              <button type="button" class="ua-act ua-act--icon ua-portal-create-btn"
+                      data-bid="{{ u.id }}"
+                      data-name="{{ u.full_name }}"
+                      data-phone="{{ u.phone or u.portal_username }}"
+                      title="إنشاء حساب بوابة" aria-label="إنشاء حساب بوابة">
+                <i class="fa-solid fa-user-plus"></i>
+              </button>
+              {% endif %}
               <button type="button" class="ua-act ua-act--api ua-act--icon" title="حالة API الحية" aria-label="حالة API الحية"
                       data-api-id="{{ u.id }}"
                       data-api-name="{{ u.full_name }}">
@@ -334,7 +388,7 @@
           </td>
         </tr>
         {% else %}
-        <tr class="no-paginate"><td colspan="7" style="text-align:center;color:var(--d-text-muted);padding:24px">لا يوجد مشتركو حساب إنترنت مطابقون للفلتر.</td></tr>
+        <tr class="no-paginate"><td colspan="9" style="text-align:center;color:var(--d-text-muted);padding:24px">لا يوجد مشتركو حساب إنترنت مطابقون للفلتر.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -348,7 +402,7 @@
       <span class="ue-head-ico"><i class="fa-solid fa-user-plus"></i></span>
       <div>
         <h3 id="ua-add-title">إضافة مشترك حساب إنترنت</h3>
-        <p>اسم الدخول سيكون رقم الجوال، وكلمة المرور يحددها المدير الآن.</p>
+        <p>اسم مستخدم حساب الإنترنت سيكون رقم الجوال، وكلمة المرور هنا هي كلمة مرور واجهة المصادقة. كلمة مرور البوابة سيعيّنها المشترك بنفسه عند التفعيل.</p>
       </div>
       <button type="button" class="ue-close" id="ua-add-close" aria-label="إغلاق">
         <i class="fa-solid fa-xmark"></i>
@@ -366,11 +420,11 @@
             <input type="text" name="full_name" placeholder="مثلاً: محمد سالم العبد" required>
           </div>
           <div class="ue-field">
-            <label>رقم الجوال / اسم الدخول</label>
+            <label>رقم الجوال / اسم مستخدم حساب الإنترنت</label>
             <input type="tel" name="phone" inputmode="numeric" maxlength="10" pattern="[0-9]{10}" placeholder="0599123456" required>
           </div>
           <div class="ue-field">
-            <label>كلمة المرور</label>
+            <label>كلمة مرور حساب الإنترنت</label>
             <input type="text" name="password" minlength="6" autocomplete="new-password" required>
           </div>
           <div class="ue-field">
@@ -534,8 +588,10 @@
 <script>
 // ─── Global helpers ───────────────────────────────────────────
 function uaCsrf(){
-  var el = document.querySelector('input[name="csrf_token"]');
-  return el ? el.value : '';
+  var el = document.querySelector('input[name="_csrf_token"]') || document.querySelector('input[name="csrf_token"]');
+  if(el && el.value) return el.value;
+  var meta = document.querySelector('meta[name="csrf-token"]');
+  return (meta && meta.content) || window.HOBEHUB_CSRF_TOKEN || '';
 }
 function uaEscape(s){
   return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
@@ -560,6 +616,9 @@ function uaRowHtml(u){
   var statusBadge = u.has_portal_account
       ? '<span class="d-badge d-badge--success">مفعّل</span>'
       : '<span class="d-badge d-badge--warn">بانتظار التفعيل</span>';
+  var portalBtn = u.portal_account_id
+      ? '<a class="ua-act ua-act--icon" href="/admin/portal-accounts?q='+encodeURIComponent(u.phone || u.portal_username || u.full_name || '')+'" title="إدارة حساب البوابة" aria-label="إدارة حساب البوابة"><i class="fa-solid fa-id-card"></i></a>'
+      : '<button type="button" class="ua-act ua-act--icon ua-portal-create-btn" data-bid="'+u.id+'" data-name="'+nm+'" data-phone="'+uaEscape(u.phone || u.portal_username || '')+'" title="إنشاء حساب بوابة" aria-label="إنشاء حساب بوابة"><i class="fa-solid fa-user-plus"></i></button>';
   var convertBtn;
   if(u.access_mode === 'username'){
     convertBtn = '<input type="hidden" name="target_mode" value="cards">'
@@ -570,16 +629,18 @@ function uaRowHtml(u){
                   ? '<button class="ua-act" type="submit" title="تحويل إلى حساب إنترنت"><i class="fa-solid fa-arrow-right-arrow-left"></i>حساب إنترنت</button>'
                   : '<button class="ua-act ua-act--disabled ua-act--icon" type="button" disabled title="'+uaEscape(u.switch_reason||'')+'" aria-label="'+uaEscape(u.switch_reason||'')+'"><i class="fa-solid fa-lock"></i></button>');
   }
-  var csrfHidden = '<input type="hidden" name="csrf_token" value="'+uaEscape(uaCsrf())+'">';
+  var csrfHidden = '<input type="hidden" name="_csrf_token" value="'+uaEscape(uaCsrf())+'">';
   var targetLabel = (u.access_mode === 'username') ? 'نظام البطاقات' : 'حساب إنترنت';
   return ''
     + '<tr>'
+    +   '<td><input type="checkbox" class="ua-row-cb" data-bid="'+u.id+'"></td>'
     +   '<td>#'+u.id+'</td>'
     +   '<td><strong>'+nm+'</strong></td>'
     +   '<td style="font-family:monospace">'+ph+'</td>'
     +   '<td style="white-space:nowrap"><div class="ua-pwd" data-bid="'+u.id+'">'+pwdBlock+'</div></td>'
     +   '<td><span class="d-badge d-badge--neutral">'+uaEscape(u.user_type_label || uaUserTypeLabel(u.user_type))+'</span></td>'
     +   '<td>'+statusBadge+'</td>'
+    +   '<td style="text-align:center;white-space:nowrap"><strong>'+(u.weekly_usage_count || 0)+'</strong></td>'
     +   '<td style="white-space:nowrap"><div class="ua-row-actions">'
     +     '<form method="POST" action="/admin/beneficiary/'+u.id+'/convert-access" style="display:inline" '
     +       'data-beneficiary-name="'+nm+'" data-target-label="'+targetLabel+'" '
@@ -589,6 +650,8 @@ function uaRowHtml(u){
     +       convertBtn
     +     '</form>'
     +     '<a class="ua-act ua-act--icon" href="/admin/users/'+u.id+'" title="الملف الشخصي" aria-label="الملف الشخصي"><i class="fa-solid fa-id-card-clip"></i></a>'
+    +     '<a class="ua-act ua-act--icon" href="/admin/requests?beneficiary_id='+u.id+'" title="كل طلبات المشترك" aria-label="كل طلبات المشترك"><i class="fa-solid fa-inbox"></i></a>'
+    +     portalBtn
     +     '<button type="button" class="ua-act ua-act--api ua-act--icon" title="حالة الربط الحية" aria-label="حالة الربط الحية" data-api-id="'+u.id+'" data-api-name="'+nm+'"><i class="fa-solid fa-broadcast-tower"></i></button>'
     +     '<button type="button" class="ua-act ua-act--icon" title="تعديل البيانات" aria-label="تعديل البيانات" data-edit-id="'+u.id+'" data-edit-name="'+nm+'"><i class="fa-solid fa-pen-to-square"></i></button>'
     +     '<form method="POST" action="/beneficiaries/delete/'+u.id+'" class="ua-delete-form" style="display:inline" '
@@ -600,7 +663,7 @@ function uaRowHtml(u){
     + '</tr>';
 }
 function uaEmptyRowHtml(){
-  return '<tr class="no-paginate"><td colspan="7" style="text-align:center;color:var(--d-text-muted);padding:24px">لا يوجد مشتركو حساب إنترنت مطابقون للفلتر.</td></tr>';
+  return '<tr class="no-paginate"><td colspan="9" style="text-align:center;color:var(--d-text-muted);padding:24px">لا يوجد مشتركو حساب إنترنت مطابقون للفلتر.</td></tr>';
 }
 function uaReinitPagination(){
   var table = document.getElementById('ua-table');
@@ -842,6 +905,16 @@ function uaReinitPagination(){
     if(ut === 'freelancer'){ univBlock.classList.add('hidden-section'); freeBlock.classList.remove('hidden-section'); }
     else { univBlock.classList.remove('hidden-section'); freeBlock.classList.add('hidden-section'); }
   }
+  function preserveInternetMethodForType(ut){
+    var universityMethod = form.querySelector('[name="university_internet_method"]');
+    var freelancerMethod = form.querySelector('[name="freelancer_internet_method"]');
+    if(!universityMethod || !freelancerMethod) return;
+    if(ut === 'freelancer' && !freelancerMethod.value){
+      freelancerMethod.value = universityMethod.value || 'يوزر إنترنت';
+    } else if(ut === 'university' && !universityMethod.value){
+      universityMethod.value = freelancerMethod.value || 'يوزر إنترنت';
+    }
+  }
 
   function fillForm(d){
     var fields = ['first_name','second_name','third_name','fourth_name','phone',
@@ -854,6 +927,7 @@ function uaReinitPagination(){
       if(el) el.value = d[name] || '';
     });
     typeSel.value = (d.user_type === 'freelancer') ? 'freelancer' : 'university';
+    typeSel.dataset.previousType = typeSel.value;
     applyUserTypeVisibility(typeSel.value);
   }
 
@@ -904,7 +978,11 @@ function uaReinitPagination(){
   document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && bd.classList.contains('is-open')) closeModal(); });
 
   // Type change
-  typeSel.addEventListener('change', function(){ applyUserTypeVisibility(typeSel.value); });
+  typeSel.addEventListener('change', function(){
+    preserveInternetMethodForType(typeSel.value);
+    applyUserTypeVisibility(typeSel.value);
+    typeSel.dataset.previousType = typeSel.value;
+  });
 
   // Submit
   form.addEventListener('submit', function(e){
@@ -943,6 +1021,10 @@ function uaReinitPagination(){
   var tbody    = document.getElementById('ua-tbody');
   var countEl  = document.getElementById('ua-results-count');
   var form     = document.getElementById('ua-filter-form');
+  var bulkBar  = document.getElementById('ua-bulk-bar');
+  var bulkCount = document.getElementById('ua-bulk-count');
+  var headCb   = document.getElementById('ua-head-cb');
+  var bulkClear = document.getElementById('ua-bulk-clear');
   if(!qInput || !tbody || !form) return;
 
   // امنع الـ submit الافتراضي (Enter)
@@ -984,13 +1066,62 @@ function uaReinitPagination(){
     var url = window.location.pathname + (qs ? ('?' + qs) : '');
     history.replaceState(null, '', url);
   }
-  function render(users){
+  function selectedIds(){
+    return Array.from(tbody.querySelectorAll('.ua-row-cb:checked')).map(function(cb){ return cb.dataset.bid; });
+  }
+  function updateBulkBar(){
+    var ids = selectedIds();
+    if(bulkCount) bulkCount.textContent = ids.length;
+    if(bulkBar) bulkBar.classList.toggle('is-show', ids.length > 0);
+    if(headCb){
+      var boxes = tbody.querySelectorAll('.ua-row-cb');
+      headCb.checked = boxes.length > 0 && ids.length === boxes.length;
+      headCb.indeterminate = ids.length > 0 && ids.length < boxes.length;
+    }
+  }
+  function clearSelection(){
+    tbody.querySelectorAll('.ua-row-cb').forEach(function(cb){ cb.checked = false; });
+    if(headCb){ headCb.checked = false; headCb.indeterminate = false; }
+    updateBulkBar();
+  }
+  function runBulkAction(action){
+    var ids = selectedIds();
+    if(!ids.length) return;
+    var labels = {
+      reset_weekly: 'تصفير عداد الأسبوع',
+      switch_to_cards: 'تحويل المحدد إلى نظام البطاقات',
+      delete: 'حذف المحدد نهائيًا'
+    };
+    var label = labels[action] || 'تطبيق العملية';
+    if(!confirm('سيتم تنفيذ "' + label + '" على ' + ids.length + ' مشترك. هل تريد المتابعة؟')) return;
+    var fd = new FormData();
+    fd.append('action', action);
+    if(uaCsrf()) fd.append('_csrf_token', uaCsrf());
+    ids.forEach(function(id){ fd.append('ids[]', id); });
+    fetch('/admin/beneficiaries/bulk-action', {
+      method:'POST', credentials:'same-origin', body:fd,
+      headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}
+    })
+    .then(function(r){ return r.json().then(function(j){ j.__status = r.status; return j; }); })
+    .then(function(j){
+      if(j.ok){
+        clearSelection();
+        alert(j.message || 'تم تنفيذ العملية.');
+        doFetch(true);
+      } else {
+        alert(j.message || 'تعذّر تنفيذ العملية.');
+      }
+    })
+    .catch(function(){ alert('تعذّر الاتصال بالخادم.'); });
+  }
+  function render(users, totalCount){
     if(!users || users.length === 0){
       tbody.innerHTML = uaEmptyRowHtml();
     } else {
       tbody.innerHTML = users.map(uaRowHtml).join('');
     }
-    countEl.textContent = users ? users.length : 0;
+    countEl.textContent = typeof totalCount === 'number' ? totalCount : (users ? users.length : 0);
+    clearSelection();
     uaReinitPagination();
     // إعادة جلب حالة RADIUS لكل الصفوف الجديدة
     if(typeof window.uaHydrateRadius === 'function'){
@@ -1008,8 +1139,8 @@ function uaReinitPagination(){
     .then(function(r){ return r.json(); })
     .then(function(j){
       if(j && j.ok){
-        render(j.users || []);
-        setStatus('done', (j.users || []).length + ' نتيجة');
+        render(j.users || [], j.count);
+        setStatus('done', (j.count || (j.users || []).length) + ' نتيجة');
       } else {
         setStatus('error', (j && j.message) || 'فشل البحث');
       }
@@ -1022,6 +1153,44 @@ function uaReinitPagination(){
   clearBtn.addEventListener('click', function(){
     qInput.value = ''; typeSel.value = '';
     doFetch(true); qInput.focus();
+  });
+
+  if(headCb){
+    headCb.addEventListener('change', function(){
+      tbody.querySelectorAll('.ua-row-cb').forEach(function(cb){ cb.checked = headCb.checked; });
+      updateBulkBar();
+    });
+  }
+  if(bulkClear){ bulkClear.addEventListener('click', clearSelection); }
+  document.querySelectorAll('.ua-bulk-btn[data-action]').forEach(function(btn){
+    btn.addEventListener('click', function(){ runBulkAction(btn.dataset.action); });
+  });
+  tbody.addEventListener('change', function(e){
+    if(e.target && e.target.classList.contains('ua-row-cb')) updateBulkBar();
+  });
+
+  tbody.addEventListener('click', function(e){
+    var portalBtn = e.target.closest('.ua-portal-create-btn');
+    if(!portalBtn) return;
+    var name = portalBtn.dataset.name || 'هذا المشترك';
+    if(!confirm('إنشاء حساب بوابة للمشترك "' + name + '"؟')) return;
+    var fd = new FormData();
+    fd.append('beneficiary_id', portalBtn.dataset.bid || '');
+    if(uaCsrf()) fd.append('_csrf_token', uaCsrf());
+    fetch('/admin/portal-accounts/move-in', {
+      method:'POST', credentials:'same-origin', body:fd,
+      headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}
+    })
+    .then(function(r){ return r.json().then(function(j){ j.__status = r.status; return j; }); })
+    .then(function(j){
+      if(j.ok){
+        alert(j.message || 'تم إنشاء حساب البوابة.');
+        doFetch(true);
+      } else {
+        alert(j.message || 'تعذّر إنشاء حساب البوابة.');
+      }
+    })
+    .catch(function(){ alert('تعذّر الاتصال بالخادم.'); });
   });
 
   // ─── Delete via AJAX (event delegation) ─────────────────
