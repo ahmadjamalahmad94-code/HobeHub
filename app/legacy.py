@@ -133,7 +133,7 @@ _LEGACY_PARTS = [
     '48aj_user_type_card_rules.py', '48ak_admin_cards_subscribers.py', '48al_system_cleanup_v2.py',
     '48am_sms_module.py', '48an_portal_documents.py', '48ao_subscriber_api_explorer.py', '48ap_radius_features.py',
     '48aq_master_admin_portal.py', '48aq2_admin_auth_endpoints.py', '48ar_signup_phone_check.py',
-    '48as_portal_redirect.py', '48at_segment_redirects.py', '48au_auto_card_fulfill.py',
+    '48as_card_eligibility.py', '48as_portal_redirect.py', '48at_segment_redirects.py', '48au_auto_card_fulfill.py',
     '48av_verification_tiers.py', '48aw_portal_filter.py', '48ax_portal_list_route.py',
     '49_main_entrypoint.py',
 ]

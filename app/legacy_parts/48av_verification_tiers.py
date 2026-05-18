@@ -27,7 +27,10 @@ TIER_COLORS = {0: "muted", 1: "blue", 2: "green", 3: "gold"}
 
 # ─── تصحيح السياسة الافتراضية عند أول تشغيل ──────────────────────────────
 def _fix_default_policy():
-    """يتأكد أن السياسة الافتراضية تحتوي نصف ساعة + ساعة فقط."""
+    """يتأكد أن السياسة الافتراضية = نصف ساعة + ساعة فقط (default tier).
+
+    باقي الفئات (ساعتين/3/4) تفتح فقط لمن يحصل على tier > 0 (per-user policy).
+    """
     try:
         execute_sql(
             """
@@ -35,10 +38,7 @@ def _fix_default_policy():
                SET allowed_category_codes = 'half_hour,one_hour,two_hours,three_hours',
                    updated_at = CURRENT_TIMESTAMP
              WHERE scope = 'default'
-               AND (
-                      allowed_category_codes NOT IN ('half_hour,one_hour,two_hours,three_hours')
-                      OR allowed_category_codes IS NULL
-                    )
+               AND COALESCE(allowed_category_codes,'') <> 'half_hour,one_hour,two_hours,three_hours'
             """,
         )
     except Exception:

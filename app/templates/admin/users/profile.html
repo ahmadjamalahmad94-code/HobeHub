@@ -153,7 +153,20 @@
     </div>
     <div class="up-actions">
       <button type="button" class="up-act-btn gold" id="profile-edit-btn"><i class="fa-solid fa-pen"></i>تعديل البيانات</button>
+      {% if (bio.user_type or '')|lower == 'tawjihi' %}
+      {# توثيق التوجيهي — يقلب tawjihi_verified: TRUE = نصف + ساعة، FALSE = نصف فقط #}
+      <button type="button" class="up-act-btn" id="toggle-tawjihi-verified-btn"
+              data-verified="{{ '1' if bio.tawjihi_verified else '0' }}">
+        {% if bio.tawjihi_verified %}
+          <i class="fa-solid fa-shield-halved" style="color:#34d399"></i>إلغاء توثيق التوجيهي
+        {% else %}
+          <i class="fa-regular fa-shield"></i>توثيق التوجيهي
+        {% endif %}
+      </button>
+      {% else %}
       <button type="button" class="up-act-btn" id="set-tier-btn"><i class="fa-solid fa-medal"></i>تغيير صلاحية البطاقات</button>
+      <button type="button" class="up-act-btn" id="four-hour-window-btn"><i class="fa-regular fa-clock"></i>نافذة بطاقة 4 ساعات</button>
+      {% endif %}
       <button type="button" class="up-act-btn" id="set-verify-btn"><i class="fa-solid fa-shield-halved"></i>تعديل التوثيق</button>
       {% if portal %}
       <button type="button" class="up-act-btn" id="issue-code-btn" data-pa-id="{{ portal.id }}" data-name="{{ bio.full_name or '' }}" data-phone="{{ bio.phone or '' }}"><i class="fa-solid fa-key"></i>إنشاء رمز تفعيل</button>
@@ -1326,6 +1339,120 @@
         });
     });
   }
+
+  // ════════════════════════════════════════════════════════════
+  // زر «توثيق التوجيهي» — toggle tawjihi_verified
+  // ════════════════════════════════════════════════════════════
+  var tvBtn = document.getElementById('toggle-tawjihi-verified-btn');
+  if(tvBtn){
+    tvBtn.addEventListener('click', function(){
+      var isVerified = tvBtn.dataset.verified === '1';
+      var prompt = isVerified
+        ? 'إلغاء توثيق التوجيهي؟ سيرجع إلى نصف ساعة فقط.'
+        : 'توثيق التوجيهي؟ سيُسمح له بنصف ساعة + ساعة.';
+      if(!confirm(prompt)) return;
+      tvBtn.disabled = true;
+      fetch('/admin/beneficiaries/'+BID+'/toggle-tawjihi-verified',
+            {method:'POST', credentials:'same-origin', headers:{'X-Requested-With':'XMLHttpRequest'}})
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          if(j.ok){
+            showToast(j.message || 'تم.', 'success');
+            setTimeout(function(){ location.reload(); }, 800);
+          } else {
+            tvBtn.disabled = false;
+            showToast(j.message || 'فشل الحفظ', 'error');
+          }
+        })
+        .catch(function(){ tvBtn.disabled = false; showToast('فشل الاتصال', 'error'); });
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // زر «نافذة بطاقة 4 ساعات» — modal بسيط للضبط
+  // ════════════════════════════════════════════════════════════
+  var fhBtn = document.getElementById('four-hour-window-btn');
+  if(fhBtn){
+    fhBtn.addEventListener('click', function(){
+      // ابني modal inline
+      var existing = document.getElementById('fh-modal');
+      if(existing) existing.remove();
+
+      var currentFrom = {{ (bio.four_hour_window_from or '')|tojson }};
+      var currentUntil = {{ (bio.four_hour_window_until or '')|tojson }};
+      // tidy HH:MM:SS → HH:MM
+      function tidy(t){ if(!t) return ''; var s = String(t); return s.length>=5 ? s.slice(0,5) : s; }
+      currentFrom = tidy(currentFrom);
+      currentUntil = tidy(currentUntil);
+
+      var modal = document.createElement('div');
+      modal.id = 'fh-modal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,15,15,.65);display:flex;align-items:center;justify-content:center;z-index:9999;padding:18px;backdrop-filter:blur(3px)';
+      modal.innerHTML = ''
+        + '<div style="width:min(440px,100%);background:#fff;border-radius:18px;padding:24px 26px;box-shadow:0 24px 60px rgba(0,0,0,.30)">'
+        +   '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">'
+        +     '<span style="width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#F4BA2A,#FFD96A);color:#1E1E1E;display:grid;place-items:center;font-size:16px"><i class="fa-regular fa-clock"></i></span>'
+        +     '<div><h3 style="margin:0;font-size:16px;font-weight:900">نافذة بطاقة 4 ساعات</h3>'
+        +     '<small style="color:#7a7368;font-weight:700">الوقت المسموح فيه طلب بطاقة 4 ساعات. تركها فارغة = متاحة دائماً.</small></div>'
+        +   '</div>'
+        +   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px">'
+        +     '<div><label style="display:block;font-size:12px;font-weight:800;color:#5b5246;margin-bottom:6px">من الساعة</label>'
+        +     '<input type="time" id="fh-from" value="'+currentFrom+'" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e8e2d5;font-family:inherit;font-size:14px;font-weight:700"></div>'
+        +     '<div><label style="display:block;font-size:12px;font-weight:800;color:#5b5246;margin-bottom:6px">إلى الساعة</label>'
+        +     '<input type="time" id="fh-until" value="'+currentUntil+'" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e8e2d5;font-family:inherit;font-size:14px;font-weight:700"></div>'
+        +   '</div>'
+        +   '<div id="fh-msg" style="display:none;margin-top:12px;padding:10px 13px;border-radius:10px;font-size:12.5px;font-weight:700"></div>'
+        +   '<div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end">'
+        +     '<button type="button" id="fh-clear" style="padding:10px 16px;border-radius:10px;background:#fff;border:1.5px solid #e8e2d5;color:#5b5246;font-weight:800;cursor:pointer;font-family:inherit">إلغاء النافذة</button>'
+        +     '<button type="button" id="fh-cancel" style="padding:10px 16px;border-radius:10px;background:#fff;border:1.5px solid #e8e2d5;color:#5b5246;font-weight:800;cursor:pointer;font-family:inherit">إغلاق</button>'
+        +     '<button type="button" id="fh-save" style="padding:10px 22px;border-radius:10px;background:linear-gradient(135deg,#F4BA2A,#FFD96A);border:0;color:#1E1E1E;font-weight:900;cursor:pointer;font-family:inherit">حفظ</button>'
+        +   '</div>'
+        + '</div>';
+      document.body.appendChild(modal);
+
+      function close(){ modal.remove(); }
+      function showMsg(kind, txt){
+        var m = document.getElementById('fh-msg');
+        m.style.display = 'block';
+        m.textContent = txt;
+        m.style.background = kind==='ok' ? '#e8f6ee' : '#fde2e2';
+        m.style.color = kind==='ok' ? '#166534' : '#991b1b';
+        m.style.border = '1px solid ' + (kind==='ok' ? 'rgba(31,143,81,.25)' : 'rgba(185,28,28,.25)');
+      }
+
+      document.getElementById('fh-cancel').addEventListener('click', close);
+      modal.addEventListener('click', function(e){ if(e.target === modal) close(); });
+
+      document.getElementById('fh-clear').addEventListener('click', function(){
+        if(!confirm('إلغاء النافذة؟ ستصبح بطاقة 4 ساعات متاحة دائماً للمشترك.')) return;
+        var fd = new FormData(); fd.append('window_from',''); fd.append('window_until','');
+        fetch('/admin/beneficiaries/'+BID+'/set-four-hour-window',
+              {method:'POST', credentials:'same-origin', body:fd})
+          .then(function(r){ return r.json(); })
+          .then(function(j){
+            if(j.ok){ showMsg('ok', j.message || 'تم.'); setTimeout(function(){ close(); location.reload(); }, 700); }
+            else showMsg('err', j.message || 'فشل');
+          })
+          .catch(function(){ showMsg('err', 'فشل الاتصال'); });
+      });
+
+      document.getElementById('fh-save').addEventListener('click', function(){
+        var from = document.getElementById('fh-from').value.trim();
+        var until = document.getElementById('fh-until').value.trim();
+        if(!from || !until){ showMsg('err', 'حدد الوقتين معاً.'); return; }
+        var fd = new FormData(); fd.append('window_from', from); fd.append('window_until', until);
+        fetch('/admin/beneficiaries/'+BID+'/set-four-hour-window',
+              {method:'POST', credentials:'same-origin', body:fd})
+          .then(function(r){ return r.json(); })
+          .then(function(j){
+            if(j.ok){ showMsg('ok', j.message || 'تم.'); setTimeout(function(){ close(); location.reload(); }, 700); }
+            else showMsg('err', j.message || 'فشل');
+          })
+          .catch(function(){ showMsg('err', 'فشل الاتصال'); });
+      });
+    });
+  }
+
 })();
 </script>
 {% endblock %}

@@ -287,10 +287,13 @@ def login_activate():
     except Exception:
         pass
 
+    # ⚡ إصلاح: عند التفعيل الناجح يجب ضبط is_active=TRUE
+    # كان يظل FALSE (لأن المدير ينشئ الحساب بحالة reset)، فيظهر "معطّل" بعد التفعيل.
     execute_sql(
         """
         UPDATE beneficiary_portal_accounts SET
             password_hash=%s, password_plain=%s,
+            is_active=TRUE,
             must_set_password=FALSE,
             activation_code_hash=NULL, activation_code_expires_at=NULL,
             activated_at=CURRENT_TIMESTAMP, failed_login_attempts=0, locked_until=NULL,

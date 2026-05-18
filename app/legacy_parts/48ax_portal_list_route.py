@@ -11,12 +11,13 @@ from flask import jsonify, render_template, request
 @app.route("/admin/beneficiaries/portal-stats")
 @login_required
 def admin_portal_stats():
+    # ⚡ PostgreSQL boolean columns: استخدام TRUE/FALSE بدل 1/0
     stats = query_one("""
         SELECT
-          COUNT(*)                                                          AS total,
-          SUM(CASE WHEN is_active=1 AND must_set_password=0 THEN 1 ELSE 0 END) AS active,
-          SUM(CASE WHEN is_active=1 AND must_set_password=1 THEN 1 ELSE 0 END) AS reset_pw,
-          SUM(CASE WHEN is_active=0                         THEN 1 ELSE 0 END) AS disabled
+          COUNT(*)                                                                  AS total,
+          SUM(CASE WHEN is_active=TRUE  AND must_set_password=FALSE THEN 1 ELSE 0 END) AS active,
+          SUM(CASE WHEN is_active=TRUE  AND must_set_password=TRUE  THEN 1 ELSE 0 END) AS reset_pw,
+          SUM(CASE WHEN is_active=FALSE                             THEN 1 ELSE 0 END) AS disabled
         FROM beneficiary_portal_accounts
     """) or {}
     outside = query_one("""
@@ -54,13 +55,13 @@ def admin_portal_rows():
         like = "%" + q + "%"
         params += [like, like, like]
 
-    # فلتر الحالة
+    # فلتر الحالة — استخدام TRUE/FALSE للتوافق مع PostgreSQL
     if status == "active":
-        conditions.append("bpa.is_active=1 AND bpa.must_set_password=0")
+        conditions.append("bpa.is_active=TRUE AND bpa.must_set_password=FALSE")
     elif status == "reset":
-        conditions.append("bpa.is_active=1 AND bpa.must_set_password=1")
+        conditions.append("bpa.is_active=TRUE AND bpa.must_set_password=TRUE")
     elif status == "disabled":
-        conditions.append("bpa.is_active=0")
+        conditions.append("bpa.is_active=FALSE")
 
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 

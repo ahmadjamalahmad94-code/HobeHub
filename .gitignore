@@ -40,3 +40,7 @@ htmlcov/
 Thumbs.db
 .vscode/
 .idea/
+
+# RADIUS management — قيد التطوير، لا يُرفع حتى يكتمل
+app/legacy_parts/48aw_radius_mgmt.py
+app/templates/admin/radius_mgmt/
