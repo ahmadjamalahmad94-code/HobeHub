@@ -801,6 +801,13 @@
     updateBulkBar();
   });
 
+  // Wire the bulk-bar action buttons (حذف المحدد / تصفير / تحويل…) to bulkAction()
+  document.addEventListener('click', function(e){
+    var b = e.target.closest && e.target.closest('.bulk-btn[data-action]');
+    if(!b) return;
+    bulkAction(b.dataset.action);
+  });
+
   function bulkAction(action){
     var ids = Array.from(document.querySelectorAll('.row-cb:checked')).map(cb => cb.dataset.bid);
     if(!ids.length) return;
@@ -815,7 +822,10 @@
     fd.append('action', action);
     if(csrfToken()) fd.append('_csrf_token', csrfToken());
     ids.forEach(id => fd.append('ids', id));
-    fetch('/admin/beneficiaries/bulk-action', {method:'POST', credentials:'same-origin', body:fd})
+    fetch('/admin/beneficiaries/bulk-action', {
+      method:'POST', credentials:'same-origin', body:fd,
+      headers:{'X-CSRFToken': csrfToken(), 'X-Requested-With':'XMLHttpRequest'}
+    })
       .then(r => r.json()).then(d => {
         if(d.ok){ loadRows(readState(),false); showToast(d.message, 'success'); }
         else { showToast(d.message || 'فشلت العملية', 'error'); }
@@ -1108,7 +1118,10 @@
     var bid  = btn.dataset.bid;
     var name = btn.dataset.name || bid;
     if(!confirm('حذف "'+name+'" نهائياً؟ لا يمكن التراجع.')) return;
-    fetch('/admin/beneficiaries/'+bid+'/delete-ajax', {method:'POST', credentials:'same-origin'})
+    fetch('/admin/beneficiaries/'+bid+'/delete-ajax', {
+      method:'POST', credentials:'same-origin',
+      headers:{'X-CSRFToken': csrfToken(), 'X-Requested-With':'XMLHttpRequest'}
+    })
       .then(function(r){ return r.json(); }).then(function(d){
         if(d.ok){ loadRows(readState(),false); showToast(d.message||'تم الحذف','success'); }
         else { showToast(d.message||'فشل الحذف','error'); }
