@@ -148,4 +148,4 @@ def _load_legacy_part(filename: str, parts_dir=_LEGACY_PARTS_DIR) -> None:
 
 for _legacy_part in _LEGACY_PARTS:
     _load_legacy_part(_legacy_part)
-del Path, _legacy_part, _load_legacy_
+del Path, _legacy_part, _load_legacy_part
