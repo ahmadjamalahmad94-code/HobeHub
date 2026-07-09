@@ -32,6 +32,7 @@ import hashlib
 import os
 
 from .base import RadiusClient, RadiusClientError, RadiusClientNotImplemented
+from .dtos import Result
 
 
 # ─── helpers ──────────────────────────────────────────────────────────
@@ -64,6 +65,56 @@ def _guard_write():
 def md5_password(plain: str) -> str:
     """يحوّل الباسوورد إلى MD5 hash كما يتوقع الـ API."""
     return hashlib.md5((plain or "").encode("utf-8")).hexdigest()
+
+
+def _int_or_zero(value) -> int:
+    try:
+        return int(float(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _normalize_card(raw: dict) -> dict:
+    """يوحّد شكل بطاقة مُولّدة قادمة من رد RADIUS (دفاعي مع تعدد أسماء الحقول)."""
+    def pick(*keys: str) -> str:
+        for k in keys:
+            v = raw.get(k)
+            if v not in (None, ""):
+                return str(v).strip()
+        return ""
+
+    return {
+        "username": pick("card_username", "username", "user_name", "login", "card_no", "card_number", "user"),
+        "password": pick("card_password", "password", "pass", "pin", "code", "secret"),
+        "external_id": pick("external_id", "id", "card_id", "user_id", "uid"),
+        "duration_minutes": _int_or_zero(
+            raw.get("duration_minutes") or raw.get("duration") or raw.get("minutes")
+        ),
+    }
+
+
+def _extract_first_card(body: dict) -> dict | None:
+    """يستخرج أول بطاقة صالحة (username+password) من رد RADIUS مهما كان شكله."""
+    candidates: list = []
+    for key in ("cards", "data", "results", "generated", "__list__"):
+        val = body.get(key)
+        if isinstance(val, list):
+            candidates = val
+            break
+        if isinstance(val, dict):
+            candidates = [val]
+            break
+    if not candidates and (
+        body.get("username") or body.get("card_username") or body.get("card_no")
+    ):
+        candidates = [body]
+    for raw in candidates:
+        if not isinstance(raw, dict):
+            continue
+        card = _normalize_card(raw)
+        if card["username"] and card["password"]:
+            return card
+    return None
 
 
 _REQUEST_TIMEOUT = 15
@@ -226,8 +277,47 @@ class LiveRadiusClient(RadiusClient):
     # 🚧 Write operations (معطّلة)
     # ═══════════════════════════════════════════════════════════════════
     def generate_user_cards(self, category_code, count=1, *, beneficiary_id=None, requested_by="", notes=""):
+        """يولّد بطاقة/بطاقات فوريًا من عرض RADIUS ويُرجع بياناتها.
+
+        محميّة بـ RADIUS_API_WRITES_ENABLED (تبقى «قيد التطوير» حتى تُفعَّل الكتابة
+        وتُختبر). عند النجاح تُرجع Result.success يحوي بيانات البطاقة في .data
+        (card_username / card_password / external_id) ليقوم card_dispatcher
+        بحفظها وتسليمها للمشترك. عند فشل الاتصال/الرد تُرجع Result.failure دون
+        تلفيق أي بطاقة.
+        """
         _guard_write()
-        raise RadiusClientNotImplemented("generate_user_cards — لم يُختبر بعد")
+        self._login()
+        endpoint = (os.getenv("RADIUS_API_CARDS_ENDPOINT", "") or "generate_user_cards").strip().lstrip("/")
+        body = self._http_post(
+            endpoint,
+            {
+                "category_code": category_code,
+                "category": category_code,
+                "count": int(count or 1),
+                "beneficiary_id": "" if beneficiary_id is None else beneficiary_id,
+                "requested_by": requested_by or "",
+                "notes": notes or "",
+            },
+        )
+        if body.get("error"):
+            return Result.failure(
+                body.get("message")
+                or body.get("msg")
+                or body.get("__transport_error__")
+                or "تعذّر توليد البطاقة من RADIUS."
+            )
+        card = _extract_first_card(body)
+        if not card:
+            return Result.failure("رد RADIUS لا يحتوي على بيانات بطاقة صالحة.")
+        return Result.success(
+            "تم توليد البطاقة من RADIUS.",
+            card_username=card["username"],
+            card_password=card["password"],
+            external_id=card["external_id"],
+            category_code=category_code,
+            duration_minutes=card["duration_minutes"],
+            api_endpoint=endpoint,
+        )
 
     def validate_card(self, username, password):
         _guard_write()

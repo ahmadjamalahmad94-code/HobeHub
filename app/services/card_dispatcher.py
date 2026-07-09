@@ -309,8 +309,47 @@ def request_card_via_radius(
             notes=(f"{notes} — تم تحويله للتنفيذ اليدوي لأن الكتابة على RADIUS غير مفعلة.").strip(" —"),
         )
 
+    # ── نجاح حي: RADIUS ولّد بطاقة حقيقية (لا pending) → احفظها وسلّمها فورًا ──
+    creds = _extract_generated_card(result) if (result.ok and not result.pending_action_id) else None
+    if creds:
+        issued_id = _persist_generated_card(
+            beneficiary_id, category, creds["username"], creds["password"], username
+        )
+        _audit(
+            "card_generated_via_radius",
+            beneficiary_id=beneficiary_id,
+            category_code=category_code,
+            issued_card_id=issued_id,
+            actor_account_id=account_id,
+            actor_username=username,
+            details={
+                "mode": client.mode,
+                # لا نكتب كلمة المرور في سجل التدقيق أبدًا — العرض داخل الصفحة فقط
+                "card_username": creds["username"],
+                "external_id": creds["external_id"],
+                "duration_minutes": int(category["duration_minutes"]),
+                "duration_label": category["label_ar"],
+            },
+        )
+        try:
+            from app.services.notification_service import notify_card_issued
+            notify_card_issued(beneficiary_id, issued_id, category.get("label_ar") or "", username)
+        except Exception:
+            pass
+        return DispatchResult(
+            ok=True,
+            message=f"تم توليد بطاقة {category['label_ar']} فورًا عبر RADIUS.",
+            card_username=creds["username"],
+            card_password=creds["password"],
+            issued_card_id=issued_id,
+            duration_minutes=int(category["duration_minutes"]),
+            duration_label=category["label_ar"],
+            quota=quota,
+        )
+
+    # ── مسار الانتظار/التدهور الآمن (كتابة معطّلة، وضع يدوي، أو فشل) ──
     _audit(
-        "card_request_queued" if client.mode == "manual" else "card_request_sent",
+        "card_request_queued" if (client.mode == "manual" or result.pending_action_id) else "card_request_sent",
         beneficiary_id=beneficiary_id,
         category_code=category_code,
         actor_account_id=account_id,
@@ -332,6 +371,53 @@ def request_card_via_radius(
         duration_label=category["label_ar"],
         quota=quota,
     )
+
+
+def _extract_generated_card(result) -> dict | None:
+    """يقرأ بيانات بطاقة مُولّدة من Result.data (بغض النظر عن نوع العميل).
+
+    يُرجع {'username','password','external_id'} فقط عند توفّر اسم مستخدم
+    وكلمة مرور صالحين، وإلا None (فلا نلفّق بطاقة).
+    """
+    data = getattr(result, "data", None) or {}
+    username = str(data.get("card_username") or data.get("username") or "").strip()
+    password = str(data.get("card_password") or data.get("password") or "").strip()
+    if not (username and password):
+        return None
+    return {
+        "username": username,
+        "password": password,
+        "external_id": str(data.get("external_id") or data.get("card_id") or "").strip(),
+    }
+
+
+def _persist_generated_card(
+    beneficiary_id: int,
+    category: dict,
+    card_username: str,
+    card_password: str,
+    issued_by: str,
+) -> int:
+    """يربط البطاقة المُولّدة بحساب المشترك في beneficiary_issued_cards ويُرجع رقمها."""
+    inserted = legacy.execute_sql(
+        """
+        INSERT INTO beneficiary_issued_cards (
+            beneficiary_id, duration_minutes, card_username, card_password,
+            issued_by, router_login_url_snapshot
+        ) VALUES (%s,%s,%s,%s,%s,%s)
+        RETURNING id
+        """,
+        [
+            beneficiary_id,
+            int(category["duration_minutes"]),
+            card_username,
+            card_password,
+            issued_by,
+            _router_url(),
+        ],
+        fetchone=True,
+    )
+    return int((inserted or {}).get("id") or 0)
 
 
 # ─── المسار 3: تنفيذ pending action يدويًا (الإدارة تكتب username/password) ───

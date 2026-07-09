@@ -111,7 +111,14 @@ def user_cards_dashboard():
 @app.route("/user/cards/request", methods=["POST"])
 @user_login_required
 def user_cards_request():
-    """طلب بطاقة جديدة."""
+    """طلب بطاقة — توليد فوري من العرض عبر RADIUS (المخزون المحلي كخيار احتياطي).
+
+    المسار الأساسي: يستدعي RADIUS لتوليد بطاقة فورية من العرض المطابق للفئة.
+      - كتابة RADIUS مُفعّلة وحيّة → بطاقة حقيقية تُسلّم فورًا وتظهر في الأسفل.
+      - كتابة RADIUS غير مفعّلة/وضع يدوي → لا نلفّق بطاقة؛ يُسجّل طلب بانتظار
+        التنفيذ (قيد التطوير) ويظهر للمشترك بوضوح.
+    الخيار الاحتياطي (legacy): إن تعذّر التوليد الفوري لسبب تقني نجرّب المخزون.
+    """
     from app.services.card_dispatcher import (
         issue_card_from_inventory,
         request_card_via_radius,
@@ -119,6 +126,7 @@ def user_cards_request():
 
     beneficiary_id = int(session.get("beneficiary_id") or 0)
     category_code = clean_csv_value(request.form.get("category_code"))
+    usage_reason = clean_csv_value(request.form.get("usage_reason")) or ""
 
     if not beneficiary_id:
         flash("يجب تسجيل الدخول.", "error")
@@ -127,34 +135,47 @@ def user_cards_request():
         flash("الرجاء اختيار فئة البطاقة.", "error")
         return redirect(url_for("user_cards_dashboard"))
 
-    # محاولة 1: إصدار فوري من المخزون (إن وُجد)
-    result = issue_card_from_inventory(
+    note = "توليد فوري من بوابة المشترك"
+    if usage_reason and usage_reason != "تلقائي":
+        note += f" — السبب: {usage_reason}"
+
+    # ── المسار الأساسي: توليد فوري من العرض عبر RADIUS ──────────────────
+    result = request_card_via_radius(
         beneficiary_id, category_code,
         actor_username=_portal_actor_username(),
+        notes=note,
     )
 
-    if result.ok:
+    # (أ) نجاح حي: بطاقة حقيقية وُلّدت وسُلّمت
+    if result.ok and result.issued_card_id:
         flash(
-            f"تم إصدار بطاقتك ({result.duration_label}) بنجاح! تجدها في الأسفل.",
+            f"تم توليد بطاقتك ({result.duration_label}) فورًا! تجدها في الأسفل جاهزة للدخول.",
             "success",
         )
         return redirect(url_for("user_cards_dashboard"))
 
-    # محاولة 2: لم يوجد مخزون — أنشئ طلب pending
-    if "لا توجد بطاقات متاحة" in (result.message or ""):
-        result2 = request_card_via_radius(
-            beneficiary_id, category_code,
-            actor_username=_portal_actor_username(),
-            notes="طلب من بوابة المشترك — المخزون فارغ",
+    # (ب) الكتابة غير مفعّلة / وضع يدوي → طلب مُسجّل بانتظار التنفيذ (قيد التطوير)
+    if result.ok and result.pending_action_id:
+        flash(
+            "تم تسجيل طلبك للتوليد الفوري وهو الآن بانتظار التنفيذ (الميزة قيد التطوير). "
+            "ستصلك البطاقة قريبًا وتظهر في «طلباتي المعلّقة».",
+            "info",
         )
-        if result2.ok:
-            flash("تم تسجيل طلبك. ستسلّمك الإدارة البطاقة قريبًا.", "info")
-            return redirect(url_for("user_cards_pending_list"))
-        flash(result2.message, "error")
+        return redirect(url_for("user_cards_pending_list"))
+
+    # (ج) فشل (أهلية/حصة أو خطأ تقني) → جرّب المخزون المحلي كخيار احتياطي legacy
+    fallback = issue_card_from_inventory(
+        beneficiary_id, category_code,
+        actor_username=_portal_actor_username(),
+    )
+    if fallback.ok:
+        flash(
+            f"تم إصدار بطاقتك ({fallback.duration_label}) من المخزون. تجدها في الأسفل.",
+            "success",
+        )
         return redirect(url_for("user_cards_dashboard"))
 
-    # محاولة 3: رفض من quota engine أو غيره
-    flash(result.message, "error")
+    flash(result.message or fallback.message, "error")
     return redirect(url_for("user_cards_dashboard"))
 
 
