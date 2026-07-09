@@ -74,3 +74,47 @@ def _setup_sqlite_radius_schema(cur):
     )
     """)
     cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS beneficiary_radius_accounts_beneficiary_idx ON beneficiary_radius_accounts (beneficiary_id)")
+
+    # Beneficiary <-> RADIUS match & sync engine.
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS radius_match_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        status TEXT NOT NULL DEFAULT 'running',
+        radius_mode TEXT DEFAULT '',
+        total INTEGER NOT NULL DEFAULT 0,
+        processed INTEGER NOT NULL DEFAULT 0,
+        matched_count INTEGER NOT NULL DEFAULT 0,
+        radius_only_count INTEGER NOT NULL DEFAULT 0,
+        admin_like_count INTEGER NOT NULL DEFAULT 0,
+        message TEXT DEFAULT '',
+        started_by_account_id INTEGER,
+        started_by_username TEXT DEFAULT '',
+        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        finished_at TIMESTAMP NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS radius_match_candidates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        run_id INTEGER NOT NULL REFERENCES radius_match_runs(id) ON DELETE CASCADE,
+        direction TEXT NOT NULL DEFAULT 'hobehub_to_radius',
+        beneficiary_id INTEGER NULL,
+        beneficiary_name TEXT DEFAULT '',
+        radius_username TEXT DEFAULT '',
+        radius_external_id TEXT DEFAULT '',
+        matched_phone TEXT DEFAULT '',
+        radius_is_active INTEGER NOT NULL DEFAULT 1,
+        classification TEXT NOT NULL DEFAULT 'subscriber',
+        is_admin_like INTEGER NOT NULL DEFAULT 0,
+        suggested_action TEXT DEFAULT 'review',
+        selected_default INTEGER NOT NULL DEFAULT 1,
+        applied INTEGER NOT NULL DEFAULT 0,
+        applied_at TIMESTAMP NULL,
+        apply_result TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS radius_match_candidates_run_idx ON radius_match_candidates (run_id)")

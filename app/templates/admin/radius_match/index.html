@@ -1,0 +1,288 @@
+{% extends "admin/_admin_layout.html" %}
+{% block title %}مطابقة RADIUS{% endblock %}
+{% block page_title %}مطابقة ومزامنة RADIUS{% endblock %}
+{% block crumbs %}<span>الإدارة</span><i class="fa-solid fa-chevron-left"></i><span>المستفيدون</span><i class="fa-solid fa-chevron-left"></i><span>مطابقة RADIUS</span>{% endblock %}
+
+{% block head_extra %}{{ super() }}
+<style>
+.rm-intro{margin-bottom:22px}
+.rm-note{padding:14px 18px;border-radius:14px;font-size:13.5px;font-weight:700;margin-bottom:18px;display:flex;gap:10px;align-items:flex-start}
+.rm-note i{margin-top:2px}
+.rm-note.warn{background:#fef0c7;color:#92400e;border:1px solid rgba(146,64,14,.2)}
+.rm-note.info{background:#eef6ff;color:#1e40af;border:1px solid rgba(30,64,175,.15)}
+.rm-note.ok{background:#e8f6ee;color:#166534;border:1px solid rgba(22,101,52,.15)}
+.rm-start-btn{display:inline-flex;align-items:center;gap:9px;padding:12px 24px;border-radius:12px;border:0;cursor:pointer;font-family:inherit;font-size:14.5px;font-weight:800;background:linear-gradient(135deg,#F4BA2A,#FFD96A);color:#1E1E1E;transition:.18s ease}
+.rm-start-btn:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(244,186,42,.32)}
+.rm-start-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
+.rm-progress-wrap{display:none;margin:22px 0;padding:20px 22px;border-radius:16px;background:#fff;border:1px solid var(--d-border)}
+.rm-progress-wrap.is-show{display:block}
+.rm-progress-line{font-size:13.5px;font-weight:800;color:var(--d-black);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.rm-progress-line i{color:var(--d-gold)}
+.rm-bar{height:14px;border-radius:999px;background:#F1EFE9;overflow:hidden}
+.rm-bar-fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#F4BA2A,#FFD96A);transition:width .3s ease}
+.rm-bar-sub{margin-top:8px;font-size:12px;color:var(--d-text-muted);font-weight:700}
+.rm-kpis{display:flex;gap:14px;flex-wrap:wrap;margin:18px 0}
+.rm-kpi{flex:1;min-width:150px;padding:16px 18px;border-radius:14px;background:#fff;border:1px solid var(--d-border)}
+.rm-kpi .lbl{font-size:11.5px;font-weight:700;color:var(--d-text-muted);display:block;margin-bottom:6px}
+.rm-kpi .val{font-size:24px;font-weight:900;color:var(--d-black)}
+.rm-kpi.admin .val{color:#b45309}
+.rm-section{margin-top:26px}
+.rm-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:800}
+.rm-badge.sub{background:#e8f6ee;color:#166534}
+.rm-badge.admin{background:#fde2e2;color:#b91c1c}
+.rm-badge.applied{background:#eef6ff;color:#1e40af}
+.rm-cb{width:17px;height:17px;cursor:pointer;accent-color:var(--d-gold)}
+.rm-confirm-bar{position:sticky;bottom:12px;margin-top:18px;padding:14px 20px;border-radius:14px;background:linear-gradient(135deg,#1E1E1E,#2a2724);color:#fff;display:flex;align-items:center;gap:14px;flex-wrap:wrap;box-shadow:0 10px 24px rgba(30,30,30,.25)}
+.rm-confirm-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:11px;border:0;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:800;background:var(--d-gold);color:#1E1E1E}
+.rm-confirm-btn:disabled{opacity:.5;cursor:not-allowed}
+.rm-empty{padding:20px;color:var(--d-text-muted);font-size:13px;text-align:center}
+</style>{% endblock %}
+
+{% block content %}
+<section class="d-hero rm-intro">
+  <div>
+    <h2>🔗 مطابقة ومزامنة RADIUS</h2>
+    <p>يفحص النظام مشتركي HobeHub مقابل مستخدمي RADIUS النشطين ويقترح الربط والاستيراد — دون تغيير أي شيء قبل تأكيدك.</p>
+  </div>
+  <div class="d-hero-actions">
+    <a class="d-pill-btn d-pill-btn--ghost" href="/admin/beneficiaries"><i class="fa-solid fa-arrow-right-long"></i>عودة للمستفيدين</a>
+  </div>
+</section>
+
+{% if not radius_available %}
+<div class="rm-note warn">
+  <i class="fa-solid fa-triangle-exclamation"></i>
+  <div><strong>قيد التطوير:</strong> خدمة RADIUS غير مفعّلة للقراءة الحيّة بعد. يمكن بدء جولة لكنها ستُسجَّل كـ«بحاجة لتفعيل الخدمة» بدون فحص فعلي. فعّل <code>RADIUS_MODE=live</code> و<code>RADIUS_API_READY=1</code> لتشغيلها فعليًا.</div>
+</div>
+{% endif %}
+
+{% set is_done = run and run.status == 'done' %}
+{% set is_running = run and run.status == 'running' %}
+
+<!-- ── Start / progress panel ── -->
+<section class="d-card" id="rm-launch" {% if is_done %}style="display:none"{% endif %}>
+  <div class="d-card-body">
+    <div class="rm-note info" style="margin-bottom:16px">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>الفحص للقراءة فقط: يسجّل المرشحين في تقرير قابل للمراجعة. لا يتم أي ربط أو استيراد أو تفعيل بوابة إلا بعد اختيارك وتأكيدك.</div>
+    </div>
+    <button type="button" class="rm-start-btn" id="rm-start" data-run-id="{{ run.id if is_running else '' }}">
+      <i class="fa-solid fa-magnifying-glass-arrow-right"></i> بدء جولة مطابقة جديدة
+    </button>
+
+    <div class="rm-progress-wrap {% if is_running %}is-show{% endif %}" id="rm-progress">
+      <div class="rm-progress-line"><i class="fa-solid fa-spinner fa-spin"></i> <span id="rm-progress-text">جارٍ التحضير…</span></div>
+      <div class="rm-bar"><div class="rm-bar-fill" id="rm-bar-fill"></div></div>
+      <div class="rm-bar-sub" id="rm-bar-sub"></div>
+    </div>
+  </div>
+</section>
+
+{% if is_done %}
+<!-- ── Results / review report ── -->
+<div class="rm-note ok"><i class="fa-solid fa-circle-check"></i><div>{{ run.message }}</div></div>
+
+<div class="rm-kpis">
+  <div class="rm-kpi"><span class="lbl">مشتركون مطابقون</span><span class="val">{{ run.matched_count }}</span></div>
+  <div class="rm-kpi"><span class="lbl">مستخدمو RADIUS للاستيراد</span><span class="val">{{ run.radius_only_count }}</span></div>
+  <div class="rm-kpi admin"><span class="lbl">حسابات إدارية (مُستبعَدة افتراضيًا)</span><span class="val">{{ run.admin_like_count }}</span></div>
+</div>
+
+<form id="rm-confirm-form" data-run-id="{{ run.id }}">
+  {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
+
+  <!-- (a) matched beneficiaries → اشتراك + portal -->
+  <section class="d-card rm-section">
+    <div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-link"></i> مشتركون حاليون سيُصبحون «اشتراك» + بوابة</h3><span style="font-size:11.5px;color:var(--d-text-muted)">{{ forward_candidates|length }} صف</span></div>
+    <div class="d-card-body--flush d-table-wrap">
+      <table class="d-table" data-paginated="1" data-page-size="20" data-page-sizes="10,20,50,100" data-persist-key="radius-match-forward">
+        <thead><tr>
+          <th style="width:30px"><input type="checkbox" class="rm-cb" data-head="fwd" title="تحديد الكل"></th>
+          <th>المستفيد</th><th>الجوال</th><th>مستخدم RADIUS</th><th>المعرّف</th><th>التصنيف</th><th>الحالة</th>
+        </tr></thead>
+        <tbody>
+          {% for c in forward_candidates %}
+          <tr>
+            <td>
+              {% if c.applied %}<span class="rm-badge applied">مطبَّق</span>
+              {% else %}<input type="checkbox" class="rm-cb rm-row-cb fwd-cb" name="candidate_ids" value="{{ c.id }}" {% if c.selected_default %}checked{% endif %}>{% endif %}
+            </td>
+            <td>{{ c.beneficiary_name or '—' }}</td>
+            <td dir="ltr" style="font-family:monospace">{{ c.matched_phone or '—' }}</td>
+            <td dir="ltr" style="font-family:monospace">{{ c.radius_username or '—' }}</td>
+            <td dir="ltr" style="font-family:monospace">{{ c.radius_external_id or '—' }}</td>
+            <td>{% if c.is_admin_like %}<span class="rm-badge admin"><i class="fa-solid fa-user-shield"></i> إداري</span>{% else %}<span class="rm-badge sub">مشترك</span>{% endif %}</td>
+            <td>{% if c.applied %}<span class="rm-badge applied">تم</span>{% else %}<span style="font-size:12px;color:var(--d-text-muted)">بانتظار التأكيد</span>{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr class="no-paginate"><td colspan="7" class="rm-empty">لا مطابقات لمشتركين حاليين.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- (b) radius-only → import as new subscription -->
+  <section class="d-card rm-section">
+    <div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-file-import"></i> مستخدمو RADIUS بلا مستفيد — استيراد كمشترك جديد</h3><span style="font-size:11.5px;color:var(--d-text-muted)">{{ radius_only_candidates|length }} صف</span></div>
+    <div class="d-card-body--flush d-table-wrap">
+      <table class="d-table" data-paginated="1" data-page-size="20" data-page-sizes="10,20,50,100" data-persist-key="radius-match-only">
+        <thead><tr>
+          <th style="width:30px"><input type="checkbox" class="rm-cb" data-head="only" title="تحديد الكل"></th>
+          <th>مستخدم RADIUS</th><th>الجوال</th><th>المعرّف</th><th>التصنيف</th><th>الإجراء المقترح</th>
+        </tr></thead>
+        <tbody>
+          {% for c in radius_only_candidates %}
+          <tr>
+            <td>
+              {% if c.applied %}<span class="rm-badge applied">مطبَّق</span>
+              {% else %}<input type="checkbox" class="rm-cb rm-row-cb only-cb" name="candidate_ids" value="{{ c.id }}" {% if c.selected_default %}checked{% endif %}>{% endif %}
+            </td>
+            <td dir="ltr" style="font-family:monospace">{{ c.radius_username or '—' }}</td>
+            <td dir="ltr" style="font-family:monospace">{{ c.matched_phone or '—' }}</td>
+            <td dir="ltr" style="font-family:monospace">{{ c.radius_external_id or '—' }}</td>
+            <td>{% if c.is_admin_like %}<span class="rm-badge admin"><i class="fa-solid fa-user-shield"></i> إداري — تحقّق</span>{% else %}<span class="rm-badge sub">مشترك</span>{% endif %}</td>
+            <td style="font-size:12px;color:var(--d-text-muted)">{% if c.is_admin_like %}مراجعة يدوية{% else %}استيراد + بوابة{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr class="no-paginate"><td colspan="6" class="rm-empty">لا مستخدمين في RADIUS بحاجة للاستيراد.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="rm-confirm-bar">
+    <i class="fa-solid fa-circle-check" style="color:var(--d-gold)"></i>
+    <span style="font-weight:700;font-size:13.5px">سيُطبَّق على الصفوف المحدّدة فقط — <span id="rm-sel-count">0</span> محدد</span>
+    <span style="flex:1"></span>
+    <a class="rm-confirm-btn" style="background:rgba(255,255,255,.12);color:#fff" href="/admin/radius/match/start" id="rm-restart"><i class="fa-solid fa-rotate"></i> جولة جديدة</a>
+    <button type="submit" class="rm-confirm-btn" id="rm-confirm"><i class="fa-solid fa-wand-magic-sparkles"></i> تطبيق المحدد</button>
+  </div>
+</form>
+{% endif %}
+
+<script>
+(function(){
+  function csrfToken(){
+    var el = document.querySelector('input[name="_csrf_token"]') || document.querySelector('input[name="csrf_token"]');
+    if(el && el.value) return el.value;
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return (meta && meta.content) || window.HOBEHUB_CSRF_TOKEN || '';
+  }
+  function showToast(text, type){
+    var t = document.createElement('div');
+    t.style.cssText = 'position:fixed;top:18px;left:50%;transform:translateX(-50%);padding:12px 22px;border-radius:12px;font-weight:800;font-size:13.5px;z-index:10000;box-shadow:0 8px 24px rgba(0,0,0,.18);'+(type==='error'?'background:#b91c1c;color:#fff':'background:#1f8f51;color:#fff');
+    t.textContent = text; document.body.appendChild(t);
+    setTimeout(function(){ t.style.opacity='0'; t.style.transition='opacity .35s'; }, 2400);
+    setTimeout(function(){ try{ document.body.removeChild(t); }catch(e){} }, 2900);
+  }
+
+  // ── Progress polling ──
+  var startBtn = document.getElementById('rm-start');
+  var progWrap = document.getElementById('rm-progress');
+  var progText = document.getElementById('rm-progress-text');
+  var barFill  = document.getElementById('rm-bar-fill');
+  var barSub   = document.getElementById('rm-bar-sub');
+
+  function renderProgress(p){
+    if(!progWrap) return;
+    progWrap.classList.add('is-show');
+    barFill.style.width = (p.percent || 0) + '%';
+    if(p.status === 'needs_live'){
+      progText.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#b45309"></i> ' + (p.message || 'قيد التطوير — خدمة RADIUS غير مفعّلة.');
+      barSub.textContent = '';
+      return;
+    }
+    progText.textContent = 'تم فحص ' + (p.processed||0) + ' من ' + (p.total||0);
+    barSub.textContent = 'مطابقات: ' + (p.matched_count||0) + ' • استيراد محتمل: ' + (p.radius_only_count||0);
+  }
+
+  function stepLoop(runId){
+    fetch('/admin/radius/match/'+runId+'/step', {
+      method:'POST', credentials:'same-origin',
+      headers:{'X-CSRFToken':csrfToken(),'X-Requested-With':'XMLHttpRequest'}
+    }).then(function(r){ return r.json(); }).then(function(p){
+      if(!p || !p.ok){ showToast((p&&p.message)||'تعذّر الفحص','error'); if(startBtn) startBtn.disabled=false; return; }
+      renderProgress(p);
+      if(p.done){
+        if(p.status === 'needs_live'){ if(startBtn) startBtn.disabled=false; return; }
+        setTimeout(function(){ window.location = '/admin/radius/match?run=' + runId; }, 600);
+      } else {
+        stepLoop(runId);
+      }
+    }).catch(function(){ showToast('فشل الاتصال أثناء الفحص','error'); if(startBtn) startBtn.disabled=false; });
+  }
+
+  if(startBtn){
+    startBtn.addEventListener('click', function(){
+      startBtn.disabled = true;
+      progWrap.classList.add('is-show');
+      progText.textContent = 'جارٍ إنشاء الجولة…';
+      barFill.style.width = '0%';
+      fetch('/admin/radius/match/start', {
+        method:'POST', credentials:'same-origin',
+        headers:{'X-CSRFToken':csrfToken(),'X-Requested-With':'XMLHttpRequest'}
+      }).then(function(r){ return r.json(); }).then(function(p){
+        if(!p || !p.ok){ showToast('تعذّر بدء الجولة','error'); startBtn.disabled=false; return; }
+        renderProgress(p);
+        if(p.done){
+          if(p.status === 'needs_live'){ startBtn.disabled=false; return; }
+          setTimeout(function(){ window.location = '/admin/radius/match?run=' + p.run_id; }, 600);
+        } else {
+          stepLoop(p.run_id);
+        }
+      }).catch(function(){ showToast('فشل الاتصال','error'); startBtn.disabled=false; });
+    });
+    // resume an in-flight run rendered as running
+    var resumeId = startBtn.getAttribute('data-run-id');
+    if(resumeId){ startBtn.disabled = true; stepLoop(resumeId); }
+  }
+
+  // ── Selection count + head checkboxes ──
+  function updateSelCount(){
+    var el = document.getElementById('rm-sel-count');
+    if(el) el.textContent = document.querySelectorAll('.rm-row-cb:checked').length;
+  }
+  document.querySelectorAll('.rm-cb[data-head]').forEach(function(head){
+    head.addEventListener('change', function(){
+      var cls = head.getAttribute('data-head') === 'fwd' ? '.fwd-cb' : '.only-cb';
+      document.querySelectorAll(cls).forEach(function(cb){
+        if(cb.closest('tr').offsetParent !== null) cb.checked = head.checked;
+      });
+      updateSelCount();
+    });
+  });
+  document.addEventListener('change', function(e){
+    if(e.target && e.target.classList && e.target.classList.contains('rm-row-cb')) updateSelCount();
+  });
+  updateSelCount();
+
+  // ── Confirm apply ──
+  var form = document.getElementById('rm-confirm-form');
+  if(form){
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      var checked = form.querySelectorAll('.rm-row-cb:checked');
+      if(!checked.length){ showToast('اختر صفوفًا أولًا','error'); return; }
+      var hasAdmin = false;
+      checked.forEach(function(cb){ if(cb.closest('tr').querySelector('.rm-badge.admin')) hasAdmin = true; });
+      var msg = 'سيتم تطبيق '+checked.length+' صف (ربط/استيراد + تفعيل بوابة). متابعة؟';
+      if(hasAdmin) msg = '⚠️ اخترت حسابًا إداريًا/مديرًا. ' + msg;
+      if(!confirm(msg)) return;
+      var btn = document.getElementById('rm-confirm'); if(btn) btn.disabled = true;
+      var runId = form.getAttribute('data-run-id');
+      var fd = new FormData(form);
+      if(csrfToken()) fd.set('_csrf_token', csrfToken());
+      fetch('/admin/radius/match/'+runId+'/confirm', {
+        method:'POST', credentials:'same-origin', body:fd,
+        headers:{'X-CSRFToken':csrfToken(),'X-Requested-With':'XMLHttpRequest'}
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if(d && d.ok){ showToast(d.message || 'تم التطبيق','success'); setTimeout(function(){ window.location = '/admin/radius/match?run='+runId; }, 900); }
+        else { showToast((d&&d.message)||'فشل التطبيق','error'); if(btn) btn.disabled=false; }
+      }).catch(function(){ showToast('فشل الاتصال','error'); if(btn) btn.disabled=false; });
+    });
+  }
+})();
+</script>
+{% endblock %}

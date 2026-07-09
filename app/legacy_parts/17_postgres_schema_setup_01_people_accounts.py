@@ -46,6 +46,9 @@ def _setup_postgres_people_accounts_schema(cur):
     cur.execute("ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS freelancer_field TEXT")
     cur.execute("ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS company_proof TEXT")
     cur.execute("ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS company_name TEXT")
+    # RADIUS match engine - linked external radius account on the beneficiary.
+    cur.execute("ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS linked_radius_username TEXT")
+    cur.execute("ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS linked_radius_external_id TEXT")
     cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS beneficiaries_phone_unique_idx ON beneficiaries (phone) WHERE phone IS NOT NULL AND btrim(phone) <> ''")
 
     cur.execute("""

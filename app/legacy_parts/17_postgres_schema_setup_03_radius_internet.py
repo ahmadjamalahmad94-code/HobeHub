@@ -164,3 +164,47 @@ def _setup_postgres_radius_internet_schema(cur):
     cur.execute("ALTER TABLE beneficiary_portal_accounts ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP NULL")
     cur.execute("ALTER TABLE beneficiary_portal_accounts ADD COLUMN IF NOT EXISTS portal_membership_active BOOLEAN DEFAULT FALSE")
     cur.execute("ALTER TABLE beneficiary_portal_accounts ADD COLUMN IF NOT EXISTS portal_access_state TEXT DEFAULT 'active'")
+
+    # Beneficiary <-> RADIUS match & sync engine.
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS radius_match_runs (
+        id SERIAL PRIMARY KEY,
+        status TEXT NOT NULL DEFAULT 'running',
+        radius_mode TEXT DEFAULT '',
+        total INTEGER NOT NULL DEFAULT 0,
+        processed INTEGER NOT NULL DEFAULT 0,
+        matched_count INTEGER NOT NULL DEFAULT 0,
+        radius_only_count INTEGER NOT NULL DEFAULT 0,
+        admin_like_count INTEGER NOT NULL DEFAULT 0,
+        message TEXT DEFAULT '',
+        started_by_account_id INTEGER,
+        started_by_username TEXT DEFAULT '',
+        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        finished_at TIMESTAMP NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS radius_match_candidates (
+        id SERIAL PRIMARY KEY,
+        run_id INTEGER NOT NULL REFERENCES radius_match_runs(id) ON DELETE CASCADE,
+        direction TEXT NOT NULL DEFAULT 'hobehub_to_radius',
+        beneficiary_id INTEGER NULL,
+        beneficiary_name TEXT DEFAULT '',
+        radius_username TEXT DEFAULT '',
+        radius_external_id TEXT DEFAULT '',
+        matched_phone TEXT DEFAULT '',
+        radius_is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        classification TEXT NOT NULL DEFAULT 'subscriber',
+        is_admin_like BOOLEAN NOT NULL DEFAULT FALSE,
+        suggested_action TEXT DEFAULT 'review',
+        selected_default BOOLEAN NOT NULL DEFAULT TRUE,
+        applied BOOLEAN NOT NULL DEFAULT FALSE,
+        applied_at TIMESTAMP NULL,
+        apply_result TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS radius_match_candidates_run_idx ON radius_match_candidates (run_id)")

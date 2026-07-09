@@ -149,6 +149,7 @@
 <section class="d-hero">
   <div><h2>👥 إدارة المستفيدين</h2><p>كل المستفيدين في مكان واحد. اختر صفوفًا لعمليات جماعية، أو تعامل مع كل صف منفصلاً.</p></div>
   <div class="d-hero-actions">
+    {% if has_permission('manage_user_accounts') %}<a class="d-pill-btn" href="/admin/radius/match" title="مطابقة المستفيدين مع مستخدمي RADIUS"><i class="fa-solid fa-link"></i>مطابقة RADIUS</a>{% endif %}
     {% if has_permission('import') %}<a class="d-pill-btn d-pill-btn--ghost" href="/admin/import"><i class="fa-solid fa-file-arrow-up"></i>استيراد CSV</a>{% endif %}
   </div>
 </section>

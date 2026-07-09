@@ -42,6 +42,9 @@ def _setup_sqlite_people_usage_schema(cur):
     _sqlite_add_column_if_missing(cur, "beneficiaries", "freelancer_field TEXT")
     _sqlite_add_column_if_missing(cur, "beneficiaries", "company_proof TEXT")
     _sqlite_add_column_if_missing(cur, "beneficiaries", "company_name TEXT")
+    # RADIUS match engine - linked external radius account on the beneficiary.
+    _sqlite_add_column_if_missing(cur, "beneficiaries", "linked_radius_username TEXT")
+    _sqlite_add_column_if_missing(cur, "beneficiaries", "linked_radius_external_id TEXT")
     cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS beneficiaries_phone_unique_idx ON beneficiaries (phone)")
 
     cur.execute("""
