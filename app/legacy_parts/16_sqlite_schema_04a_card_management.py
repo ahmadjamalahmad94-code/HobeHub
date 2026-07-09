@@ -158,6 +158,23 @@ def _setup_sqlite_card_management_schema(cur):
     cur.execute("CREATE INDEX IF NOT EXISTS notifications_recipient_idx ON notifications (recipient_type, recipient_id, read_at, created_at)")
     cur.execute("CREATE INDEX IF NOT EXISTS notifications_source_idx ON notifications (source_type, source_id)")
 
+    # ── 7) ربط عروض HobeHub (الفئات) بعروض/باقات RADIUS الحقيقية ──────────
+    #   كل فئة HobeHub تُربط بعرض واحد على RADIUS (radius_external_id) كي تُولَّد
+    #   البطاقات داخل العرض المربوط بدل تخمين الفئة. additive + idempotent.
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS card_offer_radius_links (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category_code TEXT NOT NULL UNIQUE,
+        radius_external_id TEXT NOT NULL DEFAULT '',
+        radius_offer_name TEXT DEFAULT '',
+        radius_duration_label TEXT DEFAULT '',
+        updated_by_username TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS corl_category_idx ON card_offer_radius_links (category_code)")
+
     # ── 6) seed فئات البطاقات الافتراضية (إن لم تكن موجودة) ───────────────
     _seed_default_card_categories(cur)
     _enforce_card_category_contract(cur)

@@ -33,6 +33,7 @@
   <a class="{% if p in ['/admin/cards', '/admin/cards/overview'] %}is-active{% endif %}" href="/admin/cards"><i class="fa-solid fa-chart-pie"></i>نظرة عامة</a>
   <a class="{% if p == '/admin/cards/inventory' %}is-active{% endif %}" href="{{ url_for('admin_cards_inventory_page') }}"><i class="fa-solid fa-boxes-stacked"></i>المخزون والصادرة</a>
   <a class="{% if p.startswith('/admin/cards/categories') %}is-active{% endif %}" href="{{ url_for('admin_cards_categories') }}"><i class="fa-solid fa-layer-group"></i>الفئات</a>
+  <a class="{% if p.startswith('/admin/cards/radius-links') %}is-active{% endif %}" href="/admin/cards/radius-links"><i class="fa-solid fa-diagram-project"></i>ربط العروض</a>
   <a class="{% if p == '/admin/cards/policies' %}is-active{% endif %}" href="{{ url_for('admin_cards_policies') }}"><i class="fa-solid fa-sliders"></i>السياسات</a>
   <a class="{% if p == '/admin/cards/user-type-rules' %}is-active{% endif %}" href="/admin/cards/user-type-rules"><i class="fa-solid fa-user-tag"></i>قواعد الأنواع</a>
   <a class="{% if p == '/admin/quota-groups' %}is-active{% endif %}" href="/admin/quota-groups"><i class="fa-solid fa-people-group"></i>المجموعات</a>

@@ -57,6 +57,10 @@
      href="{{ url_for('admin_cards_categories') }}" data-label="الفئات">
     <i class="fa-solid fa-layer-group"></i><span>الفئات</span>
   </a>
+  <a class="d-nav-item {% if p.startswith('/admin/cards/radius-links') %}is-active{% endif %}"
+     href="/admin/cards/radius-links" data-label="ربط العروض">
+    <i class="fa-solid fa-diagram-project"></i><span>ربط العروض</span>
+  </a>
   <a class="d-nav-item {% if p == '/admin/cards/policies' %}is-active{% endif %}"
      href="{{ url_for('admin_cards_policies') }}" data-label="السياسات">
     <i class="fa-solid fa-sliders"></i><span>السياسات</span>

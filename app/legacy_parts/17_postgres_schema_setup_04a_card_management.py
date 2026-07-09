@@ -143,6 +143,21 @@ def _setup_postgres_card_management_schema(cur):
     cur.execute("CREATE INDEX IF NOT EXISTS notifications_recipient_idx ON notifications (recipient_type, recipient_id, read_at, created_at)")
     cur.execute("CREATE INDEX IF NOT EXISTS notifications_source_idx ON notifications (source_type, source_id)")
 
+    # ربط عروض HobeHub (الفئات) بعروض/باقات RADIUS الحقيقية — additive + idempotent.
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS card_offer_radius_links (
+        id SERIAL PRIMARY KEY,
+        category_code TEXT NOT NULL UNIQUE,
+        radius_external_id TEXT NOT NULL DEFAULT '',
+        radius_offer_name TEXT DEFAULT '',
+        radius_duration_label TEXT DEFAULT '',
+        updated_by_username TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS corl_category_idx ON card_offer_radius_links (category_code)")
+
     _seed_postgres_card_categories(cur)
     _enforce_postgres_card_category_contract(cur)
 

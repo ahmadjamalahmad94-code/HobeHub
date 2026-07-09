@@ -118,6 +118,96 @@ def _extract_first_card(body: dict) -> dict | None:
     return None
 
 
+def _as_bool(value) -> bool:
+    token = str(value).strip().lower()
+    return token in ("1", "true", "yes", "on", "active", "enabled", "t")
+
+
+def _offer_pick(raw: dict, *keys: str) -> str:
+    for k in keys:
+        v = raw.get(k)
+        if v not in (None, ""):
+            return str(v).strip()
+    return ""
+
+
+def _offer_duration_label(raw: dict) -> str:
+    label = _offer_pick(raw, "duration_label", "duration_text", "validity_label", "validity")
+    if label:
+        return label
+    mins = _int_or_zero(raw.get("duration_minutes") or raw.get("minutes") or raw.get("duration"))
+    if mins:
+        return f"{mins} دقيقة"
+    return ""
+
+
+def _offer_speed(raw: dict) -> str:
+    speed = _offer_pick(
+        raw, "speed", "rate_limit", "mikrotik_rate_limit", "Mikrotik-Rate-Limit",
+        "bandwidth", "rate", "speed_label",
+    )
+    if speed:
+        return speed
+    up = _offer_pick(raw, "speed_up", "up", "upload")
+    down = _offer_pick(raw, "speed_down", "down", "download")
+    if up or down:
+        return f"{down or '?'}/{up or '?'}"
+    return ""
+
+
+def _offer_active(raw: dict) -> bool:
+    for k in ("active", "is_active", "enabled"):
+        if k in raw and raw.get(k) is not None:
+            return _as_bool(raw.get(k))
+    status = str(raw.get("status") or "").strip().lower()
+    if status in ("disabled", "inactive", "0", "false", "off", "expired"):
+        return False
+    return True  # افتراضيًا مرئي ما لم يُصرَّح بخلافه
+
+
+def _normalize_offer(raw: dict) -> dict | None:
+    """يوحّد عرض/باقة RADIUS إلى شكل نظيف. يُرجع None إن غاب external_id."""
+    if not isinstance(raw, dict):
+        return None
+    external_id = _offer_pick(
+        raw, "external_id", "offer_id", "profile_id", "batch_id",
+        "id", "card_id", "uid", "pid",
+    )
+    if not external_id:
+        return None
+    name = _offer_pick(
+        raw, "name", "offer_name", "title", "profile_name", "label",
+        "batch_name", "description",
+    ) or external_id
+    return {
+        "external_id": external_id,
+        "name": name,
+        "duration_label": _offer_duration_label(raw),
+        "speed": _offer_speed(raw),
+        "price": _offer_pick(raw, "price", "cost", "amount", "sell_price", "wholesale_price", "wholesale"),
+        "active": _offer_active(raw),
+    }
+
+
+def _extract_offers(body: dict) -> list[dict]:
+    """يستخرج قائمة العروض من رد RADIUS مهما كان مفتاح القائمة."""
+    candidates: list = []
+    for key in ("offers", "batches", "card_batches", "profiles", "data", "results", "__list__"):
+        val = body.get(key)
+        if isinstance(val, list):
+            candidates = val
+            break
+        if isinstance(val, dict):
+            candidates = list(val.values())
+            break
+    offers: list[dict] = []
+    for raw in candidates:
+        offer = _normalize_offer(raw)
+        if offer:
+            offers.append(offer)
+    return offers
+
+
 _REQUEST_TIMEOUT = 15
 
 
@@ -296,7 +386,7 @@ class LiveRadiusClient(RadiusClient):
     # ═══════════════════════════════════════════════════════════════════
     # 🚧 Write operations (معطّلة)
     # ═══════════════════════════════════════════════════════════════════
-    def generate_user_cards(self, category_code, count=1, *, beneficiary_id=None, requested_by="", notes=""):
+    def generate_user_cards(self, category_code, count=1, *, radius_offer_external_id="", beneficiary_id=None, requested_by="", notes=""):
         """يولّد بطاقة/بطاقات فوريًا من عرض RADIUS ويُرجع بياناتها.
 
         محميّة بـ RADIUS_API_WRITES_ENABLED (تبقى «قيد التطوير» حتى تُفعَّل الكتابة
@@ -308,17 +398,23 @@ class LiveRadiusClient(RadiusClient):
         _guard_write()
         self._login()
         endpoint = (os.getenv("RADIUS_API_CARDS_ENDPOINT", "") or "generate_user_cards").strip().lstrip("/")
-        body = self._http_post(
-            endpoint,
-            {
-                "category_code": category_code,
-                "category": category_code,
-                "count": int(count or 1),
-                "beneficiary_id": "" if beneficiary_id is None else beneficiary_id,
-                "requested_by": requested_by or "",
-                "notes": notes or "",
-            },
-        )
+        offer_id = str(radius_offer_external_id or "").strip()
+        params = {
+            "category_code": category_code,
+            "category": category_code,
+            "count": int(count or 1),
+            "beneficiary_id": "" if beneficiary_id is None else beneficiary_id,
+            "requested_by": requested_by or "",
+            "notes": notes or "",
+        }
+        # العرض المربوط: نمرّره تحت عدة مفاتيح شائعة كي تُولَّد البطاقة *داخل*
+        # العرض المحدّد على RADIUS بغض النظر عن اسم الحقل المتوقَّع في الـ API.
+        if offer_id:
+            params["offer_id"] = offer_id
+            params["profile_id"] = offer_id
+            params["external_id"] = offer_id
+            params["id"] = offer_id
+        body = self._http_post(endpoint, params)
         if body.get("error"):
             return Result.failure(
                 body.get("message")
@@ -437,6 +533,27 @@ class LiveRadiusClient(RadiusClient):
                 return []
             data = body.get("data") or body.get("profiles") or body.get("__list__") or []
             return data if isinstance(data, list) else []
+        except (RadiusClientError, RadiusClientNotImplemented):
+            return []
+
+    def list_offers(self) -> list:
+        """قائمة عروض/باقات RADIUS القابلة للربط (marketplace offers). ✅ مُفعَّل (قراءة).
+
+        يستدعي نقطة النهاية التي تسرد الباقات/العروض المتاحة لحساب الخدمة. لا يوجد
+        في سطح app_ad2 الموثّق نقطة «سرد عروض بطاقات» مستقلة؛ الأقرب المؤكَّد هو
+        ``get_profiles_for_user`` (نفسها التي يستخدمها get_profiles) والتي تُرجع
+        الباقات/العروض التي يولّد المسؤول البطاقات ضمنها. الاسم قابل للتبديل عبر
+        ``RADIUS_API_OFFERS_ENDPOINT`` دون إعادة نشر إن كشف الـ marketplace نقطة
+        عروض مخصّصة — بلا أي تعديل على RADIUS.
+        """
+        try:
+            _guard_read()
+            self._login()
+            endpoint = (os.getenv("RADIUS_API_OFFERS_ENDPOINT", "") or "get_profiles_for_user").strip().lstrip("/")
+            body = self._http_post(endpoint, {})
+            if body.get("error"):
+                return []
+            return _extract_offers(body)
         except (RadiusClientError, RadiusClientNotImplemented):
             return []
 

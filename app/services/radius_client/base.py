@@ -30,7 +30,16 @@ class RadiusClient(ABC):
 
     # ── Cards ─────────────────────────────────────────────
     @abstractmethod
-    def generate_user_cards(self, category_code: str, count: int = 1, *, beneficiary_id: int | None = None, requested_by: str = "", notes: str = "") -> Result: ...
+    def generate_user_cards(self, category_code: str, count: int = 1, *, radius_offer_external_id: str = "", beneficiary_id: int | None = None, requested_by: str = "", notes: str = "") -> Result: ...
+
+    def list_offers(self) -> list[dict]:
+        """يسرد عروض/باقات RADIUS القابلة للربط (marketplace offers).
+
+        كل عنصر: {external_id, name, duration_label, speed, price, active}.
+        الافتراضي (الوضع اليدوي/غير الحي) يُرجع قائمة فارغة — تتجاوزه النسختان
+        Manual (stub) و Live (حي). قابلة للتجاوز كي لا تُكسر أي subclass قائمة.
+        """
+        return []
 
     @abstractmethod
     def validate_card(self, username: str, password: str) -> Result: ...

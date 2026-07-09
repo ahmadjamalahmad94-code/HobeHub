@@ -1,0 +1,201 @@
+{% extends "admin/cards/_cards_layout.html" %}
+{% block title %}ربط العروض بالريدياس{% endblock %}
+{% block page_title %}ربط العروض بالريدياس{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+.rl-select{width:100%;max-width:340px;padding:9px 12px;border-radius:10px;border:1.5px solid var(--d-border-strong);font-size:13px;font-family:inherit;background:#FAFAF8;transition:.18s ease}
+.rl-select:focus{outline:0;border-color:var(--d-gold);background:#fff;box-shadow:0 0 0 3px rgba(244,186,42,.20)}
+.rl-select:disabled{opacity:.6;cursor:not-allowed}
+.rl-save{padding:8px 16px;border-radius:10px;border:0;font-family:inherit;font-weight:800;font-size:12.5px;cursor:pointer;background:linear-gradient(135deg,#F4BA2A 0%,#FFD96A 100%);color:#1E1E1E;display:inline-flex;align-items:center;gap:6px}
+.rl-save:disabled{opacity:.5;cursor:not-allowed}
+.rl-current{font-size:11.5px;font-weight:700}
+.rl-current.linked{color:#1f8f51}
+.rl-current.unlinked{color:var(--d-gold)}
+.rl-cat{font-weight:800;color:var(--d-black)}
+.rl-cat small{display:block;color:var(--d-text-muted);font-weight:600;font-family:monospace;font-size:10.5px}
+</style>
+{% endblock %}
+
+{% block cards_content %}
+
+<div class="d-notice d-notice--info">
+  <i class="fa-solid fa-link"></i>
+  <div>
+    <strong>اربط كل فئة بطاقات في HobeHub بعرض حقيقي على الريدياس.</strong>
+    عند طلب بطاقة تحت أي فئة، تُولَّد البطاقة <b>داخل العرض المربوط</b> على الريدياس
+    (وليس تخمين فئة أو إنشاء عرض جديد). القائمة المنسدلة تُملأ حيًّا من عروض الريدياس.
+  </div>
+</div>
+
+{% if under_dev %}
+<section class="d-card" style="background:linear-gradient(135deg,var(--d-gold-faint),#fff);border-color:var(--d-gold-soft)">
+  <div class="d-card-body" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap">
+    <div>
+      <strong style="display:block;color:var(--d-text);font-size:14px">🚧 قيد التطوير — الاتصال الحي بالريدياس غير مفعّل</strong>
+      <small style="color:var(--d-text-soft)">
+        الروابط المحفوظة تظهر وتُحفظ كالمعتاد، لكن القائمة المنسدلة تعرض عيّنة تجريبية.
+        فعّل الوضع المباشر وجاهزية الربط من إعدادات الريدياس لتظهر العروض الحقيقية.
+      </small>
+    </div>
+    <button type="button" class="d-pill-btn d-pill-btn--gold" id="rl-refresh"><i class="fa-solid fa-rotate"></i>تحديث القائمة</button>
+  </div>
+</section>
+{% endif %}
+
+{% if offers_error and not under_dev %}
+<div class="d-notice d-notice--warn">
+  <i class="fa-solid fa-triangle-exclamation"></i>
+  <div><strong>تعذّر جلب عروض الريدياس:</strong> {{ offers_error }} — الروابط المحفوظة تظهر أدناه.</div>
+</div>
+{% endif %}
+
+<section class="d-card">
+  <div class="d-card-head">
+    <h3 class="d-card-title"><i class="fa-solid fa-diagram-project"></i>ربط الفئات بالعروض</h3>
+    {% if not under_dev %}
+    <button type="button" class="d-pill-btn" id="rl-refresh"><i class="fa-solid fa-rotate"></i>تحديث القائمة</button>
+    {% endif %}
+  </div>
+  <div class="d-card-body--flush d-table-wrap">
+    <table class="d-table" data-paginated="1" data-page-size="20" data-page-sizes="10,20,50,100" data-persist-key="card-offer-radius-links">
+      <thead>
+        <tr><th>فئة HobeHub</th><th>المدة</th><th>الربط الحالي</th><th>عرض الريدياس</th><th>حفظ</th></tr>
+      </thead>
+      <tbody>
+        {% for c in categories %}
+        {% set link = links.get(c.code) %}
+        {% set cur_id = (link.radius_external_id if link else '') or '' %}
+        <tr data-cat-row="{{ c.code }}">
+          <td><span class="rl-cat">{{ c.label_ar }}<small>{{ c.code }}</small></span></td>
+          <td>{{ c.duration_minutes }} دق</td>
+          <td>
+            <span class="rl-current {{ 'linked' if cur_id else 'unlinked' }}" data-current>
+              {% if cur_id %}
+                <i class="fa-solid fa-circle-check"></i> {{ link.radius_offer_name or cur_id }}
+              {% else %}
+                <i class="fa-solid fa-circle-xmark"></i> غير مربوط
+              {% endif %}
+            </span>
+          </td>
+          <td>
+            <select class="rl-select" data-select data-code="{{ c.code }}" {% if under_dev and not offers %}disabled{% endif %}>
+              <option value="">— بدون ربط —</option>
+              {% set found = namespace(v=false) %}
+              {% for o in offers %}
+                <option value="{{ o.external_id }}"
+                        data-name="{{ o.name }}"
+                        data-duration="{{ o.duration_label }}"
+                        {% if o.external_id|string == cur_id|string %}selected{% set found.v = true %}{% endif %}>
+                  {{ o.name }}{% if o.duration_label %} — {{ o.duration_label }}{% endif %}{% if o.speed %} — {{ o.speed }}{% endif %}{% if not o.active %} (معطّل){% endif %}
+                </option>
+              {% endfor %}
+              {% if cur_id and not found.v %}
+                <option value="{{ cur_id }}" data-name="{{ link.radius_offer_name or '' }}" data-duration="{{ link.radius_duration_label or '' }}" selected>
+                  {{ link.radius_offer_name or cur_id }} (محفوظ)
+                </option>
+              {% endif %}
+            </select>
+          </td>
+          <td>
+            <button type="button" class="rl-save" data-save data-code="{{ c.code }}"><i class="fa-solid fa-floppy-disk"></i>حفظ</button>
+          </td>
+        </tr>
+        {% else %}
+        <tr class="no-paginate"><td colspan="5" style="text-align:center;color:var(--d-text-muted);padding:24px">لا فئات مفعّلة. أضِف فئات من صفحة «الفئات» أولًا.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+(function(){
+  function showToast(text, type){
+    var t = document.createElement('div');
+    t.style.cssText = 'position:fixed;top:18px;left:50%;transform:translateX(-50%);padding:12px 22px;border-radius:12px;font-weight:800;font-size:13.5px;z-index:10001;box-shadow:0 8px 24px rgba(0,0,0,.18);'+(type==='success'?'background:#1f8f51;color:#fff':'background:#b91c1c;color:#fff');
+    t.textContent = text; document.body.appendChild(t);
+    setTimeout(function(){ try{document.body.removeChild(t);}catch(e){} }, 2400);
+  }
+  function safeJson(url, opts){
+    opts = opts || {};
+    opts.credentials = 'same-origin';
+    opts.headers = Object.assign({'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}, opts.headers || {});
+    return fetch(url, opts).then(function(r){
+      if(r.redirected) throw new Error('تم التحويل — صلاحيات أو تسجيل دخول');
+      return r.text().then(function(t){
+        try{ return JSON.parse(t); } catch(e){ throw new Error('HTTP '+r.status); }
+      });
+    });
+  }
+
+  // حفظ ربط صف واحد
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest && e.target.closest('[data-save]');
+    if(!btn) return;
+    var code = btn.dataset.code;
+    var row = document.querySelector('tr[data-cat-row="'+code+'"]');
+    if(!row) return;
+    var sel = row.querySelector('[data-select]');
+    var opt = sel.options[sel.selectedIndex] || {};
+    var fd = new FormData();
+    fd.append('category_code', code);
+    fd.append('radius_external_id', sel.value || '');
+    fd.append('radius_offer_name', (opt.dataset && opt.dataset.name) || '');
+    fd.append('radius_duration_label', (opt.dataset && opt.dataset.duration) || '');
+    btn.disabled = true;
+    safeJson('/admin/cards/radius-links/save', {method:'POST', body:fd})
+      .then(function(d){
+        btn.disabled = false;
+        showToast(d.message, d.ok ? 'success' : 'error');
+        if(d.ok){
+          var cur = row.querySelector('[data-current]');
+          if(cur){
+            if(d.radius_external_id){
+              cur.className = 'rl-current linked';
+              cur.innerHTML = '<i class="fa-solid fa-circle-check"></i> ' + (d.radius_offer_name || d.radius_external_id);
+            } else {
+              cur.className = 'rl-current unlinked';
+              cur.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> غير مربوط';
+            }
+          }
+        }
+      })
+      .catch(function(err){ btn.disabled = false; showToast(err.message || 'فشل الحفظ', 'error'); });
+  });
+
+  // تحديث القائمة المنسدلة حيًّا من الريدياس
+  var refreshBtn = document.getElementById('rl-refresh');
+  if(refreshBtn){
+    refreshBtn.addEventListener('click', function(){
+      refreshBtn.disabled = true;
+      safeJson('/admin/cards/radius-links/offers').then(function(d){
+        refreshBtn.disabled = false;
+        if(!d.ok){ showToast(d.error || 'تعذّر التحديث', 'error'); return; }
+        var offers = d.offers || [];
+        if(!offers.length){ showToast(d.error || 'لا عروض متاحة حاليًا', 'error'); return; }
+        document.querySelectorAll('[data-select]').forEach(function(sel){
+          var current = sel.value;
+          var html = '<option value="">— بدون ربط —</option>';
+          var matched = false;
+          offers.forEach(function(o){
+            var isSel = (String(o.external_id) === String(current));
+            if(isSel) matched = true;
+            html += '<option value="'+o.external_id+'" data-name="'+(o.name||'')+'" data-duration="'+(o.duration_label||'')+'"'+(isSel?' selected':'')+'>'+
+                    (o.name||o.external_id)+(o.duration_label?(' — '+o.duration_label):'')+(o.speed?(' — '+o.speed):'')+(o.active===false?' (معطّل)':'')+'</option>';
+          });
+          if(current && !matched){
+            html += '<option value="'+current+'" selected>'+current+' (محفوظ)</option>';
+          }
+          sel.innerHTML = html;
+          sel.disabled = false;
+        });
+        showToast('تم تحديث قائمة العروض ('+offers.length+').', 'success');
+      }).catch(function(err){ refreshBtn.disabled = false; showToast(err.message || 'فشل التحديث', 'error'); });
+    });
+  }
+})();
+</script>
+
+{% endblock %}

@@ -101,18 +101,38 @@ class ManualRadiusClient(RadiusClient):
         category_code: str,
         count: int = 1,
         *,
+        radius_offer_external_id: str = "",
         beneficiary_id: int | None = None,
         requested_by: str = "",
         notes: str = "",
     ) -> Result:
+        payload = {"category_code": category_code, "count": int(count)}
+        if radius_offer_external_id:
+            # نمرّر العرض المربوط كي يعرف من ينفّذ الطلب يدويًا أي عرض RADIUS يستخدم.
+            payload["radius_offer_external_id"] = str(radius_offer_external_id)
         return self._enqueue(
             "generate_user_cards",
             target_kind="card",
+            target_external_id=str(radius_offer_external_id or ""),
             beneficiary_id=beneficiary_id,
-            payload={"category_code": category_code, "count": int(count)},
+            payload=payload,
             requested_by=requested_by,
             notes=notes,
         )
+
+    def list_offers(self) -> list[dict]:
+        """قائمة عروض تجريبية صغيرة كي تعمل واجهة «ربط العروض» بلا اتصال حي.
+
+        في الوضع اليدوي لا يوجد اتصال بـ RADIUS؛ نُرجع عيّنة ثابتة توضّح الشكل
+        المتوقّع (external_id/name/duration_label/speed/price/active) فقط لأغراض
+        العرض والاختبار — لا تُستخدم لأي توليد فعلي.
+        """
+        return [
+            {"external_id": "demo-30", "name": "عرض نصف ساعة (تجريبي)", "duration_label": "30 دقيقة", "speed": "4M/4M", "price": "", "active": True},
+            {"external_id": "demo-60", "name": "عرض ساعة (تجريبي)", "duration_label": "60 دقيقة", "speed": "4M/4M", "price": "", "active": True},
+            {"external_id": "demo-120", "name": "عرض ساعتين (تجريبي)", "duration_label": "120 دقيقة", "speed": "6M/6M", "price": "", "active": True},
+            {"external_id": "demo-240", "name": "عرض 4 ساعات (تجريبي)", "duration_label": "240 دقيقة", "speed": "8M/8M", "price": "", "active": True},
+        ]
 
     def validate_card(self, username: str, password: str) -> Result:
         # في الوضع manual: نتحقق من جدول manual_access_cards محليًا
