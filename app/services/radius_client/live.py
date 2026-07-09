@@ -33,16 +33,17 @@ import os
 
 from .base import RadiusClient, RadiusClientError, RadiusClientNotImplemented
 from .dtos import Result
+from ..radius_config import resolve_radius_connection
 
 
 # ─── helpers ──────────────────────────────────────────────────────────
 def _api_ready() -> bool:
-    return os.getenv("RADIUS_API_READY", "").strip().lower() in {"1", "true", "yes", "on"}
+    return bool(resolve_radius_connection().read_enabled)
 
 
 def _writes_enabled() -> bool:
     """write ops محمية بـ flag منفصل — تتطلب تفعيلًا صريحًا إضافيًا."""
-    return os.getenv("RADIUS_API_WRITES_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+    return bool(resolve_radius_connection().write_enabled)
 
 
 def _guard_read():
@@ -124,14 +125,16 @@ class LiveRadiusClient(RadiusClient):
     """Phase 2 — قراءة فقط مُفعَّلة، كتابة معطّلة افتراضيًا."""
 
     def __init__(self):
-        self.base_url = (os.getenv("RADIUS_API_BASE_URL", "") or "").strip().rstrip("/")
-        self.master_key = (os.getenv("RADIUS_API_MASTER_KEY", "") or "").strip()
-        self.api_username = (os.getenv("RADIUS_API_USERNAME", "") or "").strip()
-        self.api_password = (os.getenv("RADIUS_API_PASSWORD", "") or "").strip()
+        # الاتصال يُحلَّل من قاعدة البيانات (مصدر الحقيقة) مع احتياطي env.
+        cfg = resolve_radius_connection()
+        self.base_url = (cfg.base_url or "").rstrip("/")
+        self.master_key = cfg.master_key
+        self.api_username = cfg.service_username
+        self.api_password = cfg.service_password
         self._api_key: str | None = None
         self._login_failure: str | None = None
         self._login_failure_until: float = 0.0
-        self._verify_ssl = os.getenv("RADIUS_API_VERIFY_SSL", "1").strip().lower() in {"1", "true", "yes", "on"}
+        self._verify_ssl = cfg.verify_ssl
 
     @property
     def mode(self) -> str:
@@ -225,6 +228,23 @@ class LiveRadiusClient(RadiusClient):
     # ═══════════════════════════════════════════════════════════════════
     # ✅ Read operations (مُفعَّلة)
     # ═══════════════════════════════════════════════════════════════════
+    def ping(self) -> dict:
+        """اختبار اتصال آمن (بدون auth) بصرف النظر عن read_enabled — يخدم زر
+        «اختبار الاتصال» في صفحة الإعدادات كي يتحقق المسؤول من الهدف قبل تفعيل
+        القراءة. عملية قراءة فقط (get_app_version) لا تسبب أي حظر."""
+        if not self.base_url:
+            return {"ok": False, "mode": "live", "error": "Base URL غير محدد."}
+        body = self._http_post("get_app_version", {}, with_auth=False)
+        if body.get("error"):
+            return {
+                "ok": False,
+                "mode": "live",
+                "error": body.get("msg") or body.get("__transport_error__") or "تعذّر الاتصال",
+                "http_status": body.get("__http_status__"),
+                "url": body.get("__url__"),
+            }
+        return {"ok": True, "mode": "live", "data": {k: v for k, v in body.items() if not k.startswith("__")}}
+
     def health_check(self) -> dict:
         """ping بسيط بدون auth — يرجع معلومات نسخة الـ API."""
         if not _api_ready():

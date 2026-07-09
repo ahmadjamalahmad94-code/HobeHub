@@ -6,8 +6,13 @@ def _setup_sqlite_radius_schema(cur):
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         base_url TEXT,
         master_api_key_encrypted TEXT,
+        service_password_encrypted TEXT,
         admin_username TEXT,
         service_username TEXT,
+        mode TEXT,
+        read_enabled INTEGER,
+        write_enabled INTEGER,
+        verify_ssl INTEGER,
         router_login_url TEXT DEFAULT '',
         workday_start_time TEXT DEFAULT '08:00',
         workday_end_time TEXT DEFAULT '16:00',
@@ -48,6 +53,29 @@ def _setup_sqlite_radius_schema(cur):
         cur.execute("ALTER TABLE radius_api_settings ADD COLUMN workday_end_time TEXT DEFAULT '16:00'")
     except Exception:
         pass
+    # ── إعدادات اتصال قابلة للتبديل (Path 4) — nullable = ورِّث من env ──
+    for _col, _def in (
+        ("service_password_encrypted", "TEXT"),
+        ("mode", "TEXT"),
+        ("read_enabled", "INTEGER"),
+        ("write_enabled", "INTEGER"),
+        ("verify_ssl", "INTEGER"),
+    ):
+        try:
+            cur.execute(f"ALTER TABLE radius_api_settings ADD COLUMN {_col} {_def}")
+        except Exception:
+            pass
+
+    # ── هوية النسخة (white-label) — الاسم/الوسم فقط، الألوان تبقى ثابتة ──
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS app_branding (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        brand_name TEXT DEFAULT 'Hobe Hub',
+        tagline TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS radius_api_sessions (

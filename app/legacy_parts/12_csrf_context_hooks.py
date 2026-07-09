@@ -108,8 +108,19 @@ def admin_page_guide(path: str | None = None, page_title: str | None = None) -> 
     return guide
 
 
+def _instance_branding():
+    """هوية النسخة (white-label) — الاسم/الوسم من app_branding، الافتراضي Hobe Hub."""
+    try:
+        from app.services.branding import get_branding
+        b = get_branding()
+        return b.brand_name, b.tagline
+    except Exception:
+        return "Hobe Hub", "منصة إدارة وخدمات الإنترنت"
+
+
 @app.context_processor
 def inject_helpers():
+    brand_name, brand_tagline = _instance_branding()
     return {
         "csrf_token": get_csrf_token,
         "csrf_token_input": csrf_token_input,
@@ -118,6 +129,8 @@ def inject_helpers():
         "admin_page_guide": admin_page_guide,
         "arabize_text": arabize_text,
         "arabize_audit_text": arabize_audit_text,
+        "brand_name": brand_name,
+        "brand_tagline": brand_tagline,
     }
 
 

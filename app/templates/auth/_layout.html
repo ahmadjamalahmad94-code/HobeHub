@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#1E1E1E">
-  <title>{% block title %}HobeHub{% endblock %} — Hobe Hub</title>
+  <title>{% block title %}{{ brand_name or 'HobeHub' }}{% endblock %} — {{ brand_name or 'Hobe Hub' }}</title>
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css', v='20260518-auth-unlock') }}">

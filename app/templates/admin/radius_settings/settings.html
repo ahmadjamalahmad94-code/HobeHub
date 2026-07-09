@@ -63,9 +63,14 @@
 <section class="d-hero">
   <div>
     <h2>إعدادات RADIUS API</h2>
-    <p>الإعدادات العامة محفوظة في قاعدة البيانات. أسرار الـ API تُقرأ فقط من متغيرات البيئة لا من هنا.</p>
+    <p>معطيات الاتصال محفوظة في قاعدة البيانات وهي <strong>مصدر الحقيقة</strong>. تبديل خادم RADIUS = تعديل هذه الصفحة فقط، بلا إعادة نشر. الأسرار تُخزَّن مشفّرة ولا تُعرض أبدًا.</p>
     <div class="dev-note">
-      <i class="fa-solid fa-circle-info"></i> الكتابة عبر الـ API <strong>قيد التطوير</strong> — حاليًا القراءة فقط مفعّلة.
+      <i class="fa-solid fa-circle-info"></i>
+      الوضع الحالي المُطبَّق:
+      <strong>{{ cfg.mode }}</strong> ·
+      القراءة {{ 'مفعّلة' if cfg.read_enabled else 'موقوفة' }} ·
+      الكتابة {{ 'مفعّلة' if cfg.write_enabled else 'موقوفة (قيد التطوير)' }} ·
+      المصدر: {{ 'قاعدة البيانات' if cfg.source == 'db' else 'متغيرات البيئة' }}
     </div>
   </div>
   <div class="d-hero-actions">
@@ -83,10 +88,10 @@
 {% endif %}
 
 <div class="rad-grid" style="margin-top:8px">
-  {# ─── Form: edit DB settings ─── #}
+  {# Form: switchable connection settings #}
   <section class="d-card">
     <div class="d-card-head">
-      <h3 class="d-card-title"><i class="fa-solid fa-sliders"></i>الإعدادات المحلية</h3>
+      <h3 class="d-card-title"><i class="fa-solid fa-sliders"></i>ربط RADIUS (قابل للتبديل)</h3>
     </div>
     <div class="d-card-body">
       <form method="POST">
@@ -94,40 +99,91 @@
         <input type="hidden" name="action" value="save">
         <div class="field-row">
           <label>Base URL <small style="color:var(--d-text-muted);font-weight:400">(يجب أن ينتهي بـ /app_ad2)</small></label>
-          <input name="base_url" value="{{ settings.base_url or '' }}" placeholder="https://host/app_ad2">
+          <input name="base_url" value="{{ settings.base_url or '' }}" placeholder="http://187.77.70.18/app_ad2">
         </div>
         <div class="field-row">
-          <label>اسم المستخدم الإداري</label>
-          <input name="admin_username" value="{{ settings.admin_username or '' }}" placeholder="sub-admin (تجنّب 'admin' المالك)">
+          <label>مفتاح الربط (Master API Key)
+            {% if has_master %}<small style="color:#1f8f51;font-weight:700">— محفوظ (اتركه فارغًا للإبقاء)</small>{% endif %}
+          </label>
+          <input name="master_api_key" type="password" autocomplete="new-password" value="" placeholder="{{ 'محفوظ — لن يُعرض' if has_master else 'أدخل المفتاح' }}">
         </div>
         <div class="field-row">
-          <label>اسم مستخدم الخدمة</label>
-          <input name="service_username" value="{{ settings.service_username or '' }}">
+          <label>اسم مستخدم الخدمة <small style="color:var(--d-text-muted);font-weight:400">(تجنّب 'admin' المالك)</small></label>
+          <input name="service_username" value="{{ settings.service_username or '' }}" placeholder="sub-admin">
         </div>
         <div class="field-row">
-          <label>تفعيل التكامل</label>
-          <select name="api_enabled">
-            <option value="1" {% if settings.api_enabled %}selected{% endif %}>مفعَّل</option>
-            <option value="0" {% if not settings.api_enabled %}selected{% endif %}>متوقَّف</option>
+          <label>كلمة مرور الخدمة
+            {% if has_service_pw %}<small style="color:#1f8f51;font-weight:700">— محفوظة (اتركها فارغة للإبقاء)</small>{% endif %}
+          </label>
+          <input name="service_password" type="password" autocomplete="new-password" value="" placeholder="{{ 'محفوظة — لن تُعرض' if has_service_pw else 'أدخل كلمة المرور' }}">
+        </div>
+        <div class="field-row">
+          <label>اسم المستخدم الإداري (اختياري)</label>
+          <input name="admin_username" value="{{ settings.admin_username or '' }}" placeholder="sub-admin">
+        </div>
+        <div class="field-row">
+          <label>وضع التشغيل (Mode)</label>
+          <select name="mode">
+            <option value="manual" {% if cfg.mode == 'manual' %}selected{% endif %}>يدوي (manual) — لا اتصال</option>
+            <option value="live" {% if cfg.mode == 'live' %}selected{% endif %}>حي (live) — اتصال فعلي</option>
           </select>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <div class="rad-grid-2">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700">
+            <input type="checkbox" name="read_enabled" value="1" {% if cfg.read_enabled %}checked{% endif %}> تفعيل القراءة
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700">
+            <input type="checkbox" name="write_enabled" value="1" {% if cfg.write_enabled %}checked{% endif %}> تفعيل الكتابة
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700">
+            <input type="checkbox" name="verify_ssl" value="1" {% if cfg.verify_ssl %}checked{% endif %}> التحقق من SSL
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700">
+            <input type="checkbox" name="api_enabled" value="1" {% if settings.api_enabled %}checked{% endif %}> تفعيل التكامل
+          </label>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
           <button class="d-pill-btn" type="submit"><i class="fa-solid fa-floppy-disk"></i>حفظ</button>
           <button class="d-pill-btn d-pill-btn--ghost" type="submit" name="action" value="test">
-            <i class="fa-solid fa-flask"></i>حفظ + اختبار
+            <i class="fa-solid fa-flask"></i>حفظ + اختبار الاتصال
           </button>
         </div>
       </form>
     </div>
   </section>
 
-  {# ─── Env vars status ─── #}
+  {# White-label instance identity #}
   <section class="d-card">
     <div class="d-card-head">
-      <h3 class="d-card-title"><i class="fa-solid fa-key"></i>حالة متغيرات البيئة</h3>
+      <h3 class="d-card-title"><i class="fa-solid fa-tag"></i>هوية النسخة (إعادة البيع)</h3>
     </div>
     <div class="d-card-body">
-      <p style="font-size:12px;color:var(--d-text-muted);margin:0 0 14px">الأسرار لا تُحفظ في DB. تُقرأ فقط من متغيرات النظام للأمان.</p>
+      <p style="font-size:12px;color:var(--d-text-muted);margin:0 0 14px">الاسم والوسم يظهران في عنوان الصفحة وترويسة اللوحة. الألوان (أسود/ذهبي) تبقى ثابتة.</p>
+      <form method="POST">
+        {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
+        <input type="hidden" name="action" value="save_branding">
+        <div class="field-row">
+          <label>اسم العلامة</label>
+          <input name="brand_name" value="{{ branding.brand_name }}" placeholder="Hobe Hub">
+        </div>
+        <div class="field-row">
+          <label>الوسم (اختياري)</label>
+          <input name="tagline" value="{{ branding.tagline }}" placeholder="منصة إدارة وخدمات الإنترنت">
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button class="d-pill-btn" type="submit"><i class="fa-solid fa-floppy-disk"></i>حفظ الهوية</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  {# Env vars status (fallback only) #}
+  <section class="d-card">
+    <div class="d-card-head">
+      <h3 class="d-card-title"><i class="fa-solid fa-key"></i>متغيرات البيئة (احتياطي)</h3>
+    </div>
+    <div class="d-card-body">
+      <p style="font-size:12px;color:var(--d-text-muted);margin:0 0 14px">تُستخدم فقط عندما لا تُضبط القيمة في قاعدة البيانات. الإعدادات أعلاه تسبقها.</p>
 
       <div class="kv-row">
         <span class="k">RADIUS_API_BASE_URL</span>

@@ -6,8 +6,13 @@ def _setup_postgres_radius_internet_schema(cur):
         id SERIAL PRIMARY KEY,
         base_url TEXT,
         master_api_key_encrypted TEXT,
+        service_password_encrypted TEXT,
         admin_username TEXT,
         service_username TEXT,
+        mode TEXT,
+        read_enabled BOOLEAN,
+        write_enabled BOOLEAN,
+        verify_ssl BOOLEAN,
         router_login_url TEXT DEFAULT '',
         workday_start_time TEXT DEFAULT '08:00',
         workday_end_time TEXT DEFAULT '16:00',
@@ -25,6 +30,23 @@ def _setup_postgres_radius_internet_schema(cur):
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS api_enabled BOOLEAN DEFAULT FALSE")
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    # ── إعدادات اتصال قابلة للتبديل (Path 4) — NULL = ورِّث من env ──
+    cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS service_password_encrypted TEXT")
+    cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS mode TEXT")
+    cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS read_enabled BOOLEAN")
+    cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS write_enabled BOOLEAN")
+    cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS verify_ssl BOOLEAN")
+
+    # ── هوية النسخة (white-label) — الاسم/الوسم فقط، الألوان تبقى ثابتة ──
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS app_branding (
+        id SERIAL PRIMARY KEY,
+        brand_name TEXT DEFAULT 'Hobe Hub',
+        tagline TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS radius_api_sessions (

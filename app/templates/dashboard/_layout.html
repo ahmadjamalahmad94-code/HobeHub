@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1E1E1E">
-  <title>{% block title %}لوحة التحكم{% endblock %} — Hobe Hub</title>
+  <title>{% block title %}لوحة التحكم{% endblock %} — {{ brand_name or 'Hobe Hub' }}</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_table.css') }}">
@@ -51,10 +51,10 @@
   {# ── Sidebar ────────────────────────────────── #}
   <aside class="d-sidebar" id="d-sidebar" aria-label="القائمة الجانبية">
     <div class="d-sidebar-head">
-      <span class="d-brand-mark" aria-hidden="true">H</span>
+      <span class="d-brand-mark" aria-hidden="true">{{ (brand_name or 'Hobe Hub')[0] | upper }}</span>
       <span class="d-brand-text">
-        <strong>Hobe Hub</strong>
-        <small>{% block sidebar_subtitle %}منصة إدارة وخدمات الإنترنت{% endblock %}</small>
+        <strong>{{ brand_name or 'Hobe Hub' }}</strong>
+        <small>{% block sidebar_subtitle %}{{ brand_tagline or 'منصة إدارة وخدمات الإنترنت' }}{% endblock %}</small>
       </span>
     </div>
 

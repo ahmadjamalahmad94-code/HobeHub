@@ -45,14 +45,17 @@ __all__ = [
     "UsageSnapshot",
     "UserAccount",
     "get_radius_client",
+    "reset_radius_client",
     "is_live_mode",
     "is_api_under_development",
 ]
 
 
 def get_radius_mode() -> str:
-    """يرجع الـ mode الحالي من البيئة. الافتراضي: 'manual'."""
-    return (os.getenv("RADIUS_MODE", "manual") or "manual").strip().lower()
+    """يرجع الـ mode الحالي. مصدر الحقيقة = صف radius_api_settings (env احتياطي).
+    الافتراضي: 'manual'."""
+    from ..radius_config import resolve_radius_connection
+    return resolve_radius_connection().mode
 
 
 def is_live_mode() -> bool:
@@ -61,13 +64,14 @@ def is_live_mode() -> bool:
 
 def is_api_under_development() -> bool:
     """
-    قيد التطوير = الـ API لم يُختبر بعد.
-    حاليًا دائمًا True بغض النظر عن RADIUS_MODE.
-    عند الانتقال لـ Phase 2، نضبط RADIUS_API_READY=1 في البيئة.
+    قيد التطوير = القراءة عبر الـ API غير مفعّلة بعد (read_enabled=0).
+    تُضبط الآن من صفحة الإعدادات (read_enabled) أو RADIUS_API_READY كاحتياطي.
     """
-    if not is_live_mode():
+    from ..radius_config import resolve_radius_connection
+    cfg = resolve_radius_connection()
+    if cfg.mode != "live":
         return True
-    return os.getenv("RADIUS_API_READY", "").strip().lower() not in {"1", "true", "yes", "on"}
+    return not cfg.read_enabled
 
 
 _singleton: RadiusClient | None = None
@@ -90,6 +94,9 @@ def get_radius_client() -> RadiusClient:
 
 
 def reset_radius_client() -> None:
-    """يستخدم في الاختبارات لإعادة الـ singleton."""
+    """يعيد ضبط الـ singleton وكاش الإعدادات — يُستدعى في الاختبارات وبعد حفظ
+    إعدادات RADIUS كي يلتقط العميل الهدف الجديد فورًا (تبديل بلا إعادة نشر)."""
     global _singleton
     _singleton = None
+    from ..radius_config import reset_radius_config
+    reset_radius_config()
