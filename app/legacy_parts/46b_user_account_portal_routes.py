@@ -38,6 +38,13 @@ def _build_context(extra=None):
     ) or {}
 
     radius_status = get_subscriber_radius_status(beneficiary_id, radius_username)
+
+    from app.services.subscriber_radius_view import build_subscriber_radius_view
+    radius_view = build_subscriber_radius_view(
+        beneficiary_id,
+        radius_username,
+        external_id=str(beneficiary.get("linked_radius_external_id") or ""),
+    )
     account_status = "active" if (
         radius_status.get("is_online")
         or radius_status.get("available")
@@ -52,6 +59,7 @@ def _build_context(extra=None):
         "radius_username": radius_username,
         "current_profile_name": radius_account.get("current_profile_name") or "",
         "radius_status": radius_status,
+        "radius_view": radius_view,
         "account_status": account_status,
         "whatsapp_group_url": whatsapp_group_url_for_user_type(beneficiary.get("user_type") or ""),
         "pending_count": len(my_pending),

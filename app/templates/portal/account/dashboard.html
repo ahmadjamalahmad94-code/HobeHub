@@ -188,6 +188,91 @@
   </div>
 </section>
 
+{# ───── قراءات RADIUS الحية (مبنية في الخادم عبر subscriber_radius_view) ───── #}
+{% if radius_view %}
+<section class="srv-radius-card">
+  <div class="srv-radius-head">
+    <h3><i class="fa-solid fa-tower-broadcast"></i> بيانات حساب الإنترنت من RADIUS</h3>
+    {% if radius_view.state == 'live' %}
+      <span class="srv-radius-badge is-live"><i class="fa-solid fa-circle-check"></i> {{ radius_view.state_label }}</span>
+    {% elif radius_view.state == 'under_development' %}
+      <span class="srv-radius-badge is-dev"><i class="fa-solid fa-screwdriver-wrench"></i> {{ radius_view.state_label }}</span>
+    {% elif radius_view.state == 'unlinked' %}
+      <span class="srv-radius-badge is-off"><i class="fa-solid fa-link-slash"></i> {{ radius_view.state_label }}</span>
+    {% else %}
+      <span class="srv-radius-badge is-off"><i class="fa-solid fa-circle-info"></i> {{ radius_view.state_label }}</span>
+    {% endif %}
+  </div>
+
+  {% if radius_view.message %}
+  <div class="srv-radius-note"><i class="fa-solid fa-circle-info"></i> {{ radius_view.message }}</div>
+  {% endif %}
+
+  <div class="srv-radius-grid">
+    {% for f in radius_view.fields %}
+    <div class="srv-radius-item {% if not f.available %}is-na{% endif %}">
+      <span class="sri-ico"><i class="fa-solid {{ f.icon or 'fa-circle' }}"></i></span>
+      <div class="sri-body">
+        <span class="sri-label">{{ f.label }}</span>
+        <span class="sri-value">{{ f.value }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<style>
+.srv-radius-card{
+  margin-top:24px;background:linear-gradient(135deg,#1E1E1E 0%,#2a2724 100%);
+  border-radius:20px;padding:0;overflow:hidden;color:#fff;
+  box-shadow:0 12px 34px rgba(30,30,30,.20);
+}
+.srv-radius-head{
+  display:flex;align-items:center;gap:12px;padding:16px 22px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.srv-radius-head h3{margin:0;font-size:15.5px;font-weight:900;flex:1;color:#fff}
+.srv-radius-head h3 i{color:#F4BA2A;margin-inline-end:7px}
+.srv-radius-badge{
+  font-size:12px;font-weight:800;padding:6px 12px;border-radius:999px;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.srv-radius-badge.is-live{background:rgba(115,226,154,.16);color:#73e29a}
+.srv-radius-badge.is-dev{background:rgba(244,186,42,.18);color:#F4BA2A}
+.srv-radius-badge.is-off{background:rgba(255,139,139,.15);color:#ff8b8b}
+.srv-radius-note{
+  margin:14px 22px 0;padding:11px 14px;border-radius:12px;font-size:12.5px;
+  background:rgba(244,186,42,.10);color:#F4BA2A;border:1px solid rgba(244,186,42,.18);
+}
+.srv-radius-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:12px;padding:18px 22px 24px;
+}
+.srv-radius-item{
+  display:flex;align-items:center;gap:12px;padding:14px 16px;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+}
+.srv-radius-item .sri-ico{
+  width:40px;height:40px;border-radius:11px;flex-shrink:0;
+  display:grid;place-items:center;font-size:15px;
+  background:rgba(244,186,42,.16);color:#F4BA2A;
+}
+.srv-radius-item .sri-body{display:flex;flex-direction:column;gap:3px;min-width:0}
+.srv-radius-item .sri-label{
+  font-size:11px;font-weight:800;color:rgba(255,255,255,.55);
+  letter-spacing:.2px;
+}
+.srv-radius-item .sri-value{
+  font-size:15px;font-weight:900;color:#fff;line-height:1.3;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.srv-radius-item.is-na{opacity:.6}
+.srv-radius-item.is-na .sri-ico{background:rgba(255,255,255,.06);color:rgba(255,255,255,.4)}
+.srv-radius-item.is-na .sri-value{color:rgba(255,255,255,.5);font-weight:700;font-size:13px}
+</style>
+{% endif %}
+
 {% include "components/power_timer_viewer.html" %}
 
 <section class="kid-bottom" style="margin-top:18px">
