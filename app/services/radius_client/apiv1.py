@@ -307,11 +307,69 @@ class ApiV1RadiusClient(RadiusClient):
         return {"ok": True, "data": data or {}}
 
     def get_my_permissions(self) -> dict:
-        # لا نقطة مكافئة مباشرة في /api/v1 — نُرجع تلميحًا نظيفًا (تدهور ناعم).
-        return {"ok": False, "error": "غير متاح في /api/v1 (لا نقطة صلاحيات مكافئة)."}
+        """المكافئ الحديث لـ «صلاحياتي» في /api/v1 هو عقد منح المزوّد
+        (GET /api/v1/provider/grants): يتطلّب مصادقة صحيحة ويُرجع الترخيص +
+        الخدمات + السقوف. نجاحه دليلٌ مباشر أنّ الربط والمصادقة (مفتاح API
+        أو اعتماد اليوزر/الباس) سليمان — وهو المقصود من اختبار «تسجيل الدخول
+        وقراءة الصلاحيات»."""
+        try:
+            self._guard_read()
+        except RadiusClientNotImplemented as exc:
+            return {"ok": False, "error": str(exc)}
+        ok, data, err = self._get_data("provider/grants")
+        if not ok:
+            return {"ok": False, "error": err or "تعذّرت قراءة الصلاحيات."}
+        return {"ok": True, "data": data or {}}
 
     def get_my_balance(self) -> dict:
+        # لا مفهوم «رصيد» لحساب الأدمن في /api/v1 (الرصيد مفهوم لوحة HobeHub
+        # نفسها، لا طبقة الأدمن في الراديوس). تدهور ناعم صريح بلا انهيار.
         return {"ok": False, "error": "غير متاح في /api/v1 (لا نقطة رصيد مكافئة)."}
+
+    # ═══════════════════════════════════════════════════════════════════
+    # مؤشّرات اللوحة (KPIs) — تُبنى من نقاط /api/v1 المتاحة
+    # ═══════════════════════════════════════════════════════════════════
+    def quick_stats(self) -> dict:
+        """KPIs لحظية: المتصلون الآن + عدد الباقات.
+
+        لا نقطة «إحصاء واحدة» مكافئة في الـ API الحديث، فنبنيها من نقاط
+        القراءة المتاحة (sessions/online + profiles). تُستدعى في «الاختبار
+        الكامل»؛ غيابها سابقًا كان يرمي AttributeError = صفحة 500."""
+        try:
+            self._guard_read()
+        except RadiusClientNotImplemented as exc:
+            return {"ok": False, "error": str(exc)}
+        online = self.get_online_users()
+        profiles = self.get_profiles()
+        return {
+            "ok": True,
+            "data": {
+                "online_now": len(online),
+                "profiles_count": len(profiles),
+            },
+        }
+
+    def get_dashboard_metrics(self) -> dict:
+        """مقاييس اللوحة الحديثة: المتصلون الآن + الباقات + أعلام التشغيل.
+
+        بديلٌ حرفيٌّ لدالّة العميل القديم كي لا يرمي «الاختبار الكامل» أو
+        اختبار «مؤشرات اللوحة» AttributeError (=500)."""
+        try:
+            self._guard_read()
+        except RadiusClientNotImplemented as exc:
+            return {"ok": False, "error": str(exc)}
+        online = self.get_online_users()
+        profiles = self.get_profiles()
+        return {
+            "ok": True,
+            "data": {
+                "online_now": len(online),
+                "profiles_count": len(profiles),
+                "read_enabled": self._read_enabled,
+                "write_enabled": self._write_enabled,
+                "mode": self.mode,
+            },
+        }
 
     # ═══════════════════════════════════════════════════════════════════
     # قراءات

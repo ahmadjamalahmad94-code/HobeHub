@@ -27,13 +27,31 @@ def _enabled(name: str) -> bool:
 # المفتاح الرئيسي
 # ────────────────────────────────────────────────────────────────
 def is_radius_offline() -> bool:
-    """يرجع True إذا كان RADIUS API معطّل بالكامل في النظام.
+    """يرجع True إذا كان RADIUS API معطّلًا بالكامل في النظام.
 
-    افتراضياً معطّل. للتفعيل: RADIUS_API_LIVE=1 في البيئة.
-    نقبل RADIUS_API_READY=1 كاسم قديم/محلي للقراءة فقط حتى لا تتعطل واجهات
-    الاستعلام عند تشغيل البيئة المحلية أو Render بإعدادات سابقة.
+    مصدر التفعيل (بالأولوية):
+      1. متغيّر البيئة ``RADIUS_API_LIVE=1`` أو ``RADIUS_API_READY=1`` —
+         تجاوزٌ سريع يعمل حتى لو تعذّرت قراءة قاعدة البيانات.
+      2. إعدادات صفحة الإدارة المحفوظة في قاعدة البيانات: الوضع «مباشر»
+         (``mode=live``) + «تفعيل القراءة» (``read_enabled``). هذا يتيح
+         التفعيل/التعطيل من صفحة الإعدادات مباشرةً **دون تعديل ملف env أو SSH**
+         (نفس مصدر الحقيقة الذي يستخدمه ``is_api_under_development``).
+
+    غير ذلك → معطّل (الافتراضي الآمن).
     """
-    return not (_enabled("RADIUS_API_LIVE") or _enabled("RADIUS_API_READY"))
+    # (1) تجاوز البيئة — سريع ولا يعتمد على قاعدة البيانات.
+    if _enabled("RADIUS_API_LIVE") or _enabled("RADIUS_API_READY"):
+        return False
+    # (2) إعدادات قاعدة البيانات (صفحة الإعدادات) — تفعيل بلا SSH.
+    try:
+        from app.services.radius_config import resolve_radius_connection
+        cfg = resolve_radius_connection()
+        if getattr(cfg, "mode", "") == "live" and bool(getattr(cfg, "read_enabled", False)):
+            return False
+    except Exception:
+        # أي تعذّر في قراءة الإعدادات → نبقى على الوضع الآمن (معطّل).
+        pass
+    return True
 
 
 # ────────────────────────────────────────────────────────────────

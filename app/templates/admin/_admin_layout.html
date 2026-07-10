@@ -77,6 +77,18 @@
      href="/admin/cards/import" data-label="رفع بطاقات">
     <i class="fa-solid fa-file-arrow-up"></i><span>رفع بطاقات</span>
   </a>
+  <a class="d-nav-item {% if p == '/admin/cards/deliveries' %}is-active{% endif %}"
+     href="/admin/cards/deliveries" data-label="التسليمات">
+    <i class="fa-solid fa-truck-fast"></i><span>التسليمات</span>
+  </a>
+  <a class="d-nav-item {% if p == '/admin/cards/audit' %}is-active{% endif %}"
+     href="/admin/cards/audit" data-label="تدقيق البطاقات">
+    <i class="fa-solid fa-magnifying-glass-chart"></i><span>تدقيق البطاقات</span>
+  </a>
+  <a class="d-nav-item {% if p == '/admin/cards/settings' %}is-active{% endif %}"
+     href="/admin/cards/settings" data-label="إعدادات البطاقات">
+    <i class="fa-solid fa-sliders"></i><span>إعدادات البطاقات</span>
+  </a>
 </div>
 
 <div class="d-nav-group">
@@ -134,6 +146,38 @@
   <a class="d-nav-item {% if p == '/admin/sms/log' %}is-active{% endif %}"
      href="/admin/sms/log" data-label="سجل الرسائل">
     <i class="fa-solid fa-list-check"></i><span>سجل الرسائل</span>
+  </a>
+</div>
+
+<div class="d-nav-group">
+  <div class="d-nav-group-label"><i class="fa-solid fa-network-wired"></i><span>المصادقة (RADIUS)</span></div>
+  <a class="d-nav-item {% if p == '/admin/radius/settings' %}is-active{% endif %}"
+     href="/admin/radius/settings" data-label="إعدادات المصادقة">
+    <i class="fa-solid fa-gear"></i><span>إعدادات المصادقة</span>
+  </a>
+  <a class="d-nav-item {% if p.startswith('/admin/api/test') %}is-active{% endif %}"
+     href="/admin/api/test" data-label="اختبار الربط">
+    <i class="fa-solid fa-plug-circle-check"></i><span>اختبار الربط</span>
+  </a>
+  <a class="d-nav-item {% if p == '/admin/radius/online' %}is-active{% endif %}"
+     href="/admin/radius/online" data-label="المتصلون الآن">
+    <i class="fa-solid fa-wifi"></i><span>المتصلون الآن</span>
+  </a>
+  <a class="d-nav-item {% if p == '/admin/radius/live-monitor' %}is-active{% endif %}"
+     href="/admin/radius/live-monitor" data-label="المراقبة الحية">
+    <i class="fa-solid fa-chart-line"></i><span>المراقبة الحية</span>
+  </a>
+  <a class="d-nav-item {% if p.startswith('/admin/radius/match') %}is-active{% endif %}"
+     href="/admin/radius/match" data-label="مطابقة المشتركين">
+    <i class="fa-solid fa-code-compare"></i><span>مطابقة المشتركين</span>
+  </a>
+  <a class="d-nav-item {% if p.startswith('/admin/radius/user-lookup') %}is-active{% endif %}"
+     href="/admin/radius/user-lookup" data-label="بحث مستخدم">
+    <i class="fa-solid fa-magnifying-glass"></i><span>بحث مستخدم</span>
+  </a>
+  <a class="d-nav-item {% if p.startswith('/admin/api/subscriber-explorer') %}is-active{% endif %}"
+     href="/admin/api/subscriber-explorer" data-label="مستكشف الـAPI">
+    <i class="fa-solid fa-compass"></i><span>مستكشف الـAPI</span>
   </a>
 </div>
 
