@@ -98,8 +98,15 @@
         {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
         <input type="hidden" name="action" value="save">
         <div class="field-row">
-          <label>Base URL <small style="color:var(--d-text-muted);font-weight:400">(يجب أن ينتهي بـ /app_ad2)</small></label>
-          <input name="base_url" value="{{ settings.base_url or '' }}" placeholder="http://187.77.70.18/app_ad2">
+          <label>Base URL <small style="color:var(--d-text-muted);font-weight:400">(الحديث /api/v1 · القديم /app_ad2)</small></label>
+          <input name="base_url" value="{{ settings.base_url or '' }}" placeholder="http://187.77.70.18/api/v1">
+        </div>
+        <div class="field-row">
+          <label>نوع الـ API</label>
+          <select name="api_flavor">
+            <option value="apiv1" {% if cfg.api_flavor == 'apiv1' %}selected{% endif %}>الحديث /api/v1 (radius-module)</option>
+            <option value="app_ad2" {% if cfg.api_flavor != 'apiv1' %}selected{% endif %}>القديم /app_ad2 (النظام السابق)</option>
+          </select>
         </div>
         <div class="field-row">
           <label>مفتاح الربط (Master API Key)

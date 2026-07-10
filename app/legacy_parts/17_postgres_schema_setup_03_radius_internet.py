@@ -33,6 +33,7 @@ def _setup_postgres_radius_internet_schema(cur):
     # ── إعدادات اتصال قابلة للتبديل (Path 4) — NULL = ورِّث من env ──
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS service_password_encrypted TEXT")
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS mode TEXT")
+    cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS api_flavor TEXT")
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS read_enabled BOOLEAN")
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS write_enabled BOOLEAN")
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS verify_ssl BOOLEAN")

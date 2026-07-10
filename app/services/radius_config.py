@@ -36,9 +36,11 @@ class RadiusConnectionConfig:
     verify_ssl: bool
     api_enabled: bool
     source: str          # 'db' | 'env' — للتشخيص فقط (بلا أسرار)
+    api_flavor: str = "app_ad2"  # 'apiv1' (الحديث) | 'app_ad2' (القديم)
 
 
 _VALID_MODES = {"manual", "live"}
+_VALID_FLAVORS = {"apiv1", "app_ad2"}
 _TRUE_TOKENS = {"1", "true", "yes", "on", "t"}
 _FALSE_TOKENS = {"0", "false", "no", "off", "f", ""}
 
@@ -143,6 +145,15 @@ def resolve_radius_connection(refresh: bool = False) -> RadiusConnectionConfig:
 
     api_enabled = bool(_bool_or_none(row.get("api_enabled"))) if has_db else False
 
+    # نوع الـ API: قيمة DB الصالحة تسبق، ثم البيئة، وإلّا كشْف تلقائي من الرابط.
+    db_flavor = str(row.get("api_flavor") or "").strip().lower()
+    api_flavor = db_flavor if db_flavor in _VALID_FLAVORS else ""
+    if not api_flavor:
+        env_flavor = _env("RADIUS_API_FLAVOR").lower()
+        api_flavor = env_flavor if env_flavor in _VALID_FLAVORS else ""
+    if not api_flavor:
+        api_flavor = "apiv1" if "/api/v1" in base_url.lower() else "app_ad2"
+
     _cached = RadiusConnectionConfig(
         base_url=base_url,
         master_key=master_key,
@@ -154,6 +165,7 @@ def resolve_radius_connection(refresh: bool = False) -> RadiusConnectionConfig:
         verify_ssl=verify_ssl,
         api_enabled=api_enabled,
         source="db" if has_db else "env",
+        api_flavor=api_flavor,
     )
     return _cached
 

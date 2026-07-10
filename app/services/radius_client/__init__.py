@@ -32,6 +32,7 @@ from .dtos import (
 )
 from .manual import ManualRadiusClient
 from .live import LiveRadiusClient
+from .apiv1 import ApiV1RadiusClient
 
 
 __all__ = [
@@ -44,6 +45,7 @@ __all__ = [
     "Session",
     "UsageSnapshot",
     "UserAccount",
+    "ApiV1RadiusClient",
     "get_radius_client",
     "reset_radius_client",
     "is_live_mode",
@@ -86,7 +88,13 @@ def get_radius_client() -> RadiusClient:
         return _singleton
 
     if is_live_mode() and not is_api_under_development():
-        _singleton = LiveRadiusClient()
+        # اختيار العميل حسب نوع الـ API المُعدّ: الحديث /api/v1 أم القديم /app_ad2.
+        from ..radius_config import resolve_radius_connection
+        flavor = (resolve_radius_connection().api_flavor or "app_ad2").lower()
+        if flavor == "apiv1":
+            _singleton = ApiV1RadiusClient()
+        else:
+            _singleton = LiveRadiusClient()
     else:
         # الافتراضي + أي وضع غير جاهز = manual آمن
         _singleton = ManualRadiusClient()

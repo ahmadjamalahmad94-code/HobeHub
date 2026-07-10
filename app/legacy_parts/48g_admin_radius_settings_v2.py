@@ -8,6 +8,7 @@ from app.services.radius_config import resolve_radius_connection
 from app.services.secret_box import encrypt_secret
 from app.services.radius_client import reset_radius_client
 from app.services.radius_client.live import LiveRadiusClient
+from app.services.radius_client.apiv1 import ApiV1RadiusClient
 
 
 def _norm_base_url(value: str) -> str:
@@ -20,7 +21,11 @@ def _run_radius_connection_test():
     cfg = resolve_radius_connection(refresh=True)
     if not cfg.base_url:
         return ("لم يُضبط Base URL بعد — احفظ الرابط أولًا ثم اختبر.", "error")
-    client = LiveRadiusClient()
+    # نختبر بالعميل المطابق لنوع الـ API المُعدّ (الحديث /api/v1 أم القديم).
+    if (cfg.api_flavor or "app_ad2").lower() == "apiv1":
+        client = ApiV1RadiusClient()
+    else:
+        client = LiveRadiusClient()
     result = client.health_check() if cfg.read_enabled else client.ping()
     if result.get("ok"):
         data = result.get("data") or {}
@@ -58,6 +63,9 @@ def _radius_settings_v2_view():
         mode = (clean_csv_value(request.form.get("mode")) or "manual").lower()
         if mode not in ("manual", "live"):
             mode = "manual"
+        api_flavor = (clean_csv_value(request.form.get("api_flavor")) or "").lower()
+        if api_flavor not in ("apiv1", "app_ad2"):
+            api_flavor = "apiv1" if "/api/v1" in (base_url or "").lower() else "app_ad2"
         read_enabled = request.form.get("read_enabled") == "1"
         write_enabled = request.form.get("write_enabled") == "1"
         verify_ssl = request.form.get("verify_ssl") == "1"
@@ -65,10 +73,14 @@ def _radius_settings_v2_view():
         master_key_input = (request.form.get("master_api_key") or "").strip()
         service_password_input = (request.form.get("service_password") or "").strip()
 
-        # التحقق: Base URL يجب أن ينتهي بـ /app_ad2
-        if base_url and not base_url.endswith("/app_ad2"):
-            flash("Base URL يجب أن ينتهي بـ /app_ad2 (وليس /app_ad). لم يُحفظ.", "error")
-            return redirect(url_for("radius_settings_page"))
+        # التحقق من Base URL حسب نوع الـ API المختار (apiv1 -> /api/v1 · app_ad2 -> /app_ad2).
+        if base_url:
+            if api_flavor == "apiv1" and not base_url.endswith("/api/v1"):
+                flash("عند اختيار الـ API الحديث يجب أن ينتهي Base URL بـ /api/v1. لم يُحفظ.", "error")
+                return redirect(url_for("radius_settings_page"))
+            if api_flavor == "app_ad2" and not base_url.endswith("/app_ad2"):
+                flash("عند اختيار الـ API القديم يجب أن ينتهي Base URL بـ /app_ad2 (وليس /app_ad). لم يُحفظ.", "error")
+                return redirect(url_for("radius_settings_page"))
 
         # تحذير: اسم مستخدم الخدمة يفضَّل ألا يكون المالك 'admin'
         if service_username.lower() == "admin":
@@ -79,6 +91,7 @@ def _radius_settings_v2_view():
             "admin_username": admin_username,
             "service_username": service_username,
             "mode": mode,
+            "api_flavor": api_flavor,
             "read_enabled": read_enabled,
             "write_enabled": write_enabled,
             "verify_ssl": verify_ssl,

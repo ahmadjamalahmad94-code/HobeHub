@@ -57,6 +57,7 @@ def _setup_sqlite_radius_schema(cur):
     for _col, _def in (
         ("service_password_encrypted", "TEXT"),
         ("mode", "TEXT"),
+        ("api_flavor", "TEXT"),
         ("read_enabled", "INTEGER"),
         ("write_enabled", "INTEGER"),
         ("verify_ssl", "INTEGER"),
