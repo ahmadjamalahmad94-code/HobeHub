@@ -32,6 +32,9 @@ def request_csrf_token() -> str:
 def enforce_csrf_protection():
     if request.method in CSRF_SAFE_METHODS or request.endpoint == "static":
         return None
+    # مستقبِل webhook الريديوس موقَّع بـHMAC (خادم↔خادم) — لا CSRF له.
+    if request.path == "/api/radius/webhook":
+        return None
     expected = session.get("_csrf_token")
     supplied = request_csrf_token()
     if expected and supplied and hmac.compare_digest(expected, supplied):

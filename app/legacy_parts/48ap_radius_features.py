@@ -367,6 +367,83 @@ def admin_radius_live_monitor_data():
 
 
 # ════════════════════════════════════════════════════════════════
+# 7) Webhook receiver — أحداث الريديوس (RADIUS → HobeHub) → إشعارات
+#    خادم↔خادم موقَّع بـHMAC (X-HobeRadius-Signature: sha256=…). لا CSRF
+#    (مُعفى في 12_csrf) ولا تسجيل دخول. اضبط رابطه من إعدادات الريديوس +
+#    HOBERADIUS_WEBHOOK_SECRET المشترك.
+# ════════════════════════════════════════════════════════════════
+def _handle_radius_webhook_event(event, data, payload):
+    from app.services.notification_service import ADMIN_RECIPIENT, create_notification
+    username = (data.get("username") or "").strip()
+    bid = None
+    if username:
+        try:
+            r = query_one(
+                "SELECT beneficiary_id FROM beneficiary_radius_accounts "
+                "WHERE external_username=%s LIMIT 1", [username]) or {}
+            bid = r.get("beneficiary_id")
+        except Exception:
+            pass
+    # الأحداث المهمّة فقط (نتجاهل الجلسات الضوضائيّة كي لا نُغرق مركز الإشعارات).
+    mapping = {
+        "account.expired":  ("انتهاء اشتراك مشترك على الريديوس", "danger"),
+        "account.disabled": ("تعطيل مشترك على الريديوس", "warning"),
+        "quota.threshold":  ("تنبيه: مشترك قارب/تجاوز حصّته", "warning"),
+        "nas.unreachable":  ("راوتر/NAS لا يستجيب", "danger"),
+        "card.consumed":    ("استُهلكت بطاقة لأول مرّة", "info"),
+    }
+    if event not in mapping:
+        return
+    title, status = mapping[event]
+    bits = []
+    if username:
+        bits.append(f"المستخدم: {username}")
+    for k in ("reason", "percent", "nas", "nas_ip", "occurred_at"):
+        if data.get(k):
+            bits.append(f"{k}: {data.get(k)}")
+    try:
+        create_notification(
+            recipient_type=ADMIN_RECIPIENT,
+            title=title,
+            body=" · ".join(bits),
+            event_type=f"radius:{event}",
+            status=status,
+            source_type="radius_webhook",
+            action_url=(f"/admin/users/{bid}/profile" if bid else ""),
+        )
+    except Exception:
+        pass
+
+
+@app.route("/api/radius/webhook", methods=["POST"])
+def radius_webhook_receiver():
+    import hashlib
+    import hmac
+    import os
+    secret = (os.getenv("HOBERADIUS_WEBHOOK_SECRET") or "").strip()
+    if not secret:
+        return jsonify({"ok": False, "error": "webhook secret not configured"}), 503
+    raw = request.get_data() or b""
+    sig = request.headers.get("X-HobeRadius-Signature", "") or ""
+    expected = "sha256=" + hmac.new(secret.encode("utf-8"), raw, hashlib.sha256).hexdigest()
+    if not (sig.startswith("sha256=") and hmac.compare_digest(expected, sig)):
+        return jsonify({"ok": False, "error": "invalid signature"}), 401
+    try:
+        payload = _json.loads(raw.decode("utf-8") or "{}")
+    except Exception:
+        return jsonify({"ok": False, "error": "invalid json"}), 400
+    event = str(payload.get("event") or "").strip()
+    data = payload.get("data") or {}
+    if not isinstance(data, dict):
+        data = {}
+    try:
+        _handle_radius_webhook_event(event, data, payload)
+    except Exception:
+        pass
+    return jsonify({"ok": True, "event": event})
+
+
+# ════════════════════════════════════════════════════════════════
 # 8) Daily snapshot — لكل المشتركين النشطين
 # ════════════════════════════════════════════════════════════════
 def _take_snapshot_for_beneficiary(beneficiary):
@@ -478,6 +555,13 @@ def admin_user_monthly_report(beneficiary_id):
     if not beneficiary:
         flash("المشترك غير موجود.", "error")
         return redirect(url_for("beneficiaries_page"))
+
+    # التقط لقطة حيّة طازجة الآن (عبر الريديوس الحديث) كي يعكس التقرير أحدث
+    # استهلاك بدل الاعتماد على آخر تشغيل لعامل اللقطات — أفضل جهد، لا يُفشل العرض.
+    try:
+        _take_snapshot_for_beneficiary(beneficiary)
+    except Exception:
+        pass
 
     # آخر 30 snapshot
     snapshots = query_all(

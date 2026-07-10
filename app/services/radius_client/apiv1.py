@@ -449,6 +449,68 @@ class ApiV1RadiusClient(RadiusClient):
             f"accounting/usage/subscribers/{uname}", params=params or None)
         return data if ok and isinstance(data, dict) else None
 
+    def get_nas_list(self) -> list:
+        """قائمة الـNAS/الراوترات عبر GET /api/v1/nas — قواميس كما ترد."""
+        try:
+            self._guard_read()
+        except RadiusClientNotImplemented:
+            return []
+        ok, data, _err = self._get_data("nas")
+        if not ok:
+            return []
+        items = (data or {}).get("items") if isinstance(data, dict) else data
+        return items if isinstance(items, list) else []
+
+    def lock_session_mac(self, user_external_id: Any, *, mac: str = "",
+                         session_id: str = "", requested_by: str = "") -> Result:
+        """قفل جلسة المشترك على MAC الحاليّ عبر POST /sessions/lock-mac
+        (منع مشاركة الحساب) — يستغلّ نقطة متاحة غير مستعملة."""
+        self._guard_write()
+        uname = _ident(user_external_id)
+        if not uname:
+            return Result.failure("اسم المستخدم مطلوب.")
+        body: dict[str, Any] = {"username": uname}
+        if mac:
+            body["mac"] = str(mac).strip()
+        if session_id:
+            body["session_id"] = str(session_id).strip()
+        resp = self._request("POST", "sessions/lock-mac", json_body=body)
+        ok, _data, err = self._envelope(resp)
+        if not ok:
+            return Result.failure(err or "تعذّر قفل MAC.")
+        return Result.success("تم قفل MAC للجلسة.", username=uname,
+                              api_endpoint="/api/v1/sessions/lock-mac")
+
+    def set_temp_speed(self, user_external_id: Any, *, down_kbps: int, up_kbps: int,
+                       minutes: int = 60, requested_by: str = "") -> Result:
+        """رفع سرعة مؤقّت عبر POST /sessions/temp-speed."""
+        self._guard_write()
+        uname = _ident(user_external_id)
+        if not uname:
+            return Result.failure("اسم المستخدم مطلوب.")
+        body = {"username": uname, "down_kbps": _int_or_zero(down_kbps),
+                "up_kbps": _int_or_zero(up_kbps),
+                "duration_minutes": _int_or_zero(minutes) or 60}
+        resp = self._request("POST", "sessions/temp-speed", json_body=body)
+        ok, _data, err = self._envelope(resp)
+        if not ok:
+            return Result.failure(err or "تعذّر رفع السرعة المؤقّت.")
+        return Result.success("تم رفع السرعة مؤقتًا.", username=uname,
+                              api_endpoint="/api/v1/sessions/temp-speed")
+
+    def cancel_temp_speed(self, user_external_id: Any, *, requested_by: str = "") -> Result:
+        """إلغاء رفع السرعة المؤقّت عبر POST /sessions/temp-speed/cancel."""
+        self._guard_write()
+        uname = _ident(user_external_id)
+        if not uname:
+            return Result.failure("اسم المستخدم مطلوب.")
+        resp = self._request("POST", "sessions/temp-speed/cancel",
+                             json_body={"username": uname})
+        ok, _data, err = self._envelope(resp)
+        if not ok:
+            return Result.failure(err or "تعذّر إلغاء رفع السرعة.")
+        return Result.success("تم إلغاء رفع السرعة.", username=uname)
+
     # ═══════════════════════════════════════════════════════════════════
     # قراءات
     # ═══════════════════════════════════════════════════════════════════

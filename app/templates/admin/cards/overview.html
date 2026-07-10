@@ -105,10 +105,12 @@
       <span class="hub-stat-ico ok"><i class="fa-solid fa-wifi"></i></span>
       <div><span class="lbl">متّصلون الآن</span><span class="val">{{ api_kpis.data.online_users | default(0) }}</span></div>
     </div>
+    {% if api_kpis.data.my_credit %}
     <div class="hub-stat">
       <span class="hub-stat-ico"><i class="fa-solid fa-wallet"></i></span>
-      <div><span class="lbl">رصيدك</span><span class="val">{{ "{:,.0f}".format(api_kpis.data.my_credit) if api_kpis.data.my_credit else '—' }}<small>ILS</small></span></div>
+      <div><span class="lbl">رصيدك</span><span class="val">{{ "{:,.0f}".format(api_kpis.data.my_credit) }}<small>ILS</small></span></div>
     </div>
+    {% endif %}
     {% else %}
     <div class="hub-stat" style="grid-column:span 3">
       <span class="hub-stat-ico danger"><i class="fa-solid fa-circle-info"></i></span>

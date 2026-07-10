@@ -154,3 +154,20 @@ def revoke_radius_card(*, card_external_id: str, requested_by: str = "") -> dict
         "تم إلغاء البطاقة على الريديوس.",
         "تعذّر إلغاء البطاقة",
     )
+
+
+def lock_session_mac(*, username: str, mac: str = "", session_id: str = "",
+                     requested_by: str = "") -> dict:
+    """يقفل جلسة المشترك على MAC الحاليّ (منع مشاركة الحساب)."""
+    username = (username or "").strip()
+    if not username:
+        return {"ok": False, "live": False, "message": "اسم المستخدم مطلوب."}
+    client = _client()
+    if not hasattr(client, "lock_session_mac"):
+        return {"ok": False, "live": False, "message": "قفل MAC غير مدعوم في هذا الوضع."}
+    return _guarded(
+        lambda: client.lock_session_mac(
+            username, mac=mac, session_id=session_id, requested_by=requested_by),
+        "تم قفل MAC للجلسة.",
+        "تعذّر قفل MAC",
+    )

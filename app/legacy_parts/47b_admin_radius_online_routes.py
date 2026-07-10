@@ -83,6 +83,23 @@ def admin_radius_online():
     )
 
 
+@app.route("/admin/radius/nas", methods=["GET"])
+@admin_login_required
+def admin_radius_nas():
+    """قائمة الـNAS/الراوترات من الريديوس (GET /api/v1/nas) — قراءة فقط."""
+    from app.services.radius_client import get_radius_client, is_api_under_development
+    available = not is_api_under_development()
+    nas = []
+    if available:
+        try:
+            client = get_radius_client()
+            nas = client.get_nas_list() if hasattr(client, "get_nas_list") else []
+        except Exception:
+            nas = []
+    return render_template("admin/radius/nas.html",
+                           nas=nas, available=available, nas_count=len(nas))
+
+
 @app.route("/admin/radius/online/refresh", methods=["POST"])
 @admin_login_required
 def admin_radius_online_refresh():

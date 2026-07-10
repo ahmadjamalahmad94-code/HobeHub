@@ -57,6 +57,26 @@ def radius_disconnect_user_page():
     return redirect(request.referrer or url_for("radius_online_users_page"))
 
 
+@app.route("/admin/radius/lock-mac", methods=["POST"])
+@login_required
+@permission_required("disconnect_radius_user")
+def radius_lock_mac_page():
+    username = clean_csv_value(request.form.get("username"))
+    mac = clean_csv_value(request.form.get("mac"))
+    if not username:
+        flash("اسم المستخدم مطلوب.", "error")
+        return redirect(request.referrer or url_for("radius_online_users_page"))
+    from app.services.radius_provisioning import lock_session_mac
+    res = lock_session_mac(username=username, mac=mac,
+                           requested_by=session.get("username") or "admin")
+    if res.get("ok"):
+        flash("تم قفل MAC للجلسة." if res.get("live")
+              else "سُجِّل طلب قفل MAC (سيُنفَّذ عند تفعيل الكتابة/المزامنة).", "success")
+    else:
+        flash(f"تعذّر قفل MAC: {safe(str(res.get('message')))}", "error")
+    return redirect(request.referrer or url_for("radius_online_users_page"))
+
+
 @app.route("/admin/radius/user-lookup", methods=["GET", "POST"])
 @login_required
 @permission_required("view_radius_status")

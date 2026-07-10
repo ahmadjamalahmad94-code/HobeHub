@@ -157,10 +157,36 @@ def admin_internet_request_approve(request_id):
         error_message="",
     )
     log_action("approve_internet_request", "internet_request", request_id, f"Approve {row.get('request_type')}")
+    # ── ربط الريديوس: اعتماد طلب «إنشاء يوزر» يُزوِّده فعليًّا على الريديوس ──
+    radius_note = ""
+    if clean_csv_value(row.get("request_type")) == "create_user":
+        try:
+            acct = query_one(
+                "SELECT external_username, plain_password, current_profile_id "
+                "FROM beneficiary_radius_accounts WHERE beneficiary_id=%s LIMIT 1",
+                [row.get("beneficiary_id")]) or {}
+            ru = clean_csv_value(acct.get("external_username"))
+            rp = acct.get("plain_password") or ""
+            if ru and rp:
+                from app.services.radius_provisioning import provision_subscriber
+                pr = provision_subscriber(
+                    beneficiary_id=row.get("beneficiary_id"), username=ru, password=rp,
+                    profile_id=clean_csv_value(acct.get("current_profile_id")) or "",
+                    requested_by=session.get("username") or "admin")
+                if pr.get("ok") and pr.get("live"):
+                    execute_sql(
+                        "UPDATE beneficiary_radius_accounts SET status='active', "
+                        "updated_at=CURRENT_TIMESTAMP WHERE beneficiary_id=%s",
+                        [row.get("beneficiary_id")])
+                    radius_note = " وأُنشئ اليوزر على الريديوس."
+                elif not pr.get("ok"):
+                    radius_note = f" (تنبيه ريديوس: {pr.get('message')})"
+        except Exception:
+            pass
     try:
         from app.services.notification_service import notify_internet_request_status
         notify_internet_request_status(request_id, "approved", actor_name=session.get("username", ""))
     except Exception:
         pass
-    flash("تمت الموافقة على الطلب وتجهيزه للتنفيذ.", "success")
+    flash("تمت الموافقة على الطلب وتجهيزه للتنفيذ." + radius_note, "success")
     return redirect(url_for("admin_request_center_detail", source="internet", request_id=request_id))
