@@ -252,6 +252,27 @@ def admin_user_set_portal_password(beneficiary_id):
                 """,
                 [beneficiary_id, new_username, new_password, pwd_md5],
             )
+        # ── ربط الريديوس: طبّق كلمة المرور فعليًّا (تغيير؛ وإن لم يوجد اليوزر أنشئه) ──
+        try:
+            from app.services.radius_provisioning import (
+                provision_subscriber, reset_subscriber_password)
+            _actor = session.get("username") or "admin"
+            _rr = reset_subscriber_password(
+                username=new_username, new_password=new_password,
+                beneficiary_id=beneficiary_id, requested_by=_actor)
+            _live_ok = bool(_rr.get("ok") and _rr.get("live"))
+            if _rr.get("live") and not _rr.get("ok"):
+                _cr = provision_subscriber(
+                    beneficiary_id=beneficiary_id, username=new_username,
+                    password=new_password, profile_id="", requested_by=_actor)
+                _live_ok = bool(_cr.get("ok") and _cr.get("live"))
+            if _live_ok:
+                execute_sql(
+                    "UPDATE beneficiary_radius_accounts SET status='active', "
+                    "updated_at=CURRENT_TIMESTAMP WHERE beneficiary_id=%s",
+                    [beneficiary_id])
+        except Exception:
+            pass
         log_action("radius_password_set", "beneficiary", beneficiary_id,
                    f"تعديل/إنشاء بيانات RADIUS API: {new_username}")
         return jsonify({"ok": True, "username": new_username, "password": new_password})

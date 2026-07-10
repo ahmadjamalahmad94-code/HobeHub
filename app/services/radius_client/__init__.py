@@ -90,7 +90,7 @@ def get_radius_client() -> RadiusClient:
     if is_live_mode() and not is_api_under_development():
         # اختيار العميل حسب نوع الـ API المُعدّ: الحديث /api/v1 أم القديم /app_ad2.
         from ..radius_config import resolve_radius_connection
-        flavor = (resolve_radius_connection().api_flavor or "app_ad2").lower()
+        flavor = (resolve_radius_connection().api_flavor or "apiv1").lower()
         if flavor == "apiv1":
             _singleton = ApiV1RadiusClient()
         else:

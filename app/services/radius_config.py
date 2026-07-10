@@ -36,7 +36,7 @@ class RadiusConnectionConfig:
     verify_ssl: bool
     api_enabled: bool
     source: str          # 'db' | 'env' — للتشخيص فقط (بلا أسرار)
-    api_flavor: str = "app_ad2"  # 'apiv1' (الحديث) | 'app_ad2' (القديم)
+    api_flavor: str = "apiv1"  # 'apiv1' (الحديث، الافتراضي) | 'app_ad2' (القديم)
 
 
 _VALID_MODES = {"manual", "live"}
@@ -152,7 +152,8 @@ def resolve_radius_connection(refresh: bool = False) -> RadiusConnectionConfig:
         env_flavor = _env("RADIUS_API_FLAVOR").lower()
         api_flavor = env_flavor if env_flavor in _VALID_FLAVORS else ""
     if not api_flavor:
-        api_flavor = "apiv1" if "/api/v1" in base_url.lower() else "app_ad2"
+        # apiv1-أوّلًا: لا نقع على القديم app_ad2 إلا إذا كان الرابط صريحًا بـ/app_ad2.
+        api_flavor = "app_ad2" if "/app_ad2" in base_url.lower() else "apiv1"
 
     _cached = RadiusConnectionConfig(
         base_url=base_url,

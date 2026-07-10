@@ -43,14 +43,18 @@ def radius_disconnect_user_page():
     if not username:
         flash("اسم المستخدم مطلوب.", "error")
         return redirect(url_for("radius_online_users_page"))
-    try:
-        get_radius_client().disconnect_user({"username": username})
-        log_action("disconnect_radius_user", "radius_user", None, f"Disconnect {username}")
-        flash("تم إرسال أمر الفصل بنجاح.", "success")
-    except Exception as exc:
-        log_action("disconnect_radius_user_failed", "radius_user", None, f"{username}: {exc}")
-        flash(f"تعذر فصل المستخدم: {safe(str(exc))}", "error")
-    return redirect(url_for("radius_online_users_page"))
+    from app.services.radius_provisioning import disconnect_subscriber
+    res = disconnect_subscriber(username=username, requested_by=session.get("username") or "admin")
+    if res.get("ok"):
+        log_action("disconnect_radius_user", "radius_user", None,
+                   f"Disconnect {username} live={res.get('live')}")
+        flash("تم إرسال أمر الفصل بنجاح." if res.get("live")
+              else "سُجِّل أمر الفصل (سيُنفَّذ عند تفعيل الكتابة/المزامنة).", "success")
+    else:
+        log_action("disconnect_radius_user_failed", "radius_user", None,
+                   f"{username}: {res.get('message')}")
+        flash(f"تعذر فصل المستخدم: {safe(str(res.get('message')))}", "error")
+    return redirect(request.referrer or url_for("radius_online_users_page"))
 
 
 @app.route("/admin/radius/user-lookup", methods=["GET", "POST"])

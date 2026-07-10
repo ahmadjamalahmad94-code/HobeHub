@@ -168,6 +168,18 @@ def admin_beneficiary_delete_ajax(beneficiary_id):
     row = query_one("SELECT full_name FROM beneficiaries WHERE id=%s", [beneficiary_id])
     if not row:
         return jsonify({"ok": False, "message": "المستفيد غير موجود."}), 404
+    # ── ربط الريديوس: عطّل يوزر المشترك قبل الحذف كي لا يبقى يتيمًا يصادق ──
+    try:
+        _acct = query_one(
+            "SELECT external_username FROM beneficiary_radius_accounts WHERE beneficiary_id=%s LIMIT 1",
+            [beneficiary_id]) or {}
+        _ruser = clean_csv_value(_acct.get("external_username"))
+        if _ruser:
+            from app.services.radius_provisioning import deprovision_subscriber
+            deprovision_subscriber(username=_ruser, beneficiary_id=beneficiary_id,
+                                   requested_by=session.get("username") or "admin")
+    except Exception:
+        pass
     execute_sql("DELETE FROM beneficiaries WHERE id=%s", [beneficiary_id])
     log_action("delete_beneficiary_ajax", "beneficiary", beneficiary_id, f"حذف: {row.get('full_name')}")
     return jsonify({"ok": True, "message": f"تم حذف {row.get('full_name')}"})
@@ -198,6 +210,20 @@ def admin_beneficiary_bulk_action():
             return jsonify({"ok": False, "message": "ليس لديك صلاحية حذف."}), 403
         count_row = query_one(f"SELECT COUNT(*) AS c FROM beneficiaries WHERE id IN ({placeholders})", ids) or {}
         n = int(count_row.get("c") or 0)
+        # ── ربط الريديوس: عطّل يوزرات المشتركين قبل الحذف الجماعيّ ──
+        try:
+            from app.services.radius_provisioning import deprovision_subscriber
+            _accts = query_all(
+                f"SELECT beneficiary_id, external_username FROM beneficiary_radius_accounts "
+                f"WHERE beneficiary_id IN ({placeholders})", ids) or []
+            _actor = session.get("username") or "admin"
+            for _a in _accts:
+                _ru = clean_csv_value(_a.get("external_username"))
+                if _ru:
+                    deprovision_subscriber(username=_ru, beneficiary_id=_a.get("beneficiary_id"),
+                                           requested_by=_actor)
+        except Exception:
+            pass
         execute_sql(f"DELETE FROM beneficiaries WHERE id IN ({placeholders})", ids)
         log_action("bulk_delete", "beneficiary", 0, f"حذف جماعي ({n})، ids={ids}")
         return jsonify({"ok": True, "message": f"تم حذف {n} مستفيد."})

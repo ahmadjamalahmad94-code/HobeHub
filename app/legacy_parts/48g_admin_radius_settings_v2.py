@@ -22,7 +22,7 @@ def _run_radius_connection_test():
     if not cfg.base_url:
         return ("لم يُضبط Base URL بعد — احفظ الرابط أولًا ثم اختبر.", "error")
     # نختبر بالعميل المطابق لنوع الـ API المُعدّ (الحديث /api/v1 أم القديم).
-    if (cfg.api_flavor or "app_ad2").lower() == "apiv1":
+    if (cfg.api_flavor or "apiv1").lower() == "apiv1":
         client = ApiV1RadiusClient()
     else:
         client = LiveRadiusClient()
@@ -65,7 +65,7 @@ def _radius_settings_v2_view():
             mode = "manual"
         api_flavor = (clean_csv_value(request.form.get("api_flavor")) or "").lower()
         if api_flavor not in ("apiv1", "app_ad2"):
-            api_flavor = "apiv1" if "/api/v1" in (base_url or "").lower() else "app_ad2"
+            api_flavor = "app_ad2" if "/app_ad2" in (base_url or "").lower() else "apiv1"
         read_enabled = request.form.get("read_enabled") == "1"
         write_enabled = request.form.get("write_enabled") == "1"
         verify_ssl = request.form.get("verify_ssl") == "1"

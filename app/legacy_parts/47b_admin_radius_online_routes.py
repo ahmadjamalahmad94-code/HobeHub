@@ -35,6 +35,41 @@ def admin_radius_online():
             "raw":           s,
         })
 
+    # ── تصنيف الجلسات: مشترك (يوزر إنترنت) أم بطاقة — بمطابقة محليّة سريعة ──
+    from app.db.queries import query_all
+    _unames = [s["username"] for s in sessions if s["username"] and s["username"] != "—"]
+    sub_set, card_set = set(), set()
+    if _unames:
+        _ph = ",".join(["%s"] * len(_unames))
+        try:
+            for _r in (query_all(
+                f"SELECT external_username AS u FROM beneficiary_radius_accounts "
+                f"WHERE external_username IN ({_ph})", _unames) or []):
+                if _r.get("u"):
+                    sub_set.add(str(_r["u"]))
+        except Exception:
+            pass
+        try:
+            for _r in (query_all(
+                f"SELECT card_username AS u FROM manual_access_cards "
+                f"WHERE card_username IN ({_ph})", _unames) or []):
+                if _r.get("u"):
+                    card_set.add(str(_r["u"]))
+        except Exception:
+            pass
+    _KIND_LABEL = {"subscriber": "مشترك", "card": "بطاقة", "unknown": "غير معروف"}
+    sub_count = card_count = unknown_count = 0
+    for s in sessions:
+        u = s["username"]
+        if u in sub_set:
+            kind = "subscriber"; sub_count += 1
+        elif u in card_set:
+            kind = "card"; card_count += 1
+        else:
+            kind = "unknown"; unknown_count += 1
+        s["account_kind"] = kind
+        s["account_kind_label"] = _KIND_LABEL[kind]
+
     return render_template(
         "admin/radius/online.html",
         sessions_result=sessions_result,
@@ -42,6 +77,9 @@ def admin_radius_online():
         kpis_result=kpis_result,
         server_info=server_info,
         online_count=len(sessions),
+        subscriber_count=sub_count,
+        card_count=card_count,
+        unknown_count=unknown_count,
     )
 
 

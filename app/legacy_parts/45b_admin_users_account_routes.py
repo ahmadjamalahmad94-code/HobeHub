@@ -324,6 +324,22 @@ def admin_users_account_create():
                 "إنشاء حساب إنترنت من لوحة الإدارة",
             ],
         )
+        # ── ربط الريديوس: محاولة إنشاء اليوزر مباشرةً (إضافيّ؛ الطابور أعلاه هو
+        #    المسار الاحتياطيّ عند إقفال الكتابة/الوضع غير المباشر) ──
+        try:
+            from app.services.radius_provisioning import provision_subscriber
+            _pr = provision_subscriber(
+                beneficiary_id=beneficiary_id, username=username, password=password,
+                profile_id="", requested_by=session.get("username") or "admin",
+            )
+            if _pr.get("ok") and _pr.get("live"):
+                execute_sql(
+                    "UPDATE beneficiary_radius_accounts SET status='active', "
+                    "updated_at=CURRENT_TIMESTAMP WHERE beneficiary_id=%s",
+                    [beneficiary_id],
+                )
+        except Exception:
+            pass
     except Exception:
         if beneficiary_id:
             try:
@@ -471,6 +487,37 @@ def admin_beneficiary_convert_access(beneficiary_id):
         )
     # tawjihi لا يحتاج (مقفل على cards)
 
+    # ── ربط الريديوس: التحويل إلى «يوزر إنترنت» ⇒ إنشاء اليوزر فعليًّا على الريديوس ──
+    radius_note = ""
+    if target_mode == "username":
+        acct = query_one(
+            "SELECT external_username, plain_password, current_profile_id "
+            "FROM beneficiary_radius_accounts WHERE beneficiary_id=%s LIMIT 1",
+            [beneficiary_id],
+        ) or {}
+        r_user = clean_csv_value(acct.get("external_username"))
+        r_pass = acct.get("plain_password") or ""
+        if r_user and r_pass:
+            from app.services.radius_provisioning import provision_subscriber
+            pr = provision_subscriber(
+                beneficiary_id=beneficiary_id, username=r_user, password=r_pass,
+                profile_id=clean_csv_value(acct.get("current_profile_id")) or "",
+                requested_by=session.get("username") or "admin",
+            )
+            if pr.get("ok") and pr.get("live"):
+                execute_sql(
+                    "UPDATE beneficiary_radius_accounts SET status='active', "
+                    "updated_at=CURRENT_TIMESTAMP WHERE beneficiary_id=%s",
+                    [beneficiary_id],
+                )
+                radius_note = " وأُنشئ يوزره على الريديوس."
+            elif not pr.get("ok"):
+                radius_note = f" (تنبيه ريديوس: {pr.get('message')})"
+            else:
+                radius_note = " (سيُنشأ على الريديوس عند تفعيل الكتابة/المزامنة)."
+        else:
+            radius_note = " (عيّن اسم مستخدم وكلمة مرور للمشترك أولًا لإنشائه على الريديوس)."
+
     log_action(
         "convert_access_mode",
         "beneficiary",
@@ -486,7 +533,7 @@ def admin_beneficiary_convert_access(beneficiary_id):
         )
     except Exception:
         pass
-    msg = f"تم تحويل {ben['full_name']} إلى {ACCESS_LABELS.get(target_mode, target_mode)}."
+    msg = f"تم تحويل {ben['full_name']} إلى {ACCESS_LABELS.get(target_mode, target_mode)}.{radius_note}"
     # AJAX response
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return jsonify({"ok": True, "message": msg})
