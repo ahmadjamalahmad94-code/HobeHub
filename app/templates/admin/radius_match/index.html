@@ -4,6 +4,9 @@
 {% block crumbs %}<span>الإدارة</span><i class="fa-solid fa-chevron-left"></i><span>المستفيدون</span><i class="fa-solid fa-chevron-left"></i><span>مطابقة RADIUS</span>{% endblock %}
 
 {% block head_extra %}{{ super() }}
+{# توكن CSRF غير مشروط: صفحة المقدّمة لا تعرض نموذج «تطبيق» (وحقلَ الـCSRF داخله)،
+   فيقرأه csrfToken() من هذا الـmeta كي لا يُرفض طلب «بدء الجولة» (XHR) بخطأ CSRF. #}
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <style>
 .rm-intro{margin-bottom:22px}
 .rm-note{padding:14px 18px;border-radius:14px;font-size:13.5px;font-weight:700;margin-bottom:18px;display:flex;gap:10px;align-items:flex-start}
@@ -224,7 +227,7 @@
         method:'POST', credentials:'same-origin',
         headers:{'X-CSRFToken':csrfToken(),'X-Requested-With':'XMLHttpRequest'}
       }).then(function(r){ return r.json(); }).then(function(p){
-        if(!p || !p.ok){ showToast('تعذّر بدء الجولة','error'); startBtn.disabled=false; return; }
+        if(!p || !p.ok){ showToast((p&&p.message)||'تعذّر بدء الجولة','error'); startBtn.disabled=false; return; }
         renderProgress(p);
         if(p.done){
           if(p.status === 'needs_live'){ startBtn.disabled=false; return; }
