@@ -1,23 +1,25 @@
-"""
-radius_subscriber_bridge — جسر بين بيانات HobeHub والـ Admin API.
-يستخدم admin master key لجلب/تعديل بيانات مشترك معيّن نيابة عنه.
+"""radius_subscriber_bridge — جسر حالة مشترك معيّن عبر واجهة الريديوس الحديثة (/api/v1).
 
-⚠ كل دالة استدعاء API هنا محكومة بـ kill-switch موحّد:
-   - افتراضياً معطّلة (لا تستدعي شبكة).
-   - للتفعيل: RADIUS_API_LIVE=1 في البيئة.
+مُرحَّل (2026-07) من طبقة AdvRadius/app_ad القديمة (advrapp.com:6950/app) إلى العميل
+الحديث ``get_radius_client()``:
+  - قراءات الحالة تُبنى من ``subscriber_radius_status.get_subscriber_radius_status``
+    (يستخدم العميل الحديث) وتُشكَّل بنفس مفاتيح adv القديمة (``_snapshot_to_payload``)
+    كي لا يتغيّر أيّ مستهلك (widget المشترك/الأدمن + اللقطة اليوميّة + المراقبة الحيّة).
+  - تغيير كلمة المرور و«المتصلون الآن» عبر ``get_radius_client()`` مباشرة.
+
+كل نداء محكوم بـ ``is_radius_offline`` الموحّد (يقرأ mode=live + read_enabled من DB).
+لم تَعُد هذه الوحدة تستورد ``RadiusApiClient``/``AdvClientApi`` القديمين.
 """
 from __future__ import annotations
 
 from typing import Any
-from app.services.radius_api import RadiusApiClient, RadiusApiError
-from app.services.adv_client_api import AdvClientApi, AdvClientApiError
+
 from app.services.radius_kill_switch import is_radius_offline, radius_offline_response
 
 
 # ───────── Username lookup ─────────
 def get_radius_username_for(beneficiary_row: dict) -> str:
-    """يرجّع اسم المستخدم في RADIUS لمشترك معيّن.
-       يجرّب أولاً radius_username ثم phone."""
+    """يرجّع اسم المستخدم في RADIUS لمشترك: radius_username ثم username ثم phone."""
     if not beneficiary_row:
         return ""
     for key in ("radius_username", "username", "phone"):
@@ -27,71 +29,64 @@ def get_radius_username_for(beneficiary_row: dict) -> str:
     return ""
 
 
-# ───────── Admin API client (cached + session reused) ─────────
-_admin_client: RadiusApiClient | None = None
-_session_cache: dict = {"api_key": None, "ts": 0}
+def _client():
+    from app.services.radius_client import get_radius_client
+    return get_radius_client()
 
 
-def _load_session():
-    """يرجع الـ api_key المحفوظ في الذاكرة (لمنع تكرار login يستهلك rate-limit)."""
-    if _session_cache.get("api_key"):
-        return {"api_key": _session_cache["api_key"]}
-    return None
+def _resolve_bid(username: str) -> int:
+    try:
+        from app.db.queries import query_one
+        row = query_one(
+            "SELECT beneficiary_id FROM beneficiary_radius_accounts "
+            "WHERE external_username=%s LIMIT 1", [username]) or {}
+        return int(row.get("beneficiary_id") or 0)
+    except Exception:  # noqa: BLE001
+        return 0
 
 
-def _save_session(api_key):
-    """يخزّن الـ api_key في الذاكرة."""
-    import time as _t
-    _session_cache["api_key"] = api_key
-    _session_cache["ts"] = _t.time()
+def _snapshot_to_payload(snapshot: dict) -> dict:
+    """يطابق ``_status_snapshot_as_api_payload`` في 48ap تمامًا — نفس المفاتيح كي
+    يقرأها المستهلك القائم (val_usage_qouta / conn_code / down_speed …) بلا تغيير."""
+    snapshot = snapshot or {}
+    return {
+        "conn_code":       "online" if snapshot.get("is_online") else "offline",
+        "is_online":       1 if snapshot.get("is_online") else 0,
+        "profile_name":    snapshot.get("profile_name") or "",
+        "expiration":      snapshot.get("expires_at") or "",
+        "down_speed":      snapshot.get("download_speed") or snapshot.get("down_speed") or "",
+        "up_speed":        snapshot.get("upload_speed") or snapshot.get("up_speed") or "",
+        "val_usage_qouta": snapshot.get("usage_bytes") or 0,
+        "val_rem":         snapshot.get("remaining_bytes") or 0,
+        "framed_ip":       snapshot.get("framed_ip") or "",
+        "mac_address":     snapshot.get("mac_address") or "",
+        "status":          snapshot.get("status") or "",
+        "status_label":    snapshot.get("status_label") or "",
+        "last_seen_at":    snapshot.get("last_seen_at") or "",
+    }
 
 
-def _clear_session():
-    _session_cache["api_key"] = None
-    _session_cache["ts"] = 0
+def _status_payload_for(username: str) -> dict:
+    from app.services.subscriber_radius_status import get_subscriber_radius_status
+    snapshot = get_subscriber_radius_status(_resolve_bid(username), username) or {}
+    return _snapshot_to_payload(snapshot)
 
 
-def _get_admin_client() -> RadiusApiClient:
-    global _admin_client
-    if _admin_client is None:
-        _admin_client = RadiusApiClient.from_settings(
-            session_loader=_load_session,
-            session_saver=_save_session,
-        )
-    return _admin_client
-
-
-# ───────── Status: details + status combined ─────────
+# ───────── Status: يُبنى من العميل الحديث ─────────
 def fetch_subscriber_status(username: str) -> dict:
-    """يجلب details + status لمشترك. يرجع dict موحّد أو {'ok':False, 'error':...}."""
+    """ملخّص حالة مشترك (بشكل adv القديم كي لا يتغيّر المستهلك)."""
     if is_radius_offline():
         return radius_offline_response({"username": username})
     if not username:
         return {"ok": False, "error": "اسم المستخدم غير محدد."}
     try:
-        client = _get_admin_client()
-        if not client.is_configured():
-            return {"ok": False, "error": "إعدادات RADIUS API غير مكتملة."}
-        # نستخدم get_user_usage للحصول على ملخّص الاستهلاك
-        usage = client.get_user_usage({"username": username})
-        sessions = {}
-        try:
-            sessions = client.get_user_sessions({"username": username})
-        except Exception:
-            pass
-        return {
-            "ok": True,
-            "username": username,
-            "usage": usage or {},
-            "sessions": sessions or {},
-        }
-    except RadiusApiError as e:
-        return {"ok": False, "error": str(e)}
-    except Exception as e:
+        return {"ok": True, "username": username,
+                "usage": _status_payload_for(username), "sessions": {}}
+    except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
 
-# ───────── Password reset (via admin API) ─────────
+# ───────── Password reset (عبر العميل الحديث) ─────────
 def reset_subscriber_password(username: str, new_password: str) -> dict:
     if is_radius_offline():
         return radius_offline_response({"username": username})
@@ -100,66 +95,41 @@ def reset_subscriber_password(username: str, new_password: str) -> dict:
     if len(new_password) < 6:
         return {"ok": False, "error": "كلمة المرور قصيرة جدًا (6 أحرف على الأقل)."}
     try:
-        client = _get_admin_client()
-        if not client.is_configured():
-            return {"ok": False, "error": "إعدادات RADIUS API غير مكتملة."}
-        result = client.reset_password({
-            "username": username,
-            "password": new_password,
-            "new_password": new_password,
-        })
-        return {"ok": True, "result": result or {}}
-    except RadiusApiError as e:
-        return {"ok": False, "error": str(e)}
-    except Exception as e:
+        result = _client().reset_password(username, new_password)
+        if bool(getattr(result, "ok", False)):
+            return {"ok": True, "result": {"message": getattr(result, "message", "")}}
+        return {"ok": False, "error": getattr(result, "message", "") or "تعذّر تغيير كلمة المرور."}
+    except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
 
-# ───────── Online users (for live monitor) ─────────
+# ───────── Online users (للمراقبة الحيّة) ─────────
 def fetch_online_users(limit: int = 100) -> dict:
     if is_radius_offline():
         return radius_offline_response({"data": {}})
     try:
-        client = _get_admin_client()
-        if not client.is_configured():
-            return {"ok": False, "error": "إعدادات RADIUS API غير مكتملة."}
-        result = client.get_online_users({"limit": limit})
-        return {"ok": True, "data": result or {}}
-    except RadiusApiError as e:
-        return {"ok": False, "error": str(e)}
-    except Exception as e:
+        sessions = _client().get_online_users() or []
+        if isinstance(sessions, list) and limit:
+            sessions = sessions[: int(limit)]
+        else:
+            sessions = sessions if isinstance(sessions, list) else []
+        return {"ok": True, "data": {"items": sessions, "count": len(sessions)}}
+    except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
 
-# ───────── Subscriber API (when we have their creds) ─────────
-def fetch_subscriber_details_via_self(username: str, password: str) -> dict:
-    """يجلب /details + /status باستخدام كريدنشيال المشترك نفسه (الـ AdvClient API)."""
+# ───────── Subscriber details (كان AdvClient الذاتيّ؛ صار إداريًّا حديثًا) ─────────
+def fetch_subscriber_details_via_self(username: str, password: str = "") -> dict:
+    """كان يستخدم كريدنشيال المشترك عبر AdvClient القديم. الواجهة الحديثة إداريّة
+    فقط (لا دخول ذاتيّ للمشترك)، فنقرأ حالته عبر العميل الإداريّ الحديث بالاسم
+    (كلمة المرور لم تَعُد لازمة). يُبقى شكل الإرجاع {ok, username, details, status,
+    account} — و``details`` بنفس مفاتيح adv كي لا يتغيّر المستهلك."""
     if is_radius_offline():
         return radius_offline_response({"username": username})
-    if not username or not password:
-        return {"ok": False, "error": "اسم المستخدم وكلمة المرور مطلوبان."}
-    client = AdvClientApi.from_env()
-    if not (client.config.api_enabled and client.config.base_url):
-        return {"ok": False, "error": "AdvRadius Client API غير مهيّأ."}
+    if not username:
+        return {"ok": False, "error": "اسم المستخدم مطلوب."}
     try:
-        login_data = client.login(username=username, password=password, force=True)
-        api_key = login_data.get("api_key")
-        if not api_key:
-            return {"ok": False, "error": "فشل تسجيل دخول المشترك."}
-        details = client.request("/details", api_key=api_key, data={})
-        status_d = {}
-        try:
-            status_d = client.request("/status", api_key=api_key, data={})
-        except Exception:
-            pass
-        return {
-            "ok": True,
-            "username": username,
-            "details": details or {},
-            "status": status_d or {},
-            "account": login_data.get("account") or {},
-        }
-    except AdvClientApiError as e:
-        return {"ok": False, "error": str(e)}
-    except Exception as e:
+        return {"ok": True, "username": username,
+                "details": _status_payload_for(username), "status": {}, "account": {}}
+    except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
