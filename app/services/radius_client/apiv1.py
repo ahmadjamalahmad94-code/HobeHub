@@ -341,13 +341,33 @@ class ApiV1RadiusClient(RadiusClient):
             return {"ok": False, "error": str(exc)}
         online = self.get_online_users()
         profiles = self.get_profiles()
+        total = self._accounts_total()
         return {
             "ok": True,
             "data": {
                 "online_now": len(online),
+                "online_users": len(online),        # اسم قديم يقرأه قالب اللوحة
                 "profiles_count": len(profiles),
+                "total_users": total,               # إجمالي المشتركين (None لو تعذّر)
             },
         }
+
+    def _accounts_total(self):
+        """إجمالي حسابات المشتركين (best-effort) من ميتا /api/v1/accounts.
+        يُرجع int أو None بلا رمي — لملء بطاقة «مستخدمو RADIUS» بقيمة حيّة."""
+        try:
+            body = self._request("GET", "accounts", params={"limit": 1, "offset": 0})
+        except Exception:  # noqa: BLE001
+            return None
+        if not isinstance(body, dict):
+            return None
+        for container in (body.get("meta"), body.get("data"), body):
+            if isinstance(container, dict):
+                for k in ("total", "count", "total_count"):
+                    v = container.get(k)
+                    if isinstance(v, (int, float)):
+                        return int(v)
+        return None
 
     def get_dashboard_metrics(self) -> dict:
         """مقاييس اللوحة الحديثة: المتصلون الآن + الباقات + أعلام التشغيل.
@@ -360,16 +380,74 @@ class ApiV1RadiusClient(RadiusClient):
             return {"ok": False, "error": str(exc)}
         online = self.get_online_users()
         profiles = self.get_profiles()
+        total = self._accounts_total()
         return {
             "ok": True,
             "data": {
                 "online_now": len(online),
+                "online_users": len(online),
                 "profiles_count": len(profiles),
+                "total_users": total,
                 "read_enabled": self._read_enabled,
                 "write_enabled": self._write_enabled,
                 "mode": self.mode,
             },
         }
+
+    # ═══════════════════════════════════════════════════════════════════
+    # إجراءات/قراءات إضافية تستغلّ نقاط /api/v1 غير المستعملة سابقًا
+    # ═══════════════════════════════════════════════════════════════════
+    def disable_account(self, user_external_id: Any, *, requested_by: str = "") -> Result:
+        """تعطيل مباشر عبر POST /accounts/<u>/disable (أنظف من PATCH status)."""
+        self._guard_write()
+        uname = _ident(user_external_id)
+        if not uname:
+            return Result.failure("اسم المستخدم مطلوب.")
+        resp = self._request("POST", f"accounts/{uname}/disable", json_body={})
+        ok, _data, err = self._envelope(resp)
+        if not ok:
+            return Result.failure(err or "تعذّر تعطيل المشترك.")
+        return Result.success("تم تعطيل المشترك.", username=uname,
+                              api_endpoint=f"/api/v1/accounts/{uname}/disable")
+
+    def enable_account(self, user_external_id: Any, *, requested_by: str = "") -> Result:
+        """تفعيل مباشر عبر POST /accounts/<u>/enable."""
+        self._guard_write()
+        uname = _ident(user_external_id)
+        if not uname:
+            return Result.failure("اسم المستخدم مطلوب.")
+        resp = self._request("POST", f"accounts/{uname}/enable", json_body={})
+        ok, _data, err = self._envelope(resp)
+        if not ok:
+            return Result.failure(err or "تعذّر تفعيل المشترك.")
+        return Result.success("تم تفعيل المشترك.", username=uname,
+                              api_endpoint=f"/api/v1/accounts/{uname}/enable")
+
+    def get_account_360(self, user_external_id: Any) -> dict | None:
+        """لقطة 360 لمشترك (هوية+استهلاك+جلسات) عبر GET /accounts/<u>/360."""
+        try:
+            self._guard_read()
+        except RadiusClientNotImplemented:
+            return None
+        uname = _ident(user_external_id)
+        if not uname:
+            return None
+        ok, data, _err = self._get_data(f"accounts/{uname}/360")
+        return data if ok and isinstance(data, dict) else None
+
+    def get_accounting_usage(self, user_external_id: Any, *, params: dict | None = None) -> dict | None:
+        """سجل الاستهلاك التاريخيّ للمشترك عبر GET /accounting/usage/subscribers/<u>
+        (بخلاف get_user_usage اللحظيّ) — لتقارير الاستهلاك الشهريّة الحقيقيّة."""
+        try:
+            self._guard_read()
+        except RadiusClientNotImplemented:
+            return None
+        uname = _ident(user_external_id)
+        if not uname:
+            return None
+        ok, data, _err = self._get_data(
+            f"accounting/usage/subscribers/{uname}", params=params or None)
+        return data if ok and isinstance(data, dict) else None
 
     # ═══════════════════════════════════════════════════════════════════
     # قراءات

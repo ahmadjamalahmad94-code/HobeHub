@@ -155,8 +155,9 @@
         }
         statusEl.textContent = 'متابعة...';
         var data = j.data || {};
-        // البيانات قد تكون في data.users أو data.online_users أو مباشرة
-        var users = data.users || data.online_users || data.data || [];
+        // الشكل الحديث (/api/v1): data.items؛ مع دعم الأشكال القديمة احتياطًا.
+        var users = data.items || data.users || data.online_users || data.data || [];
+        if(!Array.isArray(users)) users = (users && users.items) || [];
         if(!Array.isArray(users)) users = [];
         countEl.textContent = users.length;
         renderRows(users);
