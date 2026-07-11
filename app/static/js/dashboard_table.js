@@ -204,6 +204,8 @@
       sizes: sizes,
       persistKey: persistKey,
       ctrl: null,
+      sortCol: null,
+      sortDir: null,
     };
 
     recomputePageCount(state);
@@ -235,11 +237,118 @@
     state.ctrl.last.addEventListener("click", function () { goTo(state, state.pageCount); });
 
     applyPage(state);
+    setupSorting(state);
+    setupColumnToggle(state);
+  }
+
+  // ─── Sorting ──────────────────────────────────────────────
+  function headerCells(table) {
+    var thead = table.tHead;
+    if (!thead || !thead.rows.length) return [];
+    return Array.prototype.slice.call(thead.rows[thead.rows.length - 1].cells);
+  }
+  function cellText(tr, idx) {
+    var td = tr.cells[idx];
+    return td ? (td.textContent || "").trim() : "";
+  }
+  function compareVals(a, b) {
+    var na = parseFloat(a.replace(/[^\d.\-]/g, ""));
+    var nb = parseFloat(b.replace(/[^\d.\-]/g, ""));
+    var aNum = a !== "" && /\d/.test(a) && !isNaN(na);
+    var bNum = b !== "" && /\d/.test(b) && !isNaN(nb);
+    if (aNum && bNum) return na - nb;
+    if (a === b) return 0;
+    return a.localeCompare(b, "ar");
+  }
+  function sortBy(state, colIdx, dir) {
+    state.rows.sort(function (r1, r2) {
+      var c = compareVals(cellText(r1, colIdx), cellText(r2, colIdx));
+      return dir === "desc" ? -c : c;
+    });
+    var tbody = state.table.tBodies[0];
+    state.rows.forEach(function (tr) { tbody.appendChild(tr); });
+    state.page = 1;
+    applyPage(state);
+  }
+  function setupSorting(state) {
+    var ths = headerCells(state.table);
+    ths.forEach(function (th, idx) {
+      if (th.hasAttribute("data-no-sort") || !th.textContent.trim() || th.querySelector("input")) return;
+      th.classList.add("dpt-sortable");
+      var ind = document.createElement("span");
+      ind.className = "dpt-sort";
+      ind.innerHTML = '<i class="fa-solid fa-sort"></i>';
+      th.appendChild(ind);
+      th.addEventListener("click", function (e) {
+        if (e.target.closest(".dpt-cols-box")) return;
+        var dir = (state.sortCol === idx && state.sortDir === "asc") ? "desc" : "asc";
+        state.sortCol = idx; state.sortDir = dir;
+        ths.forEach(function (t) { var s = t.querySelector(".dpt-sort"); if (s) s.innerHTML = '<i class="fa-solid fa-sort"></i>'; });
+        ind.innerHTML = dir === "asc" ? '<i class="fa-solid fa-sort-up"></i>' : '<i class="fa-solid fa-sort-down"></i>';
+        sortBy(state, idx, dir);
+      });
+    });
+  }
+
+  // ─── Column show/hide ─────────────────────────────────────
+  function setColVisible(state, idx, visible) {
+    var thead = state.table.tHead;
+    if (thead) Array.prototype.forEach.call(thead.rows, function (r) { if (r.cells[idx]) r.cells[idx].style.display = visible ? "" : "none"; });
+    var tbody = state.table.tBodies[0];
+    if (tbody) Array.prototype.forEach.call(tbody.rows, function (r) { if (r.cells[idx]) r.cells[idx].style.display = visible ? "" : "none"; });
+  }
+  function loadHidden(state) {
+    if (!state.persistKey) return [];
+    try { return JSON.parse(localStorage.getItem(state.persistKey + ":cols") || "[]") || []; } catch (e) { return []; }
+  }
+  function saveHidden(state) {
+    if (!state.persistKey) return;
+    var ths = headerCells(state.table), hidden = [];
+    ths.forEach(function (th, idx) { if (th.style.display === "none") hidden.push(idx); });
+    try { localStorage.setItem(state.persistKey + ":cols", JSON.stringify(hidden)); } catch (e) {}
+  }
+  function setupColumnToggle(state) {
+    var ths = headerCells(state.table);
+    if (!ths.length || !state.ctrl) return;
+    var box = document.createElement("div");
+    box.className = "dpt-cols-box";
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "dpt-btn dpt-cols-btn";
+    btn.innerHTML = '<i class="fa-solid fa-table-columns"></i> الأعمدة';
+    var menu = document.createElement("div");
+    menu.className = "dpt-cols-menu";
+    var hidden = loadHidden(state);
+    ths.forEach(function (th, idx) {
+      if (th.hasAttribute("data-no-hide")) return;
+      var label = (th.textContent || "").trim() || ("عمود " + (idx + 1));
+      var item = document.createElement("label");
+      item.className = "dpt-cols-item";
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = hidden.indexOf(idx) === -1;
+      cb.addEventListener("change", function () { setColVisible(state, idx, cb.checked); saveHidden(state); });
+      item.appendChild(cb);
+      item.appendChild(document.createTextNode(" " + label));
+      menu.appendChild(item);
+      if (!cb.checked) setColVisible(state, idx, false);
+    });
+    box.appendChild(btn);
+    box.appendChild(menu);
+    btn.addEventListener("click", function (e) { e.stopPropagation(); box.classList.toggle("open"); });
+    menu.addEventListener("click", function (e) { e.stopPropagation(); });
+    document.addEventListener("click", function () { box.classList.remove("open"); });
+    state.ctrl.foot.insertBefore(box, state.ctrl.foot.firstChild);
+    state.ctrl.foot.classList.remove("dpt-min");
   }
 
   function init() {
-    var tables = document.querySelectorAll("table[data-paginated]");
-    tables.forEach(attach);
+    // كل جداول HobeHub: المُرقّمة صراحةً + أي جدول d-table (استثناء بـdata-no-enhance).
+    var tables = document.querySelectorAll("table[data-paginated], table.d-table");
+    tables.forEach(function (t) {
+      if (t.hasAttribute("data-no-enhance")) return;
+      attach(t);
+    });
   }
 
   // public API لإعادة تهيئة الجدول بعد تعديل tbody (AJAX rerender)
