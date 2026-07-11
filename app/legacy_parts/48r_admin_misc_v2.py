@@ -255,8 +255,37 @@ def _radius_user_lookup_v2():
                 _bout = int(_usage.get("used_bytes_out") or _usage.get("total_bytes_out") or _usage.get("bytes_out") or 0)
                 _down = int(_acct.get("download_speed_kbps") or 0)
                 _up = int(_acct.get("upload_speed_kbps") or 0)
+                # الاستهلاك: لو نقطة usage رجعت صفرًا، اجمعه من الجلسات النشطة.
+                _sess_in = sum(int(x.get("bytes_in") or 0) for x in _sess if isinstance(x, dict))
+                _sess_out = sum(int(x.get("bytes_out") or 0) for x in _sess if isinstance(x, dict))
+                _bin = _bin or _sess_in
+                _bout = _bout or _sess_out
+                # السرعة مخزّنة على الباقة لا الحساب — اجلبها من الباقة عند غيابها.
+                if not _down and not _up and _acct.get("plan_id"):
+                    try:
+                        for _p in (client.get_profiles() or []):
+                            if str(_p.get("id") or _p.get("external_id") or "") == str(_acct.get("plan_id")):
+                                _down = int(_p.get("speed_down_kbps") or 0)
+                                _up = int(_p.get("speed_up_kbps") or 0)
+                                break
+                    except Exception:
+                        pass
+                # اسم صاحب الحساب من مستفيدي HobeHub (بالجوّال أو اسم مستخدم الريديوس).
+                _owner = ""
+                try:
+                    _bo = query_one("SELECT full_name FROM beneficiaries WHERE phone=%s LIMIT 1", [username]) or {}
+                    _owner = _bo.get("full_name") or ""
+                    if not _owner:
+                        _bo2 = query_one(
+                            "SELECT b.full_name FROM beneficiary_radius_accounts r "
+                            "JOIN beneficiaries b ON b.id=r.beneficiary_id "
+                            "WHERE r.external_username=%s LIMIT 1", [username]) or {}
+                        _owner = _bo2.get("full_name") or ""
+                except Exception:
+                    pass
                 summary = {
                     "username": username,
+                    "owner": _owner,
                     "found": bool(_acct),
                     "online": bool(_sess),
                     "status": _acct.get("status") or ("online" if _sess else "offline"),

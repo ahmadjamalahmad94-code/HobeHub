@@ -114,6 +114,7 @@
         {% else %}<span class="soc-badge off"><i class="fa-regular fa-circle"></i> غير متصل</span>{% endif %}
       </div>
       <div class="soc-uname">{{ summary.username }}</div>
+      {% if summary.owner %}<div style="font-size:16px;font-weight:800;color:#fff;margin-top:6px;position:relative">{{ summary.owner }}</div>{% endif %}
       <div class="soc-speed"><i class="fa-solid fa-gauge-high"></i> {{ summary.down or '—' }} ↓ / {{ summary.up or '—' }} ↑</div>
       <div class="soc-id-meta">
         <div class="m"><span>الباقة:</span> {{ summary.plan or '—' }}</div>
