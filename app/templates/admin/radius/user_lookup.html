@@ -27,6 +27,8 @@
 .ops-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800}
 .ops-badge.on{background:rgba(52,211,153,.2);color:#d1fae5;border:1px solid rgba(52,211,153,.4)}
 .ops-badge.off{background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2)}
+.ops-badge.en{background:rgba(52,211,153,.18);color:#d1fae5;border:1px solid rgba(52,211,153,.4)}
+.ops-badge.dis{background:rgba(239,68,68,.2);color:#fecaca;border:1px solid rgba(239,68,68,.45)}
 .ops-pulse{width:8px;height:8px;border-radius:50%;background:#34d399;animation:opsp 2s infinite}
 @keyframes opsp{0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,.7)}50%{box-shadow:0 0 0 7px rgba(52,211,153,0)}}
 .ops-kpis{position:relative;display:grid;grid-template-columns:repeat(6,1fr);margin-top:16px;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:rgba(255,255,255,.04);overflow:hidden}
@@ -47,9 +49,9 @@
 .card-h .sub{font-size:11.5px;color:var(--muted)}
 
 /* fact strip — dense horizontal facts */
-.facts{display:flex;flex-wrap:wrap}
-.fact{flex:1 1 220px;min-width:0;padding:13px 16px;border-inline-start:1px solid var(--bd);border-top:1px solid var(--bd)}
-@media(max-width:520px){.fact{flex-basis:45%}}
+.facts{display:grid;grid-template-columns:repeat(4,1fr)}
+.fact{min-width:0;padding:13px 16px;border-inline-start:1px solid var(--bd);border-top:1px solid var(--bd)}
+@media(max-width:760px){.facts{grid-template-columns:repeat(2,1fr)}}
 .fact .k{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px}
 .fact .k i{color:var(--acc-d);font-size:11px}
 .fact .v{font-size:14.5px;font-weight:800;color:var(--ink);font-family:monospace;word-break:break-word}
@@ -115,8 +117,12 @@
           <div class="ops-metatxt">{% if summary.mobile %}جوّال {{ summary.mobile }} · {% endif %}{{ summary.plan or 'بلا باقة' }}</div>
         </div>
       </div>
-      {% if summary.online %}<span class="ops-badge on"><span class="ops-pulse"></span> متصل الآن</span>
-      {% else %}<span class="ops-badge off"><i class="fa-regular fa-circle"></i> غير متصل</span>{% endif %}
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        {% if summary.enabled %}<span class="ops-badge en"><i class="fa-solid fa-circle-check"></i> مفعّل</span>
+        {% else %}<span class="ops-badge dis"><i class="fa-solid fa-ban"></i> معطّل</span>{% endif %}
+        {% if summary.online %}<span class="ops-badge on"><span class="ops-pulse"></span> متصل الآن</span>
+        {% else %}<span class="ops-badge off"><i class="fa-regular fa-circle"></i> غير متصل</span>{% endif %}
+      </div>
     </div>
     <div class="ops-kpis">
       <div class="ops-kpi"><span class="v">{{ summary.usage_gb }} <small>GB</small></span><span class="k"><i class="fa-solid fa-database"></i>الاستهلاك</span></div>
@@ -134,7 +140,6 @@
       {% if summary.online %}<span class="chip-g">نشط الآن</span>{% else %}<span class="sub">غير متصل</span>{% endif %}
     </div>
     <div class="facts">
-      <div class="fact"><div class="k"><i class="fa-solid fa-circle-check"></i>الحالة</div><div class="v">{% if summary.enabled %}<span class="chip-g">مفعّل</span>{% else %}<span class="chip-r">معطّل</span>{% endif %}</div></div>
       <div class="fact"><div class="k"><i class="fa-solid fa-box"></i>الباقة</div><div class="v txt">{{ summary.plan or '—' }}</div></div>
       <div class="fact"><div class="k"><i class="fa-solid fa-gauge-high"></i>السرعة</div><div class="v"><bdi dir="ltr" lang="en">{{ summary.down or '—' }} / {{ summary.up or '—' }}</bdi></div></div>
       <div class="fact"><div class="k"><i class="fa-solid fa-gem"></i>الكوتة</div><div class="v txt">{{ (summary.quota_total_mb ~ ' MB') if summary.quota_total_mb else 'بلا حدّ' }}</div></div>
