@@ -264,7 +264,7 @@
   // ── Confirm apply ──
   var form = document.getElementById('rm-confirm-form');
   if(form){
-    form.addEventListener('submit', function(e){
+    form.addEventListener('submit', async function(e){
       e.preventDefault();
       var checked = form.querySelectorAll('.rm-row-cb:checked');
       if(!checked.length){ showToast('اختر صفوفًا أولًا','error'); return; }
@@ -272,7 +272,7 @@
       checked.forEach(function(cb){ if(cb.closest('tr').querySelector('.rm-badge.admin')) hasAdmin = true; });
       var msg = 'سيتم تطبيق '+checked.length+' صف (ربط/استيراد + تفعيل بوابة). متابعة؟';
       if(hasAdmin) msg = '⚠️ اخترت حسابًا إداريًا/مديرًا. ' + msg;
-      if(!confirm(msg)) return;
+      if(!(await hcAsk(msg))) { var _b=document.getElementById('rm-confirm'); if(_b) _b.disabled=false; return; }
       var btn = document.getElementById('rm-confirm'); if(btn) btn.disabled = true;
       var runId = form.getAttribute('data-run-id');
       var fd = new FormData(form);

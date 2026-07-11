@@ -809,7 +809,7 @@
     bulkAction(b.dataset.action);
   });
 
-  function bulkAction(action){
+  async function bulkAction(action){
     var ids = Array.from(document.querySelectorAll('.row-cb:checked')).map(cb => cb.dataset.bid);
     if(!ids.length) return;
     var actionLabel = {
@@ -818,7 +818,7 @@
       'switch_to_cards':'التحويل لنظام البطاقات',
       'switch_to_username':'التحويل إلى حساب إنترنت',
     }[action] || 'تطبيق العملية';
-    if(!confirm('سيتم تطبيق "'+actionLabel+'" على '+ids.length+' مستفيد. متابعة؟')) return;
+    if(!(await hcAsk('سيتم تطبيق "'+actionLabel+'" على '+ids.length+' مستفيد. متابعة؟', {danger: action==='delete'}))) return;
     var fd = new FormData();
     fd.append('action', action);
     if(csrfToken()) fd.append('_csrf_token', csrfToken());
@@ -1113,12 +1113,12 @@
   }
 
   // ─── Delete Button ───
-  document.addEventListener('click', function(e){
+  document.addEventListener('click', async function(e){
     var btn = e.target.closest && e.target.closest('.delete-btn');
     if(!btn) return;
     var bid  = btn.dataset.bid;
     var name = btn.dataset.name || bid;
-    if(!confirm('حذف "'+name+'" نهائياً؟ لا يمكن التراجع.')) return;
+    if(!(await hcAsk('حذف "'+name+'" نهائياً؟ لا يمكن التراجع.'))) return;
     fetch('/admin/beneficiaries/'+bid+'/delete-ajax', {
       method:'POST', credentials:'same-origin',
       headers:{'X-CSRFToken': csrfToken(), 'X-Requested-With':'XMLHttpRequest'}
@@ -1130,7 +1130,7 @@
   });
 
   // ─── Convert Access Button ───
-  document.addEventListener('click', function(e){
+  document.addEventListener('click', async function(e){
     var btn = e.target.closest && e.target.closest('.convert-access-btn');
     if(!btn) return;
     var name  = btn.dataset.name  || btn.dataset.bid;
@@ -1143,7 +1143,7 @@
     if(mode === 'username'){
       if(btn.dataset.hasRadius === '1'){
         var st = btn.dataset.radiusStatus === 'disabled' ? 'معطّل' : 'موجود';
-        if(!confirm('لهذا المستفيد حساب على نظام المصادقة ('+st+'). إعادة تفعيله كحساب إنترنت؟')) return;
+        if(!(await hcAsk('لهذا المستفيد حساب على نظام المصادقة ('+st+'). إعادة تفعيله كحساب إنترنت؟', {danger:false}))) return;
         var fdr = new FormData();
         fdr.append('target_mode','username');
         fdr.append('confirm_convert','1');
@@ -1159,7 +1159,7 @@
       }
       openConvertModal(btn); return;
     }
-    if(!confirm('تحويل "'+name+'" إلى '+label+'؟')) return;
+    if(!(await hcAsk('تحويل "'+name+'" إلى '+label+'؟'))) return;
     var fd = new FormData();
     fd.append('target_mode', mode);
     fd.append('confirm_convert','1');
@@ -1538,9 +1538,9 @@
   pmCreateCancel && pmCreateCancel.addEventListener('click', pmClose_fn);
 
   // ─── Reset account ───
-  pmResetBtn && pmResetBtn.addEventListener('click', function(){
+  pmResetBtn && pmResetBtn.addEventListener('click', async function(){
     if(!_currentPortalId) return;
-    if(!confirm('تأكيد تصفير حساب البوابة وتوليد رمز تفعيل جديد؟')) return;
+    if(!(await hcAsk('تأكيد تصفير حساب البوابة وتوليد رمز تفعيل جديد؟'))) return;
     pmResetBtn.disabled = true; pmClearMsg();
     pmCredsBox.style.display = 'none'; pmCodeBox.style.display = 'none';
     fetch('/admin/portal-accounts/'+_currentPortalId+'/reset', {method:'POST', credentials:'same-origin'})
@@ -1603,9 +1603,9 @@
   });
 
   // ─── Delete account ───
-  pmDeleteBtn && pmDeleteBtn.addEventListener('click', function(){
+  pmDeleteBtn && pmDeleteBtn.addEventListener('click', async function(){
     if(!_currentPortalId) return;
-    if(!confirm('هل أنت متأكد من حذف حساب البوابة؟ لن يُحذف المستفيد نفسه.')) return;
+    if(!(await hcAsk('هل أنت متأكد من حذف حساب البوابة؟ لن يُحذف المستفيد نفسه.'))) return;
     pmDeleteBtn.disabled = true; pmClearMsg();
     fetch('/admin/portal-accounts/'+_currentPortalId+'/delete', {method:'POST', credentials:'same-origin'})
       .then(function(r){ return r.json(); }).then(function(d){
@@ -2021,13 +2021,13 @@ headers:{'Content-Type':'application/json'},
   });
 
   // ─── 2) Issue activation code (lightweight reset) ───
-  document.addEventListener('click',function(e){
+  document.addEventListener('click',async function(e){
     var btn=e.target.closest && e.target.closest('.issue-code-btn');
     if(!btn) return;
     var paId=btn.dataset.paId;
     var name=btn.dataset.name||'';
     if(!paId) return;
-    if(!confirm('سيتم تصفير بيانات الدخول لـ "'+name+'" وتوليد رمز تفعيل جديد. متابعة؟')) return;
+    if(!(await hcAsk('سيتم تصفير بيانات الدخول لـ "'+name+'" وتوليد رمز تفعيل جديد. متابعة؟'))) return;
     fetch('/admin/portal-accounts/'+paId+'/reset',{method:'POST',credentials:'same-origin'})
       .then(r=>r.json()).then(function(d){
         if(!d.ok){ showToast(d.message||'فشل','error'); return; }
@@ -2056,14 +2056,14 @@ headers:{'Content-Type':'application/json'},
   });
 
   // ─── 3a) Reset credentials only ───
-  document.addEventListener('click',function(e){
+  document.addEventListener('click',async function(e){
     var btn=e.target.closest && e.target.closest('.reset-creds-only');
     if(!btn) return;
     var paId=btn.dataset.paId;
     var name=btn.dataset.name||'';
     document.querySelectorAll('.reset-menu').forEach(m=>m.style.display='none');
     if(!paId) return;
-    if(!confirm('تصفير بيانات الدخول لـ "'+name+'" وتوليد رمز تفعيل جديد فقط؟ (لن تُمسّ بيانات الاستخدام)')) return;
+    if(!(await hcAsk('تصفير بيانات الدخول لـ "'+name+'" وتوليد رمز تفعيل جديد فقط؟ (لن تُمسّ بيانات الاستخدام)'))) return;
     fetch('/admin/portal-accounts/'+paId+'/reset',{method:'POST',credentials:'same-origin'})
       .then(r=>r.json()).then(function(d){
         if(!d.ok){ showToast(d.message||'فشل','error'); return; }
@@ -2143,13 +2143,13 @@ headers:{'Content-Type':'application/json'},
   });
 
   // ─── 5) Delete portal account ───
-  document.addEventListener('click',function(e){
+  document.addEventListener('click',async function(e){
     var btn=e.target.closest && e.target.closest('.delete-pa-btn');
     if(!btn) return;
     var paId=btn.dataset.paId;
     var name=btn.dataset.name||'';
     if(!paId) return;
-    if(!confirm('حذف حساب بوابة "'+name+'"؟ المستفيد يبقى لكن يفقد دخول البوابة.')) return;
+    if(!(await hcAsk('حذف حساب بوابة "'+name+'"؟ المستفيد يبقى لكن يفقد دخول البوابة.'))) return;
     fetch('/admin/portal-accounts/'+paId+'/delete',{method:'POST',credentials:'same-origin'})
       .then(r=>r.json()).then(function(d){
         showToast(d.message||(d.ok?'تم':'فشل'), d.ok?'success':'error');
@@ -2158,14 +2158,14 @@ headers:{'Content-Type':'application/json'},
   });
 
   // ─── 6) Create portal account from beneficiary row (one-click) ───
-  document.addEventListener('click',function(e){
+  document.addEventListener('click',async function(e){
     var btn=e.target.closest && e.target.closest('.create-portal-row-btn');
     if(!btn) return;
     var bid=btn.dataset.bid;
     var name=btn.dataset.name||'';
     var phone=btn.dataset.phone||'';
     if(!bid) return;
-    if(!confirm('إنشاء حساب بوابة لـ "'+name+'" بـ اسم المستخدم = "'+(phone||'الاسم')+'" + توليد كود تفعيل صالح 72 ساعة؟')) return;
+    if(!(await hcAsk('إنشاء حساب بوابة لـ "'+name+'" بـ اسم المستخدم = "'+(phone||'الاسم')+'" + توليد كود تفعيل صالح 72 ساعة؟', {danger:false}))) return;
     btn.disabled=true;
     var origHtml=btn.innerHTML;
     btn.innerHTML='<i class="fa-solid fa-spinner fa-spin" style="color:#1E1E1E"></i>';

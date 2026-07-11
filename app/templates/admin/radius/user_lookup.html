@@ -140,13 +140,13 @@
         {% else %}<span class="ops-badge dis"><i class="fa-solid fa-ban"></i> معطّل</span>{% endif %}
         {% if summary.online %}<span class="ops-badge on"><span class="ops-pulse"></span> متصل الآن</span>
         {% else %}<span class="ops-badge off"><i class="fa-regular fa-circle"></i> غير متصل</span>{% endif %}
-        <form method="POST" action="{{ url_for('radius_disconnect_user_page') }}" onsubmit="return confirm('قطع جلسات {{ summary.username }}؟')">
+        <form method="POST" action="{{ url_for('radius_disconnect_user_page') }}" data-confirm="قطع جلسات المشترك {{ summary.username }} الآن؟" data-confirm-danger>
           {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}<input type="hidden" name="username" value="{{ summary.username }}">
           {% if summary.cur_session_id %}<input type="hidden" name="session_id" value="{{ summary.cur_session_id }}">{% endif %}
           <button class="hbtn ghost" type="submit" {% if not summary.online %}disabled title="لا جلسة نشطة"{% endif %}><i class="fa-solid fa-plug-circle-xmark"></i> قطع الجلسات</button>
         </form>
         {% if summary.enabled %}
-        <form method="POST" action="{{ url_for('radius_toggle_account_page') }}" onsubmit="return confirm('تعطيل {{ summary.username }}؟')">
+        <form method="POST" action="{{ url_for('radius_toggle_account_page') }}" data-confirm="تعطيل حساب المشترك {{ summary.username }}؟ ستُفصل جلساته." data-confirm-danger>
           {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}<input type="hidden" name="username" value="{{ summary.username }}"><input type="hidden" name="action" value="disable">
           <button class="hbtn red" type="submit"><i class="fa-solid fa-pause"></i> تعطيل الحساب</button>
         </form>
