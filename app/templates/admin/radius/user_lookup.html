@@ -208,7 +208,7 @@
     <div class="soc-card-h"><h3><i class="fa-solid fa-list-check"></i> الجلسات المنتهية</h3>
       <span style="font-size:12px;color:var(--muted)">{{ summary.closed_sessions|length }} جلسة</span></div>
     <div class="soc-tablewrap">
-      <table class="soc-table">
+      <table class="soc-table" data-paginated="1" data-page-size="10" data-page-sizes="10,20,50" data-persist-key="sub-closed">
         <thead><tr><th>البدء</th><th>الانتهاء</th><th>المدّة</th><th>IP</th><th>MAC</th><th>تنزيل</th><th>رفع</th></tr></thead>
         <tbody>
           {% for s in summary.closed_sessions %}

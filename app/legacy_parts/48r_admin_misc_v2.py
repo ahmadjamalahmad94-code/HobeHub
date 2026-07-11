@@ -369,26 +369,32 @@ def _radius_user_lookup_v2():
                         summary["up_mb"] = round(_ao / (1024 * 1024), 2)
                         summary["usage_gb"] = round((_ai + _ao) / (1024 ** 3), 2)
                 _closed = []
+                _hist_secs = 0
                 try:
-                    _hist = client.get_accounting_history(username, limit=20) if hasattr(client, "get_accounting_history") else []
+                    _hist = client.get_accounting_history(username, limit=50) if hasattr(client, "get_accounting_history") else []
                 except Exception:
                     _hist = []
                 for _h in (_hist or []):
                     if not isinstance(_h, dict):
                         continue
-                    _hi = int(_h.get("acctinputoctets") or _h.get("bytes_in") or _h.get("input_octets") or 0)
-                    _ho = int(_h.get("acctoutputoctets") or _h.get("bytes_out") or _h.get("output_octets") or 0)
-                    _hd = int(_h.get("acctsessiontime") or _h.get("duration") or _h.get("session_time") or 0)
+                    _hi = int(_h.get("bytes_in") or _h.get("acctinputoctets") or 0)
+                    _ho = int(_h.get("bytes_out") or _h.get("acctoutputoctets") or 0)
+                    _hd = int(_h.get("duration_sec") or _h.get("acctsessiontime") or _h.get("session_time") or 0)
+                    _hist_secs += _hd
                     _closed.append({
-                        "start": _short_dt(_h.get("acctstarttime") or _h.get("start") or _h.get("start_time") or ""),
-                        "stop": _short_dt(_h.get("acctstoptime") or _h.get("stop") or _h.get("stop_time") or ""),
-                        "ip": _h.get("framedipaddress") or _h.get("framed_ip") or _h.get("ip") or "—",
-                        "mac": _h.get("callingstationid") or _h.get("calling_station_id") or _h.get("mac") or "—",
+                        "start": _short_dt(_h.get("started_at") or _h.get("acctstarttime") or ""),
+                        "stop": _short_dt(_h.get("stopped_at") or _h.get("acctstoptime") or ""),
+                        "ip": _h.get("framed_ip") or _h.get("framedipaddress") or _h.get("ip") or "—",
+                        "mac": _h.get("calling_station_id") or _h.get("callingstationid") or _h.get("mac") or "—",
                         "in_mb": round(_hi / (1024 * 1024), 2),
                         "out_mb": round(_ho / (1024 * 1024), 2),
                         "duration_min": _hd // 60,
                     })
                 summary["closed_sessions"] = _closed
+                # وقت الاستخدام: مجموع مدد الجلسات المنتهية عند غياب seconds من usage.
+                if not summary.get("seconds") and _hist_secs:
+                    summary["seconds"] = _hist_secs
+                    summary["time_label"] = ("%dس %dد" % (_hist_secs // 3600, (_hist_secs % 3600) // 60))
                 sessions_json = _json.dumps(sd, ensure_ascii=False, indent=2) if sd else ""
                 usage_json = _json.dumps(ud, ensure_ascii=False, indent=2) if ud else ""
                 bandwidth_json = _json.dumps(bd, ensure_ascii=False, indent=2) if bd else ""
