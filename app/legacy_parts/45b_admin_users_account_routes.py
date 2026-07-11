@@ -537,12 +537,17 @@ def admin_beneficiary_convert_access(beneficiary_id):
     # تُقرأ البيانات الناقصة (اسم المستخدم/كلمة المرور/الباقة/الانتهاء) من نافذة
     # التحويل إن أُرسلت، وإلا نسقط للقيم المخزّنة، ثم لجوّال المشترك واسمٍ آمن.
     radius_note = ""
+    actor = session.get("username") or "admin"
+    acct = query_one(
+        "SELECT external_username, plain_password, current_profile_id, status "
+        "FROM beneficiary_radius_accounts WHERE beneficiary_id=%s LIMIT 1",
+        [beneficiary_id],
+    ) or {}
+    prior_user = clean_csv_value(acct.get("external_username"))
+    # «موجود على الريديوس» = له اسم مستخدم وحالته سبق أن جُهّزت (لا pending أوّليّة).
+    already_live = bool(prior_user) and clean_csv_value(acct.get("status")) in ("active", "disabled")
+
     if target_mode == "username":
-        acct = query_one(
-            "SELECT external_username, plain_password, current_profile_id "
-            "FROM beneficiary_radius_accounts WHERE beneficiary_id=%s LIMIT 1",
-            [beneficiary_id],
-        ) or {}
         ben_phone = clean_csv_value(
             (query_one("SELECT phone FROM beneficiaries WHERE id=%s", [beneficiary_id]) or {}).get("phone"))
         f_user = clean_csv_value(request.form.get("username"))
@@ -550,35 +555,65 @@ def admin_beneficiary_convert_access(beneficiary_id):
         f_profile = clean_csv_value(request.form.get("profile_id"))
         f_profile_name = clean_csv_value(request.form.get("profile_name"))
         f_expire = clean_csv_value(request.form.get("expire_at"))
-
-        r_user = f_user or clean_csv_value(acct.get("external_username")) or ben_phone
-        r_pass = f_pass or (acct.get("plain_password") or "")
         r_profile = f_profile or clean_csv_value(acct.get("current_profile_id")) or ""
-        if r_user and not r_pass:
-            import secrets as _secrets
-            r_pass = _secrets.token_urlsafe(6)  # كلمة مرور آمنة افتراضيّة إن لم تُعطَ
 
-        if r_user and r_pass:
-            _upsert_radius_account(beneficiary_id, r_user, r_pass, r_profile, f_profile_name, f_expire)
-            from app.services.radius_provisioning import provision_subscriber
-            pr = provision_subscriber(
-                beneficiary_id=beneficiary_id, username=r_user, password=r_pass,
-                profile_id=r_profile, expire_at=f_expire,
-                requested_by=session.get("username") or "admin",
-            )
-            if pr.get("ok") and pr.get("live"):
-                execute_sql(
-                    "UPDATE beneficiary_radius_accounts SET status='active', "
-                    "updated_at=CURRENT_TIMESTAMP WHERE beneficiary_id=%s",
-                    [beneficiary_id],
-                )
-                radius_note = f" وأُنشئ حسابه على الريديوس (المستخدم: {r_user})."
-            elif not pr.get("ok"):
-                radius_note = f" (تنبيه ريديوس: {pr.get('message')})"
+        if already_live:
+            # إعادة تحويل: الحساب موجود مسبقًا → فحص وإعادة تفعيل فقط (لا إنشاء جديد).
+            r_user = prior_user
+            _upsert_radius_account(
+                beneficiary_id, r_user, f_pass or (acct.get("plain_password") or ""),
+                r_profile, f_profile_name, f_expire)
+            from app.services.radius_provisioning import set_subscriber_enabled
+            er = set_subscriber_enabled(username=r_user, enabled=True,
+                                        beneficiary_id=beneficiary_id, requested_by=actor)
+            execute_sql(
+                "UPDATE beneficiary_radius_accounts SET status='active', "
+                "updated_at=CURRENT_TIMESTAMP WHERE beneficiary_id=%s", [beneficiary_id])
+            if er.get("ok") and er.get("live"):
+                radius_note = f" وأُعيد تفعيل حسابه الموجود على الريديوس (المستخدم: {r_user})."
+            elif not er.get("ok"):
+                radius_note = f" (تنبيه ريديوس: {er.get('message')})"
             else:
-                radius_note = " (سُجِّل محليًّا؛ سيُنشأ على الريديوس عند تفعيل الكتابة/المزامنة)."
+                radius_note = " (سُجِّل محليًّا؛ سيُعاد تفعيله عند تفعيل الكتابة/المزامنة)."
         else:
-            radius_note = " (تعذّر تحديد اسم مستخدم — أضِف جوّالًا للمشترك أو عيّنه في النافذة)."
+            # إنشاء أوّل مرّة.
+            r_user = f_user or prior_user or ben_phone
+            r_pass = f_pass or (acct.get("plain_password") or "")
+            if r_user and not r_pass:
+                import secrets as _secrets
+                r_pass = _secrets.token_urlsafe(6)  # كلمة مرور آمنة افتراضيّة إن لم تُعطَ
+            if r_user and r_pass:
+                _upsert_radius_account(beneficiary_id, r_user, r_pass, r_profile, f_profile_name, f_expire)
+                from app.services.radius_provisioning import provision_subscriber
+                pr = provision_subscriber(
+                    beneficiary_id=beneficiary_id, username=r_user, password=r_pass,
+                    profile_id=r_profile, expire_at=f_expire, requested_by=actor)
+                if pr.get("ok") and pr.get("live"):
+                    execute_sql(
+                        "UPDATE beneficiary_radius_accounts SET status='active', "
+                        "updated_at=CURRENT_TIMESTAMP WHERE beneficiary_id=%s", [beneficiary_id])
+                    radius_note = f" وأُنشئ حسابه على الريديوس (المستخدم: {r_user})."
+                elif not pr.get("ok"):
+                    radius_note = f" (تنبيه ريديوس: {pr.get('message')})"
+                else:
+                    radius_note = " (سُجِّل محليًّا؛ سيُنشأ على الريديوس عند تفعيل الكتابة/المزامنة)."
+            else:
+                radius_note = " (تعذّر تحديد اسم مستخدم — أضِف جوّالًا للمشترك أو عيّنه في النافذة)."
+
+    elif target_mode == "cards" and prior_user:
+        # التحويل إلى البطاقات يُعطّل حساب الريديوس المُنشأ (لا يُحذف — يُعاد تفعيله لاحقًا).
+        from app.services.radius_provisioning import set_subscriber_enabled
+        dr = set_subscriber_enabled(username=prior_user, enabled=False,
+                                    beneficiary_id=beneficiary_id, requested_by=actor)
+        execute_sql(
+            "UPDATE beneficiary_radius_accounts SET status='disabled', "
+            "updated_at=CURRENT_TIMESTAMP WHERE beneficiary_id=%s", [beneficiary_id])
+        if dr.get("ok") and dr.get("live"):
+            radius_note = f" وعُطِّل حسابه على الريديوس (المستخدم: {prior_user})."
+        elif not dr.get("ok"):
+            radius_note = f" (تنبيه ريديوس: {dr.get('message')})"
+        else:
+            radius_note = " (سُجِّل محليًّا؛ سيُعطَّل عند تفعيل الكتابة/المزامنة)."
 
     log_action(
         "convert_access_mode",

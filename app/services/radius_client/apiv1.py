@@ -744,8 +744,10 @@ class ApiV1RadiusClient(RadiusClient):
         ok, data, err = self._envelope(resp)
         if not ok:
             return Result.failure(err or "تعذّر إنشاء المشترك.")
-        return Result.success("تم إنشاء المشترك.", username=uname,
-                              api_endpoint="/api/v1/accounts", **(data or {}))
+        extra = dict(data or {})
+        extra.setdefault("username", uname)
+        extra.setdefault("api_endpoint", "/api/v1/accounts")
+        return Result.success("تم إنشاء المشترك.", **extra)
 
     def update_user(self, user_external_id: Any, *, beneficiary_id: int | None = None,
                     requested_by: str = "", **changes: Any) -> Result:
