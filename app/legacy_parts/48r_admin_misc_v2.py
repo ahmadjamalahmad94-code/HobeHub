@@ -352,9 +352,43 @@ def _radius_user_lookup_v2():
                     "cur_ip": _cur.get("ip") or "—",
                     "cur_mac": _cur.get("mac") or "—",
                     "cur_nas": _cur.get("nas") or "—",
+                    "cur_session_id": _cur.get("session_id") or "",
                     "enabled": str(_acct.get("status") or "").strip().lower() not in ("disabled", "suspended", "blocked", "expired"),
                     "sessions_list": _sessions_list,
                 })
+                # سجلّ الاحتساب: استهلاك تراكميّ حقيقيّ + الجلسات المنتهية.
+                try:
+                    _acc = client.get_accounting_usage(username) if hasattr(client, "get_accounting_usage") else None
+                except Exception:
+                    _acc = None
+                if isinstance(_acc, dict):
+                    _ai = int(_acc.get("total_bytes_in") or _acc.get("used_bytes_in") or _acc.get("bytes_in") or 0)
+                    _ao = int(_acc.get("total_bytes_out") or _acc.get("used_bytes_out") or _acc.get("bytes_out") or 0)
+                    if _ai or _ao:
+                        summary["down_mb"] = round(_ai / (1024 * 1024), 2)
+                        summary["up_mb"] = round(_ao / (1024 * 1024), 2)
+                        summary["usage_gb"] = round((_ai + _ao) / (1024 ** 3), 2)
+                _closed = []
+                try:
+                    _hist = client.get_accounting_history(username, limit=20) if hasattr(client, "get_accounting_history") else []
+                except Exception:
+                    _hist = []
+                for _h in (_hist or []):
+                    if not isinstance(_h, dict):
+                        continue
+                    _hi = int(_h.get("acctinputoctets") or _h.get("bytes_in") or _h.get("input_octets") or 0)
+                    _ho = int(_h.get("acctoutputoctets") or _h.get("bytes_out") or _h.get("output_octets") or 0)
+                    _hd = int(_h.get("acctsessiontime") or _h.get("duration") or _h.get("session_time") or 0)
+                    _closed.append({
+                        "start": _short_dt(_h.get("acctstarttime") or _h.get("start") or _h.get("start_time") or ""),
+                        "stop": _short_dt(_h.get("acctstoptime") or _h.get("stop") or _h.get("stop_time") or ""),
+                        "ip": _h.get("framedipaddress") or _h.get("framed_ip") or _h.get("ip") or "—",
+                        "mac": _h.get("callingstationid") or _h.get("calling_station_id") or _h.get("mac") or "—",
+                        "in_mb": round(_hi / (1024 * 1024), 2),
+                        "out_mb": round(_ho / (1024 * 1024), 2),
+                        "duration_min": _hd // 60,
+                    })
+                summary["closed_sessions"] = _closed
                 sessions_json = _json.dumps(sd, ensure_ascii=False, indent=2) if sd else ""
                 usage_json = _json.dumps(ud, ensure_ascii=False, indent=2) if ud else ""
                 bandwidth_json = _json.dumps(bd, ensure_ascii=False, indent=2) if bd else ""

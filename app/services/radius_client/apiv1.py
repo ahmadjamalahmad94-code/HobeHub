@@ -449,6 +449,22 @@ class ApiV1RadiusClient(RadiusClient):
             f"accounting/usage/subscribers/{uname}", params=params or None)
         return data if ok and isinstance(data, dict) else None
 
+    def get_accounting_history(self, user_external_id: Any, *, limit: int = 20) -> list:
+        """الجلسات المنتهية (تاريخ) عبر GET /api/v1/accounting?username=<u>."""
+        try:
+            self._guard_read()
+        except RadiusClientNotImplemented:
+            return []
+        uname = _ident(user_external_id)
+        if not uname:
+            return []
+        ok, data, _err = self._get_data(
+            "accounting", params={"username": uname, "limit": int(limit or 20)})
+        if not ok:
+            return []
+        items = (data or {}).get("items") if isinstance(data, dict) else data
+        return items if isinstance(items, list) else []
+
     def get_nas_list(self) -> list:
         """قائمة الـNAS/الراوترات عبر GET /api/v1/nas — قواميس كما ترد."""
         try:
@@ -482,8 +498,8 @@ class ApiV1RadiusClient(RadiusClient):
                               api_endpoint="/api/v1/sessions/lock-mac")
 
     def set_temp_speed(self, user_external_id: Any, *, down_kbps: int, up_kbps: int,
-                       minutes: int = 60, requested_by: str = "") -> Result:
-        """رفع سرعة مؤقّت عبر POST /sessions/temp-speed."""
+                       minutes: int = 60, session_id: str = "", requested_by: str = "") -> Result:
+        """رفع سرعة مؤقّت عبر POST /sessions/temp-speed (يتطلّب جلسة نشطة)."""
         self._guard_write()
         uname = _ident(user_external_id)
         if not uname:
@@ -491,6 +507,8 @@ class ApiV1RadiusClient(RadiusClient):
         body = {"username": uname, "down_kbps": _int_or_zero(down_kbps),
                 "up_kbps": _int_or_zero(up_kbps),
                 "duration_minutes": _int_or_zero(minutes) or 60}
+        if session_id:
+            body["session_id"] = str(session_id).strip()
         resp = self._request("POST", "sessions/temp-speed", json_body=body)
         ok, _data, err = self._envelope(resp)
         if not ok:

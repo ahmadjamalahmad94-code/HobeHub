@@ -107,8 +107,9 @@ def radius_temp_speed_page():
         if not hasattr(client, "set_temp_speed"):
             flash("رفع السرعة غير مدعوم في هذا الوضع.", "error")
             return redirect(request.referrer or url_for("radius_online_users_page"))
+        sid = clean_csv_value(request.form.get("session_id"))
         res = client.set_temp_speed(username, down_kbps=down, up_kbps=up, minutes=minutes,
-                                    requested_by=session.get("username") or "admin")
+                                    session_id=sid, requested_by=session.get("username") or "admin")
         if bool(getattr(res, "ok", False)):
             flash(f"تم رفع السرعة مؤقتًا لـ{minutes} دقيقة.", "success")
         else:
