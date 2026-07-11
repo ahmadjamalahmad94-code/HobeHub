@@ -280,13 +280,17 @@ def _radius_user_lookup_v2():
                 _sess_out = sum(int(x.get("bytes_out") or 0) for x in _sess if isinstance(x, dict))
                 _bin = _bin or _sess_in
                 _bout = _bout or _sess_out
-                # السرعة مخزّنة على الباقة لا الحساب — اجلبها من الباقة عند غيابها.
-                if not _down and not _up and _acct.get("plan_id"):
+                # السرعة والاسم مخزّنان على الباقة لا الحساب — اجلبهما من الباقة عند غيابهما.
+                _plan_name = _acct.get("plan_name") or ""
+                if _acct.get("plan_id") and ((not _down and not _up) or not _plan_name):
                     try:
                         for _p in (client.get_profiles() or []):
                             if str(_p.get("id") or _p.get("external_id") or "") == str(_acct.get("plan_id")):
-                                _down = int(_p.get("speed_down_kbps") or 0)
-                                _up = int(_p.get("speed_up_kbps") or 0)
+                                _down = _down or int(_p.get("speed_down_kbps") or 0)
+                                _up = _up or int(_p.get("speed_up_kbps") or 0)
+                                _plan_name = _plan_name or (
+                                    _p.get("name") or _p.get("plan_name") or _p.get("title")
+                                    or _p.get("external_name") or "")
                                 break
                     except Exception:
                         pass
@@ -309,7 +313,7 @@ def _radius_user_lookup_v2():
                     "found": bool(_acct),
                     "online": bool(_sess),
                     "status": _acct.get("status") or ("online" if _sess else "offline"),
-                    "plan": _acct.get("plan_name") or (("باقة #%s" % _acct.get("plan_id")) if _acct.get("plan_id") else ""),
+                    "plan": _plan_name or (("باقة #%s" % _acct.get("plan_id")) if _acct.get("plan_id") else ""),
                     "down": ("%s Kbps" % _down) if _down else "",
                     "up": ("%s Kbps" % _up) if _up else "",
                     "usage_gb": round((_bin + _bout) / (1024 ** 3), 2),

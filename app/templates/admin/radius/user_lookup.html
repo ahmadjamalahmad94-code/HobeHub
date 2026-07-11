@@ -47,8 +47,9 @@
 .card-h .sub{font-size:11.5px;color:var(--muted)}
 
 /* fact strip — dense horizontal facts */
-.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0}
-.fact{padding:13px 16px;border-inline-start:1px solid var(--bd);border-top:1px solid var(--bd)}
+.facts{display:flex;flex-wrap:wrap}
+.fact{flex:1 1 220px;min-width:0;padding:13px 16px;border-inline-start:1px solid var(--bd);border-top:1px solid var(--bd)}
+@media(max-width:520px){.fact{flex-basis:45%}}
 .fact .k{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px}
 .fact .k i{color:var(--acc-d);font-size:11px}
 .fact .v{font-size:14.5px;font-weight:800;color:var(--ink);font-family:monospace;word-break:break-word}
@@ -130,7 +131,7 @@
     <div class="facts">
       <div class="fact"><div class="k"><i class="fa-solid fa-circle-check"></i>الحالة</div><div class="v">{% if summary.enabled %}<span class="chip-g">مفعّل</span>{% else %}<span class="chip-r">معطّل</span>{% endif %}</div></div>
       <div class="fact"><div class="k"><i class="fa-solid fa-box"></i>الباقة</div><div class="v txt">{{ summary.plan or '—' }}</div></div>
-      <div class="fact"><div class="k"><i class="fa-solid fa-gauge-high"></i>السرعة</div><div class="v">{{ summary.down or '—' }} / {{ summary.up or '—' }}</div></div>
+      <div class="fact"><div class="k"><i class="fa-solid fa-gauge-high"></i>السرعة</div><div class="v"><bdi dir="ltr" lang="en">{{ summary.down or '—' }} / {{ summary.up or '—' }}</bdi></div></div>
       <div class="fact"><div class="k"><i class="fa-solid fa-gem"></i>الكوتة</div><div class="v txt">{{ (summary.quota_total_mb ~ ' MB') if summary.quota_total_mb else 'بلا حدّ' }}</div></div>
       <div class="fact"><div class="k"><i class="fa-regular fa-calendar"></i>ينتهي</div><div class="v">{{ summary.expires_at or '—' }}</div></div>
       <div class="fact"><div class="k"><i class="fa-regular fa-clock"></i>آخر ظهور</div><div class="v">{{ summary.last_seen or '—' }}</div></div>
