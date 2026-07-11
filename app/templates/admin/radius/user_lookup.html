@@ -29,8 +29,8 @@
 .ops-badge.off{background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2)}
 .ops-badge.en{background:rgba(52,211,153,.18);color:#d1fae5;border:1px solid rgba(52,211,153,.4)}
 .ops-badge.dis{background:rgba(239,68,68,.2);color:#fecaca;border:1px solid rgba(239,68,68,.45)}
-.ops-hero-actions{position:relative;display:flex;gap:9px;flex-wrap:wrap;margin-top:15px}
-.ops-hero-actions form{margin:0}
+.ops-hero-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.ops-hero-right form{margin:0}
 .hbtn{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:10px;padding:9px 17px;font-family:inherit;font-weight:800;font-size:12.5px;cursor:pointer}
 .hbtn i{font-size:12px}
 .hbtn:hover:not(:disabled){transform:translateY(-1px)}
@@ -135,30 +135,28 @@
           <div class="ops-metatxt">{% if summary.mobile %}جوّال {{ summary.mobile }} · {% endif %}{{ summary.plan or 'بلا باقة' }}</div>
         </div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="ops-hero-right">
         {% if summary.enabled %}<span class="ops-badge en"><i class="fa-solid fa-circle-check"></i> مفعّل</span>
         {% else %}<span class="ops-badge dis"><i class="fa-solid fa-ban"></i> معطّل</span>{% endif %}
         {% if summary.online %}<span class="ops-badge on"><span class="ops-pulse"></span> متصل الآن</span>
         {% else %}<span class="ops-badge off"><i class="fa-regular fa-circle"></i> غير متصل</span>{% endif %}
+        <form method="POST" action="{{ url_for('radius_disconnect_user_page') }}" onsubmit="return confirm('قطع جلسات {{ summary.username }}؟')">
+          {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}<input type="hidden" name="username" value="{{ summary.username }}">
+          {% if summary.cur_session_id %}<input type="hidden" name="session_id" value="{{ summary.cur_session_id }}">{% endif %}
+          <button class="hbtn ghost" type="submit" {% if not summary.online %}disabled title="لا جلسة نشطة"{% endif %}><i class="fa-solid fa-plug-circle-xmark"></i> قطع الجلسات</button>
+        </form>
+        {% if summary.enabled %}
+        <form method="POST" action="{{ url_for('radius_toggle_account_page') }}" onsubmit="return confirm('تعطيل {{ summary.username }}؟')">
+          {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}<input type="hidden" name="username" value="{{ summary.username }}"><input type="hidden" name="action" value="disable">
+          <button class="hbtn red" type="submit"><i class="fa-solid fa-pause"></i> تعطيل الحساب</button>
+        </form>
+        {% else %}
+        <form method="POST" action="{{ url_for('radius_toggle_account_page') }}">
+          {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}<input type="hidden" name="username" value="{{ summary.username }}"><input type="hidden" name="action" value="enable">
+          <button class="hbtn grn" type="submit"><i class="fa-solid fa-play"></i> تفعيل الحساب</button>
+        </form>
+        {% endif %}
       </div>
-    </div>
-    <div class="ops-hero-actions">
-      <form method="POST" action="{{ url_for('radius_disconnect_user_page') }}" onsubmit="return confirm('قطع جلسات {{ summary.username }}؟')">
-        {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}<input type="hidden" name="username" value="{{ summary.username }}">
-        {% if summary.cur_session_id %}<input type="hidden" name="session_id" value="{{ summary.cur_session_id }}">{% endif %}
-        <button class="hbtn ghost" type="submit" {% if not summary.online %}disabled title="لا جلسة نشطة"{% endif %}><i class="fa-solid fa-plug-circle-xmark"></i> قطع الجلسات</button>
-      </form>
-      {% if summary.enabled %}
-      <form method="POST" action="{{ url_for('radius_toggle_account_page') }}" onsubmit="return confirm('تعطيل {{ summary.username }}؟')">
-        {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}<input type="hidden" name="username" value="{{ summary.username }}"><input type="hidden" name="action" value="disable">
-        <button class="hbtn red" type="submit"><i class="fa-solid fa-pause"></i> تعطيل الحساب</button>
-      </form>
-      {% else %}
-      <form method="POST" action="{{ url_for('radius_toggle_account_page') }}">
-        {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}<input type="hidden" name="username" value="{{ summary.username }}"><input type="hidden" name="action" value="enable">
-        <button class="hbtn grn" type="submit"><i class="fa-solid fa-play"></i> تفعيل الحساب</button>
-      </form>
-      {% endif %}
     </div>
     <div class="ops-kpis">
       <div class="ops-kpi"><span class="v">{{ summary.usage_gb }} <small>GB</small></span><span class="k"><i class="fa-solid fa-database"></i>الاستهلاك</span></div>
