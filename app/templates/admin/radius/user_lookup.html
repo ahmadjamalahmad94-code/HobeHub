@@ -5,43 +5,44 @@
 
 {% block head_extra %}{{ super() }}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_addons.css') }}">
 <style>
-.soc{--v1:#5b21b6;--v2:#7c3aed;--v3:#a78bfa;--ink:#1e1b34;--muted:#6b7280;font-family:inherit}
+.soc{--acc:#F4BA2A;--acc-d:#c8951a;--gold:#FFD96A;--muted:var(--d-text-muted,#6b7280);font-family:inherit}
 .soc-search{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;background:var(--d-surface,#fff);border:1px solid var(--d-border);border-radius:16px;padding:16px 18px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .soc-search .f{display:flex;flex-direction:column;gap:6px;flex:1;min-width:220px}
 .soc-search .lbl{font-size:12px;font-weight:800;color:var(--muted)}
 .soc-search input{padding:12px 15px;border-radius:12px;border:1.5px solid var(--d-border-strong);font-size:14.5px;background:#FAFAF8;font-family:inherit}
-.soc-search input:focus{outline:0;border-color:var(--v2);background:#fff;box-shadow:0 0 0 3px rgba(124,58,237,.18)}
-.soc-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:12px;border:0;cursor:pointer;font-family:inherit;font-size:14.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--v1),var(--v2));box-shadow:0 8px 18px rgba(124,58,237,.28)}
+.soc-search input:focus{outline:0;border-color:var(--acc);background:#fff;box-shadow:0 0 0 3px rgba(244,186,42,.20)}
+.soc-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:12px;border:0;cursor:pointer;font-family:inherit;font-size:14.5px;font-weight:800;color:#1E1E1E;background:linear-gradient(135deg,var(--acc-d),var(--acc));box-shadow:0 8px 18px rgba(244,186,42,.32)}
 .soc-btn:hover{transform:translateY(-1px)}
 
-/* hero */
+/* hero — بهوية الموقع: داكن + ذهبيّ */
 .soc-hero{position:relative;overflow:hidden;border-radius:22px;padding:26px 28px;margin-top:16px;color:#fff;
-  background:linear-gradient(135deg,#4c1d95 0%,#6d28d9 55%,#7c3aed 100%);box-shadow:0 20px 45px -18px rgba(76,29,149,.7)}
-.soc-hero::after{content:"";position:absolute;inset-block-start:-60%;inset-inline-start:-6%;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 68%);pointer-events:none}
+  background:linear-gradient(135deg,var(--d-black,#1E1E1E),var(--d-black-deeper,#131313));box-shadow:0 18px 42px -18px rgba(0,0,0,.6)}
+.soc-hero::after{content:"";position:absolute;inset-block-start:-60%;inset-inline-start:-6%;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(244,186,42,.20),transparent 68%);pointer-events:none}
 .soc-hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;position:relative}
-.soc-uname{font-size:30px;font-weight:800;letter-spacing:.02em;font-family:monospace;line-height:1.1}
-.soc-sub{font-size:13px;color:rgba(255,255,255,.75);margin-top:4px}
-.soc-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800;backdrop-filter:blur(4px)}
-.soc-badge.on{background:rgba(52,211,153,.22);color:#d1fae5;border:1px solid rgba(52,211,153,.4)}
+.soc-uname{font-size:30px;font-weight:800;letter-spacing:.02em;font-family:monospace;line-height:1.1;color:var(--gold)}
+.soc-sub{font-size:13px;color:rgba(255,255,255,.72);margin-top:5px}
+.soc-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800}
+.soc-badge.on{background:rgba(52,211,153,.20);color:#d1fae5;border:1px solid rgba(52,211,153,.4)}
 .soc-badge.off{background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2)}
 .soc-pulse{width:8px;height:8px;border-radius:50%;background:#34d399;animation:socp 2s infinite}
 @keyframes socp{0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,.7)}50%{box-shadow:0 0 0 7px rgba(52,211,153,0)}}
 .soc-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;position:relative}
-.soc-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:11px;background:rgba(255,255,255,.12);font-size:12.5px;font-weight:700;border:1px solid rgba(255,255,255,.14)}
-.soc-chip i{opacity:.8}
+.soc-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:11px;background:rgba(255,255,255,.1);font-size:12.5px;font-weight:700;border:1px solid rgba(255,255,255,.13)}
+.soc-chip i{color:var(--gold);opacity:.9}
 
 /* kpi + tiles */
 .soc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:13px;margin-top:16px}
-.soc-tile{background:var(--d-surface,#fff);border:1px solid var(--d-border);border-radius:16px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.04);display:flex;flex-direction:column;gap:6px;position:relative}
-.soc-tile .ic{width:34px;height:34px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;background:rgba(124,58,237,.1);color:var(--v2)}
+.soc-tile{background:var(--d-surface,#fff);border:1px solid var(--d-border);border-radius:16px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.04);display:flex;flex-direction:column;gap:6px}
+.soc-tile .ic{width:34px;height:34px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;background:rgba(244,186,42,.15);color:var(--acc-d)}
 .soc-tile .k{font-size:11.5px;font-weight:700;color:var(--muted)}
 .soc-tile .val{font-size:20px;font-weight:800;color:var(--d-black,#18232e);font-variant-numeric:tabular-nums;line-height:1.15}
 .soc-tile .val small{font-size:12px;font-weight:700;color:var(--muted)}
 
-/* sessions table */
+/* cards + sessions */
 .soc-card{background:var(--d-surface,#fff);border:1px solid var(--d-border);border-radius:18px;box-shadow:0 1px 2px rgba(0,0,0,.04);margin-top:16px;overflow:hidden}
 .soc-card-h{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--d-border)}
 .soc-card-h h3{font-size:15.5px;font-weight:800;margin:0;display:flex;gap:9px;align-items:center;color:var(--d-black,#18232e)}
+.soc-card-h h3 i{color:var(--acc-d)}
 .soc-tablewrap{overflow-x:auto}
 .soc-table{width:100%;border-collapse:collapse;min-width:640px;font-size:13px}
 .soc-table th{background:var(--d-surface-2,#f4f6f8);color:var(--muted);font-weight:800;font-size:11.5px;text-align:right;padding:11px 16px;white-space:nowrap}
@@ -51,20 +52,19 @@
 
 /* actions */
 .soc-actions{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;padding:18px 20px}
-.soc-act{border:1px solid var(--d-border);border-radius:14px;padding:15px;display:flex;flex-direction:column;gap:9px;background:linear-gradient(180deg,#fff,#fbfaff)}
+.soc-act{border:1px solid var(--d-border);border-radius:14px;padding:15px;display:flex;flex-direction:column;gap:9px;background:linear-gradient(180deg,#fff,#fffdf5)}
 .soc-act .t{font-size:14px;font-weight:800;display:flex;align-items:center;gap:9px;color:var(--d-black,#18232e)}
 .soc-act .d{font-size:11.5px;color:var(--muted)}
 .soc-act .ai{width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;color:#fff}
-.soc-act button,.soc-act .go{margin-top:2px;border:0;border-radius:10px;padding:9px 12px;font-family:inherit;font-weight:800;font-size:12.5px;cursor:pointer;color:#fff;text-align:center}
+.soc-act button{margin-top:2px;border:0;border-radius:10px;padding:9px 12px;font-family:inherit;font-weight:800;font-size:12.5px;cursor:pointer;text-align:center}
 .soc-act .inrow{display:flex;gap:6px;flex-wrap:wrap}
 .soc-act .inrow input{width:70px;padding:7px 9px;border-radius:8px;border:1.5px solid var(--d-border-strong);font-size:12.5px;background:#FAFAF8;font-family:inherit}
-.b-red{background:linear-gradient(135deg,#dc2626,#ef4444)} .bg-red{background:#ef4444}
-.b-amber{background:linear-gradient(135deg,#b45309,#d97706)} .bg-amber{background:#d97706}
-.b-violet{background:linear-gradient(135deg,var(--v1),var(--v2))} .bg-violet{background:var(--v2)}
+.b-red{background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff} .bg-red{background:#ef4444}
+.b-gold{background:linear-gradient(135deg,var(--acc-d),var(--acc));color:#1E1E1E} .bg-gold{background:var(--acc)}
 
 .raw-details{margin-top:14px}
 .raw-details>summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--muted);padding:8px 2px}
-.payload-box{padding:14px;border-radius:12px;background:#141026;color:#c4b5fd;font-family:monospace;font-size:12px;line-height:1.7;overflow:auto;max-height:260px;white-space:pre-wrap;word-break:break-all}
+.payload-box{padding:14px;border-radius:12px;background:#1E1E1E;color:var(--gold);font-family:monospace;font-size:12px;line-height:1.7;overflow:auto;max-height:260px;white-space:pre-wrap;word-break:break-all}
 </style>{% endblock %}
 
 {% block content %}
@@ -150,17 +150,17 @@
         </form>
       </div>
       <div class="soc-act">
-        <div class="t"><span class="ai bg-amber"><i class="fa-solid fa-lock"></i></span> قفل MAC</div>
+        <div class="t"><span class="ai bg-gold"><i class="fa-solid fa-lock"></i></span> قفل MAC</div>
         <div class="d">تثبيت الحساب على جهازه الحاليّ (منع المشاركة).</div>
         <form method="POST" action="{{ url_for('radius_lock_mac_page') }}" onsubmit="return confirm('قفل {{ summary.username }} على جهازه الحاليّ؟')">
           {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
           <input type="hidden" name="username" value="{{ summary.username }}">
           {% if summary.sessions_list and summary.sessions_list[0].mac != '—' %}<input type="hidden" name="mac" value="{{ summary.sessions_list[0].mac }}">{% endif %}
-          <button class="b-amber" type="submit">قفل الآن</button>
+          <button class="b-gold" type="submit">قفل الآن</button>
         </form>
       </div>
       <div class="soc-act">
-        <div class="t"><span class="ai bg-violet"><i class="fa-solid fa-gauge-high"></i></span> رفع سرعة مؤقّت</div>
+        <div class="t"><span class="ai bg-gold"><i class="fa-solid fa-gauge-high"></i></span> رفع سرعة مؤقّت</div>
         <div class="d">تنزيل/رفع (Kbps) لمدّة (دقائق).</div>
         <form method="POST" action="{{ url_for('radius_temp_speed_page') }}">
           {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
@@ -170,7 +170,7 @@
             <input name="up_kbps" type="number" placeholder="↑ Kbps" min="0">
             <input name="minutes" type="number" placeholder="دقائق" min="1" value="60">
           </div>
-          <button class="b-violet" type="submit">طبّق مؤقّتًا</button>
+          <button class="b-gold" type="submit">طبّق مؤقّتًا</button>
         </form>
       </div>
     </div>
