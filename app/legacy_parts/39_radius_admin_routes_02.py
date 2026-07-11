@@ -35,6 +35,15 @@ def radius_online_users_page():
     return render_page("المستخدمون المتصلون", content)
 
 
+def _radius_action_redirect(username=""):
+    """يعيد لصفحة عمليات المشترك بنفس المستخدم إن جاء الإجراء منها (POST بحث لا
+    يحمل ?username=)، وإلا لصفحة المتصلين."""
+    ref = request.referrer or ""
+    if username and "user-lookup" in ref:
+        return redirect(url_for("radius_user_lookup_page", username=username))
+    return redirect(ref or url_for("radius_online_users_page"))
+
+
 @app.route("/admin/radius/disconnect", methods=["POST"])
 @login_required
 @permission_required("disconnect_radius_user")
@@ -42,9 +51,11 @@ def radius_disconnect_user_page():
     username = clean_csv_value(request.form.get("username"))
     if not username:
         flash("اسم المستخدم مطلوب.", "error")
-        return redirect(url_for("radius_online_users_page"))
+        return _radius_action_redirect(username)
+    sid = clean_csv_value(request.form.get("session_id"))
     from app.services.radius_provisioning import disconnect_subscriber
-    res = disconnect_subscriber(username=username, requested_by=session.get("username") or "admin")
+    res = disconnect_subscriber(username=username, session_id=sid,
+                                requested_by=session.get("username") or "admin")
     if res.get("ok"):
         log_action("disconnect_radius_user", "radius_user", None,
                    f"Disconnect {username} live={res.get('live')}")
@@ -54,7 +65,7 @@ def radius_disconnect_user_page():
         log_action("disconnect_radius_user_failed", "radius_user", None,
                    f"{username}: {res.get('message')}")
         flash(f"تعذر فصل المستخدم: {safe(str(res.get('message')))}", "error")
-    return redirect(request.referrer or url_for("radius_online_users_page"))
+    return _radius_action_redirect(username)
 
 
 @app.route("/admin/radius/lock-mac", methods=["POST"])
@@ -63,18 +74,19 @@ def radius_disconnect_user_page():
 def radius_lock_mac_page():
     username = clean_csv_value(request.form.get("username"))
     mac = clean_csv_value(request.form.get("mac"))
+    sid = clean_csv_value(request.form.get("session_id"))
     if not username:
         flash("اسم المستخدم مطلوب.", "error")
-        return redirect(request.referrer or url_for("radius_online_users_page"))
+        return _radius_action_redirect(username)
     from app.services.radius_provisioning import lock_session_mac
-    res = lock_session_mac(username=username, mac=mac,
+    res = lock_session_mac(username=username, mac=mac, session_id=sid,
                            requested_by=session.get("username") or "admin")
     if res.get("ok"):
         flash("تم قفل MAC للجلسة." if res.get("live")
               else "سُجِّل طلب قفل MAC (سيُنفَّذ عند تفعيل الكتابة/المزامنة).", "success")
     else:
         flash(f"تعذّر قفل MAC: {safe(str(res.get('message')))}", "error")
-    return redirect(request.referrer or url_for("radius_online_users_page"))
+    return _radius_action_redirect(username)
 
 
 @app.route("/admin/radius/temp-speed", methods=["POST"])
@@ -84,7 +96,7 @@ def radius_temp_speed_page():
     username = clean_csv_value(request.form.get("username"))
     if not username:
         flash("اسم المستخدم مطلوب.", "error")
-        return redirect(request.referrer or url_for("radius_online_users_page"))
+        return _radius_action_redirect(username)
 
     def _to_int(v):
         try:
@@ -96,17 +108,17 @@ def radius_temp_speed_page():
     minutes = _to_int(request.form.get("minutes")) or 60
     if down <= 0 and up <= 0:
         flash("حدّد سرعة تنزيل أو رفع.", "error")
-        return redirect(request.referrer or url_for("radius_online_users_page"))
+        return _radius_action_redirect(username)
     from app.services.radius_client import get_radius_client as _mrc
     from app.services.radius_client import is_api_under_development
     if is_api_under_development():
         flash("واجهة الريديوس غير مفعّلة.", "error")
-        return redirect(request.referrer or url_for("radius_online_users_page"))
+        return _radius_action_redirect(username)
     try:
         client = _mrc()
         if not hasattr(client, "set_temp_speed"):
             flash("رفع السرعة غير مدعوم في هذا الوضع.", "error")
-            return redirect(request.referrer or url_for("radius_online_users_page"))
+            return _radius_action_redirect(username)
         sid = clean_csv_value(request.form.get("session_id"))
         res = client.set_temp_speed(username, down_kbps=down, up_kbps=up, minutes=minutes,
                                     session_id=sid, requested_by=session.get("username") or "admin")
@@ -116,7 +128,7 @@ def radius_temp_speed_page():
             flash(f"تعذّر رفع السرعة: {safe(str(getattr(res, 'message', '') or ''))}", "error")
     except Exception as exc:
         flash(f"تعذّر رفع السرعة: {safe(str(exc))}", "error")
-    return redirect(request.referrer or url_for("radius_online_users_page"))
+    return _radius_action_redirect(username)
 
 
 @app.route("/admin/radius/extend-time", methods=["POST"])
@@ -130,12 +142,12 @@ def radius_extend_time_page():
         minutes = 0
     if not username or minutes <= 0:
         flash("اسم المستخدم وعدد الدقائق مطلوبان.", "error")
-        return redirect(request.referrer or url_for("radius_online_users_page"))
+        return _radius_action_redirect(username)
     from app.services.radius_client import get_radius_client as _mrc
     from app.services.radius_client import is_api_under_development
     if is_api_under_development():
         flash("واجهة الريديوس غير مفعّلة.", "error")
-        return redirect(request.referrer or url_for("radius_online_users_page"))
+        return _radius_action_redirect(username)
     try:
         client = _mrc()
         res = client.add_time(username, sel_time=0, add_time=minutes,
@@ -146,7 +158,7 @@ def radius_extend_time_page():
             flash(f"تعذّر التمديد: {safe(str(getattr(res, 'message', '') or ''))}", "error")
     except Exception as exc:
         flash(f"تعذّر التمديد: {safe(str(exc))}", "error")
-    return redirect(request.referrer or url_for("radius_online_users_page"))
+    return _radius_action_redirect(username)
 
 
 @app.route("/admin/radius/toggle-account", methods=["POST"])
@@ -157,7 +169,7 @@ def radius_toggle_account_page():
     action = clean_csv_value(request.form.get("action"))
     if not username:
         flash("اسم المستخدم مطلوب.", "error")
-        return redirect(request.referrer or url_for("radius_online_users_page"))
+        return _radius_action_redirect(username)
     from app.services.radius_provisioning import set_subscriber_enabled
     enable = action == "enable"
     res = set_subscriber_enabled(username=username, enabled=enable,
@@ -167,7 +179,7 @@ def radius_toggle_account_page():
               else "سُجِّل الإجراء (سيُنفَّذ عند تفعيل الكتابة).", "success")
     else:
         flash(f"تعذّر تنفيذ الإجراء: {safe(str(res.get('message')))}", "error")
-    return redirect(request.referrer or url_for("radius_online_users_page"))
+    return _radius_action_redirect(username)
 
 
 @app.route("/admin/radius/user-lookup", methods=["GET", "POST"])

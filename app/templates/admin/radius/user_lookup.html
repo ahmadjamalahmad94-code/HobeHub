@@ -237,7 +237,8 @@
         <form method="POST" action="{{ url_for('radius_disconnect_user_page') }}" onsubmit="return confirm('قطع جلسات {{ summary.username }}؟')">
           {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
           <input type="hidden" name="username" value="{{ summary.username }}">
-          <button class="b-red" type="submit">قطع الآن</button>
+          {% if summary.cur_session_id %}<input type="hidden" name="session_id" value="{{ summary.cur_session_id }}">{% endif %}
+          <button class="b-red" type="submit" {% if not summary.online %}disabled title="لا جلسة نشطة"{% endif %}>قطع الآن</button>
         </form>
       </div>
       <div class="soc-act">
@@ -247,6 +248,7 @@
           {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
           <input type="hidden" name="username" value="{{ summary.username }}">
           {% if summary.cur_mac and summary.cur_mac != '—' %}<input type="hidden" name="mac" value="{{ summary.cur_mac }}">{% endif %}
+          {% if summary.cur_session_id %}<input type="hidden" name="session_id" value="{{ summary.cur_session_id }}">{% endif %}
           <button class="b-gold" type="submit">قفل الآن</button>
         </form>
       </div>
