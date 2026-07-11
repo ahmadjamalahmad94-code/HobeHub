@@ -49,6 +49,16 @@ def admin_radius_online():
                     sub_set.add(str(_r["u"]))
         except Exception:
             pass
+        # اسم المستخدم على الريديوس غالبًا = جوّال المستفيد — نطابقه أيضًا كي
+        # لا يظهر المشتركون «غير معروف».
+        try:
+            for _r in (query_all(
+                f"SELECT phone AS u FROM beneficiaries WHERE phone IN ({_ph})",
+                _unames) or []):
+                if _r.get("u"):
+                    sub_set.add(str(_r["u"]))
+        except Exception:
+            pass
         try:
             for _r in (query_all(
                 f"SELECT card_username AS u FROM manual_access_cards "

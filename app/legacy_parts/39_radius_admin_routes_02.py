@@ -89,15 +89,21 @@ def radius_user_lookup_page():
     devices_data = {}
     error_text = ""
     if username:
-        try:
-            client = get_radius_client()
-            sessions_data = mask_sensitive_data(client.get_user_sessions({"username": username}))
-            usage_data = mask_sensitive_data(client.get_user_usage({"username": username}))
-            bandwidth_data = mask_sensitive_data(client.get_user_bandwidth({"username": username}))
-            devices_data = mask_sensitive_data(client.get_user_devices({"username": username}))
-            cards = mask_sensitive_data(client.get_user_cards({"username": username}))
-        except Exception as exc:
-            error_text = str(exc)
+        from app.services.radius_client import get_radius_client as _mrc
+        from app.services.radius_client import is_api_under_development
+        if is_api_under_development():
+            error_text = "واجهة الريديوس غير مفعّلة — فعّل «تفعيل القراءة» من إعدادات المصادقة."
+        else:
+            try:
+                client = _mrc()
+                usage_data = mask_sensitive_data(client.get_user_usage(username) or {})
+                sessions_data = mask_sensitive_data(client.get_user_sessions(username) or {})
+                bandwidth_data = mask_sensitive_data(client.get_user_bandwidth(username) or {})
+                _found = client.search_users(username, limit=5)
+                _items = _found.get("data") if isinstance(_found, dict) else []
+                devices_data = mask_sensitive_data(_items[0] if _items else {})
+            except Exception as exc:
+                error_text = str(exc)
     content = f"""
     <div class='hero'><div><h1>بحث مستخدم RADIUS</h1><p>عرض الجلسات والاستهلاك والأجهزة والبطاقات المتاحة للمستخدم.</p></div></div>
     <div class='card'><form method='POST'><div class='grid grid-2'><div><label>اسم المستخدم</label><input name='username' value='{safe(username)}' required></div><div class='actions' style='align-items:end'><button class='btn btn-primary' type='submit'>بحث</button></div></div></form></div>
@@ -106,7 +112,7 @@ def radius_user_lookup_page():
       <div class='card'><h3>الجلسات</h3><pre>{safe(json.dumps(sessions_data, ensure_ascii=False, indent=2)) if sessions_data else '-'}</pre></div>
       <div class='card'><h3>الاستهلاك</h3><pre>{safe(json.dumps(usage_data, ensure_ascii=False, indent=2)) if usage_data else '-'}</pre></div>
       <div class='card'><h3>الباندويث</h3><pre>{safe(json.dumps(bandwidth_data, ensure_ascii=False, indent=2)) if bandwidth_data else '-'}</pre></div>
-      <div class='card'><h3>الأجهزة والبطاقات</h3><pre>{safe(json.dumps({'devices': devices_data, 'cards': cards}, ensure_ascii=False, indent=2)) if devices_data or cards else '-'}</pre></div>
+      <div class='card'><h3>بيانات الحساب</h3><pre>{safe(json.dumps(devices_data, ensure_ascii=False, indent=2)) if devices_data else '-'}</pre></div>
     </div>
     """
     return render_page("بحث مستخدم RADIUS", content)
