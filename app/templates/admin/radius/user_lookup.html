@@ -10,6 +10,15 @@
 .search-bar input{padding:11px 14px;border-radius:11px;border:1.5px solid var(--d-border-strong);font-size:14px;background:#FAFAF8;font-family:inherit}
 .search-bar input:focus{outline:0;border-color:var(--d-gold);background:#fff;box-shadow:0 0 0 3px rgba(244,186,42,.20)}
 .payload-box{padding:14px;border-radius:11px;background:#1E1E1E;color:#FFD96A;font-family:monospace;font-size:12.5px;line-height:1.7;overflow:auto;max-height:280px;white-space:pre-wrap;word-break:break-all}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.stat{background:#FAFAF8;border:1px solid var(--d-border);border-radius:11px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.stat .k{font-size:11.5px;color:var(--d-text-muted);font-weight:700}
+.stat .v{font-size:15px;font-weight:800;color:var(--d-black)}
+.mono{font-family:monospace}
+.chip-on{background:rgba(31,143,81,.14);color:#166534;font-size:11.5px;font-weight:800;border-radius:999px;padding:3px 11px}
+.chip-off{background:rgba(120,120,120,.15);color:#555;font-size:11.5px;font-weight:800;border-radius:999px;padding:3px 11px}
+.raw-details{margin-top:6px}
+.raw-details>summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--d-text-muted);padding:8px 2px}
 </style>{% endblock %}
 
 {% block content %}
@@ -31,25 +40,42 @@
 </section>
 
 {% if username and not error_text %}
-<div class="d-grid-2">
-  <section class="d-card">
-    <div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-clock"></i>الجلسات</h3></div>
-    <div class="d-card-body"><div class="payload-box">{{ sessions_json or '—' }}</div></div>
+  {% if summary and summary.found %}
+  <section class="d-card" style="margin-bottom:14px">
+    <div class="d-card-head" style="display:flex;align-items:center;justify-content:space-between">
+      <h3 class="d-card-title"><i class="fa-solid fa-id-card"></i>ملخّص المستخدم</h3>
+      {% if summary.online %}<span class="chip-on">● متصل الآن</span>{% else %}<span class="chip-off">غير متصل</span>{% endif %}
+    </div>
+    <div class="d-card-body">
+      <div class="stat-grid">
+        <div class="stat"><span class="k">اسم المستخدم</span><span class="v mono">{{ summary.username }}</span></div>
+        <div class="stat"><span class="k">الحالة</span><span class="v">{{ 'متصل' if summary.online else (summary.status or '—') }}</span></div>
+        <div class="stat"><span class="k">الباقة</span><span class="v">{{ summary.plan or '—' }}</span></div>
+        <div class="stat"><span class="k">سرعة التنزيل</span><span class="v">{{ summary.down or '—' }}</span></div>
+        <div class="stat"><span class="k">سرعة الرفع</span><span class="v">{{ summary.up or '—' }}</span></div>
+        <div class="stat"><span class="k">الاستهلاك</span><span class="v">{{ summary.usage_gb }} GB</span></div>
+        <div class="stat"><span class="k">الجلسات النشطة</span><span class="v">{{ summary.sessions }}</span></div>
+        <div class="stat"><span class="k">آخر ظهور</span><span class="v" style="font-size:12.5px">{{ summary.last_seen or '—' }}</span></div>
+        {% if summary.mobile %}<div class="stat"><span class="k">الجوّال</span><span class="v mono">{{ summary.mobile }}</span></div>{% endif %}
+      </div>
+    </div>
   </section>
-  <section class="d-card">
-    <div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-chart-line"></i>الاستهلاك</h3></div>
-    <div class="d-card-body"><div class="payload-box">{{ usage_json or '—' }}</div></div>
-  </section>
-</div>
-<div class="d-grid-2" style="margin-top:14px">
-  <section class="d-card">
-    <div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-gauge-high"></i>الباندويث</h3></div>
-    <div class="d-card-body"><div class="payload-box">{{ bandwidth_json or '—' }}</div></div>
-  </section>
-  <section class="d-card">
-    <div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-laptop"></i>الأجهزة والبطاقات</h3></div>
-    <div class="d-card-body"><div class="payload-box">{{ devices_cards_json or '—' }}</div></div>
-  </section>
-</div>
+  {% elif summary %}
+  <div style="padding:14px 16px;border-radius:11px;background:#fef3c7;color:#92400e;border:1px solid rgba(146,64,14,.25);margin-bottom:14px">
+    لم يُعثر على حساب بهذا الاسم على الريديوس. تأكّد من الاسم، أو استورده عبر «مطابقة المشتركين».
+  </div>
+  {% endif %}
+
+  <details class="raw-details">
+    <summary><i class="fa-solid fa-code"></i> البيانات الخام (JSON)</summary>
+    <div class="d-grid-2" style="margin-top:12px">
+      <section class="d-card"><div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-clock"></i>الجلسات</h3></div><div class="d-card-body"><div class="payload-box">{{ sessions_json or '—' }}</div></div></section>
+      <section class="d-card"><div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-chart-line"></i>الاستهلاك</h3></div><div class="d-card-body"><div class="payload-box">{{ usage_json or '—' }}</div></div></section>
+    </div>
+    <div class="d-grid-2" style="margin-top:12px">
+      <section class="d-card"><div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-gauge-high"></i>الباندويث</h3></div><div class="d-card-body"><div class="payload-box">{{ bandwidth_json or '—' }}</div></div></section>
+      <section class="d-card"><div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-laptop"></i>بيانات الحساب</h3></div><div class="d-card-body"><div class="payload-box">{{ devices_cards_json or '—' }}</div></div></section>
+    </div>
+  </details>
 {% endif %}
 {% endblock %}

@@ -67,16 +67,44 @@ def admin_radius_online():
                     card_set.add(str(_r["u"]))
         except Exception:
             pass
+    # مصدر الحقيقة: نوع الحساب على الريديوس (user_type) — «card» أم مشترك.
+    radius_type = {}
+    try:
+        from app.services.radius_client import get_radius_client, is_api_under_development
+        if not is_api_under_development():
+            _cl = get_radius_client()
+            if hasattr(_cl, "search_users"):
+                _resp = _cl.search_users("", limit=500)
+                _accts = _resp.get("data") if isinstance(_resp, dict) else []
+                for _a in (_accts or []):
+                    if isinstance(_a, dict):
+                        _un = str(_a.get("username") or "").strip()
+                        if _un:
+                            radius_type[_un] = str(_a.get("user_type") or "").strip().lower()
+    except Exception:
+        pass
+
+    def _classify(u: str) -> str:
+        ut = radius_type.get(u)
+        if ut == "card" or u in card_set:
+            return "card"
+        if u in radius_type or u in sub_set:  # موجود على الريديوس (غير بطاقة) = مشترك
+            return "subscriber"
+        # heuristic: رقم غير هاتفيّ (ليس 10 خانات يبدأ 05) = بطاقة على الأرجح
+        if u.isdigit() and not (len(u) == 10 and u.startswith("05")):
+            return "card"
+        return "unknown"
+
     _KIND_LABEL = {"subscriber": "مشترك", "card": "بطاقة", "unknown": "غير معروف"}
     sub_count = card_count = unknown_count = 0
     for s in sessions:
-        u = s["username"]
-        if u in sub_set:
-            kind = "subscriber"; sub_count += 1
-        elif u in card_set:
-            kind = "card"; card_count += 1
+        kind = _classify(s["username"])
+        if kind == "subscriber":
+            sub_count += 1
+        elif kind == "card":
+            card_count += 1
         else:
-            kind = "unknown"; unknown_count += 1
+            unknown_count += 1
         s["account_kind"] = kind
         s["account_kind_label"] = _KIND_LABEL[kind]
 

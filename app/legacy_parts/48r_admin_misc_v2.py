@@ -230,6 +230,7 @@ def _radius_user_lookup_v2():
     )
     sessions_json = usage_json = bandwidth_json = devices_cards_json = ""
     error_text = ""
+    summary = {}
     if username:
         # العميل الحديث (/api/v1) بدل القديم (advrapp) الذي كان يُظهر «إعدادات
         # التكامل غير مكتملة».
@@ -246,6 +247,27 @@ def _radius_user_lookup_v2():
                 _found = client.search_users(username, limit=5)
                 _items = _found.get("data") if isinstance(_found, dict) else []
                 dd = mask_sensitive_data(_items[0] if _items else {})
+                # ملخّص منسّق للعرض (بدل JSON خام)
+                _acct = dd if isinstance(dd, dict) else {}
+                _usage = ud if isinstance(ud, dict) else {}
+                _sess = (sd.get("data") if isinstance(sd, dict) else sd) or []
+                _bin = int(_usage.get("used_bytes_in") or _usage.get("total_bytes_in") or _usage.get("bytes_in") or 0)
+                _bout = int(_usage.get("used_bytes_out") or _usage.get("total_bytes_out") or _usage.get("bytes_out") or 0)
+                _down = int(_acct.get("download_speed_kbps") or 0)
+                _up = int(_acct.get("upload_speed_kbps") or 0)
+                summary = {
+                    "username": username,
+                    "found": bool(_acct),
+                    "online": bool(_sess),
+                    "status": _acct.get("status") or ("online" if _sess else "offline"),
+                    "plan": _acct.get("plan_name") or (("باقة #%s" % _acct.get("plan_id")) if _acct.get("plan_id") else ""),
+                    "down": ("%s Kbps" % _down) if _down else "",
+                    "up": ("%s Kbps" % _up) if _up else "",
+                    "usage_gb": round((_bin + _bout) / (1024 ** 3), 2),
+                    "sessions": len(_sess) if isinstance(_sess, list) else 0,
+                    "last_seen": _usage.get("last_seen_at") or _usage.get("last_session_at") or "",
+                    "mobile": _acct.get("mobile") or "",
+                }
                 sessions_json = _json.dumps(sd, ensure_ascii=False, indent=2) if sd else ""
                 usage_json = _json.dumps(ud, ensure_ascii=False, indent=2) if ud else ""
                 bandwidth_json = _json.dumps(bd, ensure_ascii=False, indent=2) if bd else ""
@@ -256,6 +278,7 @@ def _radius_user_lookup_v2():
     return render_template(
         "admin/radius/user_lookup.html",
         username=username,
+        summary=summary,
         sessions_json=sessions_json,
         usage_json=usage_json,
         bandwidth_json=bandwidth_json,
