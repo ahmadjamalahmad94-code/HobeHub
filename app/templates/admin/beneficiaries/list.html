@@ -1154,8 +1154,9 @@
   });
 
   // ─── Convert-to-Subscription Modal (اختيار الباقة/كلمة المرور/الانتهاء) ───
-  var cvModal = document.getElementById('convert-user-modal');
+  // النافذة مُعرّفة في DOM بعد هذا السكربت، فنبحث عن عناصرها عند الاستدعاء لا التحميل.
   var cvProfilesCache = null;
+  function cvEl(id){ return document.getElementById(id); }
   function cvGenPass(){ var c='abcdefghjkmnpqrstuvwxyz23456789', s=''; for(var i=0;i<8;i++){ s+=c.charAt(Math.floor(Math.random()*c.length)); } return s; }
   function cvFillProfiles(sel, list){
     var h = '<option value="">— بدون باقة —</option>';
@@ -1166,7 +1167,7 @@
     sel.innerHTML = h;
   }
   function cvLoadProfiles(){
-    var sel = document.getElementById('cv-profile'); if(!sel) return;
+    var sel = cvEl('cv-profile'); if(!sel) return;
     if(cvProfilesCache){ cvFillProfiles(sel, cvProfilesCache); return; }
     sel.innerHTML = '<option value="">— جارٍ التحميل… —</option>';
     fetch('/admin/radius/profiles.json', {credentials:'same-origin', headers:{'X-Requested-With':'XMLHttpRequest'}})
@@ -1175,30 +1176,30 @@
       .catch(function(){ sel.innerHTML = '<option value="">— تعذّر تحميل الباقات —</option>'; });
   }
   function openConvertModal(btn){
-    if(!cvModal) return;
-    cvModal.dataset.url = btn.dataset.url || '';
+    var m = cvEl('convert-user-modal'); if(!m){ return; }
+    m.dataset.url = btn.dataset.url || '';
     var phone = btn.dataset.phone || '';
-    document.getElementById('cv-name').textContent = btn.dataset.name || '';
-    document.getElementById('cv-phone').textContent = phone;
-    document.getElementById('cv-username').value = phone;
-    document.getElementById('cv-password').value = cvGenPass();
-    document.getElementById('cv-expire').value = '';
-    document.getElementById('cv-msg').textContent = '';
+    cvEl('cv-name').textContent = btn.dataset.name || '';
+    cvEl('cv-phone').textContent = phone;
+    cvEl('cv-username').value = phone;
+    cvEl('cv-password').value = cvGenPass();
+    cvEl('cv-expire').value = '';
+    cvEl('cv-msg').textContent = '';
     cvLoadProfiles();
-    cvModal.classList.add('is-open');
+    m.classList.add('is-open');
   }
-  function cvClose(){ if(cvModal) cvModal.classList.remove('is-open'); }
+  function cvClose(){ var m = cvEl('convert-user-modal'); if(m) m.classList.remove('is-open'); }
   function cvSubmit(){
-    if(!cvModal) return;
-    var url = cvModal.dataset.url || '';
-    var user = (document.getElementById('cv-username').value||'').trim();
-    var pass = (document.getElementById('cv-password').value||'').trim();
-    var sel  = document.getElementById('cv-profile');
+    var m = cvEl('convert-user-modal'); if(!m) return;
+    var url = m.dataset.url || '';
+    var user = (cvEl('cv-username').value||'').trim();
+    var pass = (cvEl('cv-password').value||'').trim();
+    var sel  = cvEl('cv-profile');
     var pid  = sel ? sel.value : '';
     var opt  = sel && sel.options[sel.selectedIndex];
     var pname = opt ? (opt.getAttribute('data-name')||'') : '';
-    var expire = (document.getElementById('cv-expire').value||'').trim();
-    var msg = document.getElementById('cv-msg');
+    var expire = (cvEl('cv-expire').value||'').trim();
+    var msg = cvEl('cv-msg');
     if(!user){ msg.textContent = 'اسم المستخدم مطلوب.'; return; }
     var fd = new FormData();
     fd.append('target_mode','username');
@@ -1209,7 +1210,7 @@
     fd.append('profile_name', pname);
     fd.append('expire_at', expire);
     if(csrfToken()) fd.append('_csrf_token', csrfToken());
-    var sbtn = document.getElementById('cv-submit'); sbtn.disabled = true;
+    var sbtn = cvEl('cv-submit'); sbtn.disabled = true;
     fetch(url, {method:'POST', credentials:'same-origin',
       headers:{'X-CSRFToken':csrfToken(),'X-Requested-With':'XMLHttpRequest'}, body:fd})
       .then(function(r){ return r.json().catch(function(){ return {ok:r.ok}; }); })
@@ -1219,13 +1220,15 @@
         else { msg.textContent = (res && res.message) || 'فشل التحويل'; }
       }).catch(function(){ sbtn.disabled = false; msg.textContent = 'فشل الاتصال بالخادم'; });
   }
-  if(cvModal){
-    document.getElementById('cv-close').addEventListener('click', cvClose);
-    document.getElementById('cv-cancel').addEventListener('click', cvClose);
-    document.getElementById('cv-submit').addEventListener('click', cvSubmit);
-    document.getElementById('cv-genpass').addEventListener('click', function(){ document.getElementById('cv-password').value = cvGenPass(); });
-    cvModal.addEventListener('click', function(e){ if(e.target === cvModal) cvClose(); });
-  }
+  // تفويض النقر على المستند (النافذة وأزرارها تُضاف لاحقًا في DOM)
+  document.addEventListener('click', function(e){
+    if(!e.target.closest) return;
+    if(e.target.closest('#cv-close') || e.target.closest('#cv-cancel')){ cvClose(); return; }
+    if(e.target.closest('#cv-submit')){ cvSubmit(); return; }
+    if(e.target.closest('#cv-genpass')){ var p = cvEl('cv-password'); if(p) p.value = cvGenPass(); return; }
+    var m = cvEl('convert-user-modal');
+    if(m && e.target === m) cvClose();
+  });
 
   document.addEventListener('keydown', e => {
     if(e.key === 'Escape'){
