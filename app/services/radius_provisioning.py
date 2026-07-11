@@ -68,15 +68,19 @@ def _guarded(call, ok_msg: str, fail_prefix: str) -> dict:
 # ── التزويد (provisioning) ─────────────────────────────────────────────────
 def provision_subscriber(*, beneficiary_id: int | None, username: str,
                          password: str, profile_id: str = "",
-                         requested_by: str = "") -> dict:
-    """ينشئ يوزر المشترك على الريديوس (create_user)."""
+                         expire_at: str = "", requested_by: str = "") -> dict:
+    """ينشئ يوزر المشترك على الريديوس (create_user). ``expire_at`` اختياريّ
+    (سلسلة تاريخ ISO) تُمرَّر لجسم الطلب كـ ``expire_at`` إن حُدِّدت."""
     username = (username or "").strip()
     if not username or not password:
         return {"ok": False, "live": False, "message": "اسم المستخدم وكلمة المرور مطلوبان."}
+    opts: dict[str, Any] = {}
+    if (expire_at or "").strip():
+        opts["expire_at"] = str(expire_at).strip()
     return _guarded(
         lambda: _client().create_user(
             username, password, str(profile_id or ""),
-            beneficiary_id=beneficiary_id, requested_by=requested_by),
+            beneficiary_id=beneficiary_id, requested_by=requested_by, **opts),
         "تم إنشاء يوزر المشترك على الريديوس.",
         "تعذّر إنشاء اليوزر على الريديوس",
     )

@@ -444,6 +444,52 @@ def admin_user_request_cancel(action_id):
     log_action("user_action_cancel", "radius_pending_actions", action_id, notes)
     flash("تم إلغاء الطلب.", "success")
     return redirect(request.referrer or url_for("admin_request_center", type="user"))
+def _upsert_radius_account(beneficiary_id, username, password, profile_id, profile_name, expire_at):
+    """يخزّن/يحدّث بيانات حساب الريديوس محليًّا (المصدر للمزامنة)."""
+    exists = query_one(
+        "SELECT id FROM beneficiary_radius_accounts WHERE beneficiary_id=%s LIMIT 1",
+        [beneficiary_id],
+    )
+    if exists:
+        execute_sql(
+            "UPDATE beneficiary_radius_accounts SET external_username=%s, plain_password=%s, "
+            "current_profile_id=%s, current_profile_name=COALESCE(%s, current_profile_name), "
+            "expires_at=%s, status='active', updated_at=CURRENT_TIMESTAMP WHERE beneficiary_id=%s",
+            [username, password, profile_id or None, profile_name or None,
+             expire_at or None, beneficiary_id],
+        )
+    else:
+        execute_sql(
+            "INSERT INTO beneficiary_radius_accounts "
+            "(beneficiary_id, external_username, plain_password, current_profile_id, "
+            "current_profile_name, expires_at, status) VALUES (%s,%s,%s,%s,%s,%s,'active')",
+            [beneficiary_id, username, password, profile_id or None,
+             profile_name or None, expire_at or None],
+        )
+
+
+# /admin/radius/profiles.json — باقات الريديوس لقوائم الاختيار (نافذة التحويل)
+@app.route("/admin/radius/profiles.json")
+@admin_login_required
+def admin_radius_profiles_json():
+    items = []
+    try:
+        from app.services.radius_dashboard import get_radius_profiles
+        res = get_radius_profiles()
+        items = (res.get("data") if isinstance(res, dict) else res) or []
+    except Exception:
+        items = []
+    out = []
+    for p in items:
+        if not isinstance(p, dict):
+            continue
+        pid = p.get("profile_id") or p.get("external_id") or p.get("id")
+        if pid in (None, ""):
+            continue
+        out.append({"id": str(pid), "name": p.get("name") or str(pid), "speed": p.get("speed") or ""})
+    return jsonify({"ok": True, "profiles": out})
+
+
 # /admin/beneficiary/<id>/convert-access — تحويل المشترك (cards ↔ username)
 @app.route("/admin/beneficiary/<int:beneficiary_id>/convert-access", methods=["POST"])
 @admin_login_required
@@ -488,6 +534,8 @@ def admin_beneficiary_convert_access(beneficiary_id):
     # tawjihi لا يحتاج (مقفل على cards)
 
     # ── ربط الريديوس: التحويل إلى «يوزر إنترنت» ⇒ إنشاء اليوزر فعليًّا على الريديوس ──
+    # تُقرأ البيانات الناقصة (اسم المستخدم/كلمة المرور/الباقة/الانتهاء) من نافذة
+    # التحويل إن أُرسلت، وإلا نسقط للقيم المخزّنة، ثم لجوّال المشترك واسمٍ آمن.
     radius_note = ""
     if target_mode == "username":
         acct = query_one(
@@ -495,13 +543,27 @@ def admin_beneficiary_convert_access(beneficiary_id):
             "FROM beneficiary_radius_accounts WHERE beneficiary_id=%s LIMIT 1",
             [beneficiary_id],
         ) or {}
-        r_user = clean_csv_value(acct.get("external_username"))
-        r_pass = acct.get("plain_password") or ""
+        ben_phone = clean_csv_value(
+            (query_one("SELECT phone FROM beneficiaries WHERE id=%s", [beneficiary_id]) or {}).get("phone"))
+        f_user = clean_csv_value(request.form.get("username"))
+        f_pass = (request.form.get("password") or "").strip()
+        f_profile = clean_csv_value(request.form.get("profile_id"))
+        f_profile_name = clean_csv_value(request.form.get("profile_name"))
+        f_expire = clean_csv_value(request.form.get("expire_at"))
+
+        r_user = f_user or clean_csv_value(acct.get("external_username")) or ben_phone
+        r_pass = f_pass or (acct.get("plain_password") or "")
+        r_profile = f_profile or clean_csv_value(acct.get("current_profile_id")) or ""
+        if r_user and not r_pass:
+            import secrets as _secrets
+            r_pass = _secrets.token_urlsafe(6)  # كلمة مرور آمنة افتراضيّة إن لم تُعطَ
+
         if r_user and r_pass:
+            _upsert_radius_account(beneficiary_id, r_user, r_pass, r_profile, f_profile_name, f_expire)
             from app.services.radius_provisioning import provision_subscriber
             pr = provision_subscriber(
                 beneficiary_id=beneficiary_id, username=r_user, password=r_pass,
-                profile_id=clean_csv_value(acct.get("current_profile_id")) or "",
+                profile_id=r_profile, expire_at=f_expire,
                 requested_by=session.get("username") or "admin",
             )
             if pr.get("ok") and pr.get("live"):
@@ -510,13 +572,13 @@ def admin_beneficiary_convert_access(beneficiary_id):
                     "updated_at=CURRENT_TIMESTAMP WHERE beneficiary_id=%s",
                     [beneficiary_id],
                 )
-                radius_note = " وأُنشئ يوزره على الريديوس."
+                radius_note = f" وأُنشئ حسابه على الريديوس (المستخدم: {r_user})."
             elif not pr.get("ok"):
                 radius_note = f" (تنبيه ريديوس: {pr.get('message')})"
             else:
-                radius_note = " (سيُنشأ على الريديوس عند تفعيل الكتابة/المزامنة)."
+                radius_note = " (سُجِّل محليًّا؛ سيُنشأ على الريديوس عند تفعيل الكتابة/المزامنة)."
         else:
-            radius_note = " (عيّن اسم مستخدم وكلمة مرور للمشترك أولًا لإنشائه على الريديوس)."
+            radius_note = " (تعذّر تحديد اسم مستخدم — أضِف جوّالًا للمشترك أو عيّنه في النافذة)."
 
     log_action(
         "convert_access_mode",

@@ -1136,17 +1136,96 @@
     var name  = btn.dataset.name  || btn.dataset.bid;
     var label = btn.dataset.label || '';
     var url   = btn.dataset.url   || '';
+    var mode  = btn.dataset.mode  || '';
     if(!url) return;
+    // التحويل إلى «حساب إنترنت» يفتح نافذة لاستكمال الباقة/كلمة المرور/الانتهاء
+    if(mode === 'username'){ openConvertModal(btn); return; }
     if(!confirm('تحويل "'+name+'" إلى '+label+'؟')) return;
     var fd = new FormData();
-    fd.append('target_mode', btn.dataset.mode||'');
+    fd.append('target_mode', mode);
     fd.append('confirm_convert','1');
-    fetch(url, {method:'POST', credentials:'same-origin', body:fd})
+    if(csrfToken()) fd.append('_csrf_token', csrfToken());
+    fetch(url, {method:'POST', credentials:'same-origin',
+      headers:{'X-CSRFToken':csrfToken(),'X-Requested-With':'XMLHttpRequest'}, body:fd})
       .then(function(r){
         if(r.redirected || r.ok){ loadRows(readState(),false); showToast('تم التحويل بنجاح','success'); }
         else { showToast('فشل التحويل','error'); }
       }).catch(function(){ showToast('فشل الاتصال','error'); });
   });
+
+  // ─── Convert-to-Subscription Modal (اختيار الباقة/كلمة المرور/الانتهاء) ───
+  var cvModal = document.getElementById('convert-user-modal');
+  var cvProfilesCache = null;
+  function cvGenPass(){ var c='abcdefghjkmnpqrstuvwxyz23456789', s=''; for(var i=0;i<8;i++){ s+=c.charAt(Math.floor(Math.random()*c.length)); } return s; }
+  function cvFillProfiles(sel, list){
+    var h = '<option value="">— بدون باقة —</option>';
+    (list||[]).forEach(function(p){
+      var lbl = (p.name||p.id) + (p.speed ? ' ('+p.speed+')' : '');
+      h += '<option value="'+p.id+'" data-name="'+String(p.name||'').replace(/"/g,'&quot;')+'">'+lbl+'</option>';
+    });
+    sel.innerHTML = h;
+  }
+  function cvLoadProfiles(){
+    var sel = document.getElementById('cv-profile'); if(!sel) return;
+    if(cvProfilesCache){ cvFillProfiles(sel, cvProfilesCache); return; }
+    sel.innerHTML = '<option value="">— جارٍ التحميل… —</option>';
+    fetch('/admin/radius/profiles.json', {credentials:'same-origin', headers:{'X-Requested-With':'XMLHttpRequest'}})
+      .then(function(r){ return r.json(); })
+      .then(function(d){ cvProfilesCache = (d && d.profiles) || []; cvFillProfiles(sel, cvProfilesCache); })
+      .catch(function(){ sel.innerHTML = '<option value="">— تعذّر تحميل الباقات —</option>'; });
+  }
+  function openConvertModal(btn){
+    if(!cvModal) return;
+    cvModal.dataset.url = btn.dataset.url || '';
+    var phone = btn.dataset.phone || '';
+    document.getElementById('cv-name').textContent = btn.dataset.name || '';
+    document.getElementById('cv-phone').textContent = phone;
+    document.getElementById('cv-username').value = phone;
+    document.getElementById('cv-password').value = cvGenPass();
+    document.getElementById('cv-expire').value = '';
+    document.getElementById('cv-msg').textContent = '';
+    cvLoadProfiles();
+    cvModal.classList.add('is-open');
+  }
+  function cvClose(){ if(cvModal) cvModal.classList.remove('is-open'); }
+  function cvSubmit(){
+    if(!cvModal) return;
+    var url = cvModal.dataset.url || '';
+    var user = (document.getElementById('cv-username').value||'').trim();
+    var pass = (document.getElementById('cv-password').value||'').trim();
+    var sel  = document.getElementById('cv-profile');
+    var pid  = sel ? sel.value : '';
+    var opt  = sel && sel.options[sel.selectedIndex];
+    var pname = opt ? (opt.getAttribute('data-name')||'') : '';
+    var expire = (document.getElementById('cv-expire').value||'').trim();
+    var msg = document.getElementById('cv-msg');
+    if(!user){ msg.textContent = 'اسم المستخدم مطلوب.'; return; }
+    var fd = new FormData();
+    fd.append('target_mode','username');
+    fd.append('confirm_convert','1');
+    fd.append('username', user);
+    fd.append('password', pass);
+    fd.append('profile_id', pid);
+    fd.append('profile_name', pname);
+    fd.append('expire_at', expire);
+    if(csrfToken()) fd.append('_csrf_token', csrfToken());
+    var sbtn = document.getElementById('cv-submit'); sbtn.disabled = true;
+    fetch(url, {method:'POST', credentials:'same-origin',
+      headers:{'X-CSRFToken':csrfToken(),'X-Requested-With':'XMLHttpRequest'}, body:fd})
+      .then(function(r){ return r.json().catch(function(){ return {ok:r.ok}; }); })
+      .then(function(res){
+        sbtn.disabled = false;
+        if(res && res.ok !== false){ cvClose(); loadRows(readState(),false); showToast((res && res.message) || 'تم التحويل وإنشاء الحساب','success'); }
+        else { msg.textContent = (res && res.message) || 'فشل التحويل'; }
+      }).catch(function(){ sbtn.disabled = false; msg.textContent = 'فشل الاتصال بالخادم'; });
+  }
+  if(cvModal){
+    document.getElementById('cv-close').addEventListener('click', cvClose);
+    document.getElementById('cv-cancel').addEventListener('click', cvClose);
+    document.getElementById('cv-submit').addEventListener('click', cvSubmit);
+    document.getElementById('cv-genpass').addEventListener('click', function(){ document.getElementById('cv-password').value = cvGenPass(); });
+    cvModal.addEventListener('click', function(e){ if(e.target === cvModal) cvClose(); });
+  }
 
   document.addEventListener('keydown', e => {
     if(e.key === 'Escape'){
@@ -1160,6 +1239,50 @@
 
 })();
 </script>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     Convert-to-Subscription Modal — تحويل إلى حساب إنترنت دائم
+══════════════════════════════════════════════════════════════════ -->
+<div class="qe-backdrop" id="convert-user-modal">
+  <div class="qe-modal" style="max-width:480px">
+    <div class="qe-head">
+      <h3><i class="fa-solid fa-right-left"></i><span>تحويل إلى حساب إنترنت دائم</span></h3>
+      <button type="button" class="qe-close" id="cv-close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="qe-msg" id="cv-msg" style="color:#b91c1c;font-size:13px"></div>
+
+    <div style="background:#F4F3EF;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;display:flex;gap:12px;align-items:center">
+      <strong id="cv-name" style="font-size:14px"></strong>
+      <span style="color:var(--d-text-muted);font-family:monospace" id="cv-phone"></span>
+    </div>
+    <p style="font-size:12.5px;color:var(--d-text-soft);margin:0 0 14px"><i class="fa-solid fa-circle-info" style="color:#c8951a"></i> سيُنشأ حساب على نظام المصادقة بهذه البيانات — عدّل الناقص قبل الإنشاء:</p>
+
+    <div class="qe-field" style="margin-bottom:12px">
+      <label>اسم المستخدم <span class="hint">(الجوّال افتراضيًا)</span></label>
+      <input type="text" id="cv-username" style="direction:ltr;text-align:left">
+    </div>
+    <div class="qe-field" style="margin-bottom:12px">
+      <label>كلمة المرور</label>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="cv-password" style="direction:ltr;text-align:left;flex:1">
+        <button type="button" class="qe-btn" id="cv-genpass" style="white-space:nowrap"><i class="fa-solid fa-rotate"></i> توليد</button>
+      </div>
+    </div>
+    <div class="qe-field" style="margin-bottom:12px">
+      <label>الباقة</label>
+      <select id="cv-profile"><option value="">— بدون باقة —</option></select>
+    </div>
+    <div class="qe-field" style="margin-bottom:16px">
+      <label>تاريخ الانتهاء <span class="hint">(اختياريّ)</span></label>
+      <input type="date" id="cv-expire" style="direction:ltr">
+    </div>
+
+    <div class="qe-actions">
+      <button type="button" class="qe-btn qe-btn-save" id="cv-submit"><i class="fa-solid fa-right-left"></i> تحويل وإنشاء الحساب</button>
+      <button type="button" class="qe-btn qe-btn-cancel" id="cv-cancel">إلغاء</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════════════════════════════
      Portal Management Modal — إدارة حساب بوابة المستفيد
