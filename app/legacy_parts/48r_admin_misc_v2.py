@@ -7,6 +7,26 @@ import json as _json
 from flask import render_template, request, redirect, url_for, flash, session
 
 
+def _short_dt(value):
+    """يختصر طابع الوقت إلى «YYYY-MM-DD HH:MM» (بلا ثوانٍ ولا T/Z)."""
+    s = str(value or "").strip()
+    if not s:
+        return ""
+    s = s.replace("T", " ").replace("Z", "")
+    if "." in s:
+        s = s.split(".", 1)[0]
+    parts = s.split(" ")
+    if len(parts) == 2 and ":" in parts[1]:
+        return parts[0] + " " + ":".join(parts[1].split(":")[:2])
+    return s[:16]
+
+
+try:
+    app.jinja_env.filters["shortdt"] = _short_dt  # noqa: F821 — app من legacy globals
+except Exception:
+    pass
+
+
 # ════════════════════════════════════════════════════
 # /profile (admin self-edit)
 # ════════════════════════════════════════════════════
@@ -294,7 +314,7 @@ def _radius_user_lookup_v2():
                     "up": ("%s Kbps" % _up) if _up else "",
                     "usage_gb": round((_bin + _bout) / (1024 ** 3), 2),
                     "sessions": len(_sess) if isinstance(_sess, list) else 0,
-                    "last_seen": _usage.get("last_seen_at") or _usage.get("last_session_at") or "",
+                    "last_seen": _short_dt(_usage.get("last_seen_at") or _usage.get("last_session_at") or ""),
                     "mobile": _acct.get("mobile") or "",
                 }
                 _sessions_list = []
@@ -326,7 +346,7 @@ def _radius_user_lookup_v2():
                     "up_mb": round(_bout / (1024 * 1024), 2),
                     "seconds": _secs,
                     "time_label": (("%dس %dد" % (_secs // 3600, (_secs % 3600) // 60)) if _secs else "0د"),
-                    "expires_at": _acct.get("expire_at") or _acct.get("expires_at") or "",
+                    "expires_at": _short_dt(_acct.get("expire_at") or _acct.get("expires_at") or ""),
                     "quota_total_mb": int(_qtot) if _qtot else 0,
                     "unique_macs": len(_uniq),
                     "cur_ip": _cur.get("ip") or "—",
