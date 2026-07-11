@@ -573,6 +573,45 @@ class ApiV1RadiusClient(RadiusClient):
                 offers.append(offer)
         return offers
 
+    def get_marketplace_offers(self) -> list:
+        """عروض السوق الإلكترونيّ المنشورة فقط (لا كل الباقات) عبر
+        GET /api/v1/card-marketplace/packages. كل عرض يُشكَّل للربط مع
+        ``external_id = plan_id`` كي يتوافق مع توليد البطاقات داخل العرض."""
+        try:
+            self._guard_read()
+        except RadiusClientNotImplemented:
+            return []
+        ok, data, _err = self._get_data(
+            "card-marketplace/packages", params={"active": "1", "limit": 500})
+        if not ok:
+            return []
+        items = (data or {}).get("items") if isinstance(data, dict) else data
+        if not isinstance(items, list):
+            return []
+        offers = []
+        for p in items:
+            if not isinstance(p, dict):
+                continue
+            plan_id = _pick(p, "plan_id", "planid")
+            ext = str(plan_id or p.get("id") or "")
+            if not ext:
+                continue
+            down = _int_or_zero(p.get("display_speed_down_kbps") or p.get("speed_down_kbps"))
+            up = _int_or_zero(p.get("display_speed_up_kbps") or p.get("speed_up_kbps"))
+            speed = f"{down or '?'}/{up or '?'} Kbps" if (down or up) else ""
+            mins = _int_or_zero(p.get("display_duration_minutes") or p.get("duration_minutes"))
+            duration_label = f"{mins} دقيقة" if mins else ""
+            enabled = p.get("active")
+            offers.append({
+                "external_id": ext,  # = plan_id للتوليد داخل العرض
+                "name": p.get("name") or p.get("plan_name") or ext,
+                "duration_label": duration_label,
+                "speed": speed,
+                "price": _pick(p, "price", "price_card", "price_bulk"),
+                "active": _as_bool(enabled) if enabled is not None else True,
+            })
+        return offers
+
     def get_user_usage(self, user_external_id: Any) -> dict | None:
         """ملخّص استخدام مشترك عبر /accounts/<username>/usage. قاموس أو None."""
         try:

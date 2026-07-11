@@ -7,12 +7,17 @@ from flask import jsonify, render_template, request, session
 
 
 def _load_offers():
-    """يجلب عروض RADIUS الحيّة + حالة «قيد التطوير». لا يرمي أبدًا."""
+    """يجلب **عروض السوق الإلكترونيّ المنشورة فقط** (لا كل الباقات) + حالة
+    «قيد التطوير». لا يرمي أبدًا. يسقط إلى كل الباقات فقط لو تعذّر جلب السوق."""
     from app.services.radius_client import get_radius_client, is_api_under_development
 
     offers, error = [], ""
     try:
-        offers = get_radius_client().list_offers() or []
+        client = get_radius_client()
+        if hasattr(client, "get_marketplace_offers"):
+            offers = client.get_marketplace_offers() or []
+        else:  # عميل قديم بلا دعم السوق — نسقط لكل الباقات
+            offers = client.list_offers() or []
     except Exception as exc:  # لا نُسقط الصفحة مهما كان خطأ الاتصال
         error = str(exc)
     return offers, is_api_under_development(), error
