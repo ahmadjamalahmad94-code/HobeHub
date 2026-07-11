@@ -1138,8 +1138,27 @@
     var url   = btn.dataset.url   || '';
     var mode  = btn.dataset.mode  || '';
     if(!url) return;
-    // التحويل إلى «حساب إنترنت» يفتح نافذة لاستكمال الباقة/كلمة المرور/الانتهاء
-    if(mode === 'username'){ openConvertModal(btn); return; }
+    // التحويل إلى «حساب إنترنت»: إن كان للمستفيد حساب موجود على نظام المصادقة
+    // (نشط/معطّل) نكتفي بإعادة تفعيله دون نافذة الإنشاء؛ وإلا نفتح نافذة الاستكمال.
+    if(mode === 'username'){
+      if(btn.dataset.hasRadius === '1'){
+        var st = btn.dataset.radiusStatus === 'disabled' ? 'معطّل' : 'موجود';
+        if(!confirm('لهذا المستفيد حساب على نظام المصادقة ('+st+'). إعادة تفعيله كحساب إنترنت؟')) return;
+        var fdr = new FormData();
+        fdr.append('target_mode','username');
+        fdr.append('confirm_convert','1');
+        if(csrfToken()) fdr.append('_csrf_token', csrfToken());
+        fetch(url, {method:'POST', credentials:'same-origin',
+          headers:{'X-CSRFToken':csrfToken(),'X-Requested-With':'XMLHttpRequest'}, body:fdr})
+          .then(function(r){ return r.json().catch(function(){ return {ok:r.ok}; }); })
+          .then(function(res){
+            if(res && res.ok !== false){ loadRows(readState(),false); showToast((res && res.message) || 'تم إعادة تفعيل الحساب','success'); }
+            else { showToast((res && res.message) || 'فشل الإجراء','error'); }
+          }).catch(function(){ showToast('فشل الاتصال','error'); });
+        return;
+      }
+      openConvertModal(btn); return;
+    }
     if(!confirm('تحويل "'+name+'" إلى '+label+'؟')) return;
     var fd = new FormData();
     fd.append('target_mode', mode);

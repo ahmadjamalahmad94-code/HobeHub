@@ -8,9 +8,27 @@ def _enrich_beneficiary_rows(rows):
     from app.dashboard.services import get_beneficiary_access_label, get_beneficiary_access_mode
     from app.services.access_rules import ACCESS_LABELS, can_switch_to
 
+    # حالة حساب الريديوس لكل مستفيد (دفعة واحدة) — لتقرير: هل نُظهر نافذة الإنشاء
+    # أم نكتفي بإعادة التفعيل عند التحويل.
+    radius_map = {}
+    ids = [row.get("id") for row in (rows or []) if row.get("id")]
+    if ids:
+        try:
+            ph = ",".join(["%s"] * len(ids))
+            for rr in (query_all(
+                "SELECT beneficiary_id, external_username, status "
+                f"FROM beneficiary_radius_accounts WHERE beneficiary_id IN ({ph})", ids) or []):
+                radius_map[rr.get("beneficiary_id")] = rr
+        except Exception:
+            radius_map = {}
+
     enriched = []
     for row in rows or []:
         item = dict(row)
+        _racct = radius_map.get(item.get("id")) or {}
+        _rstatus = (_racct.get("status") or "").strip().lower()
+        item["radius_account_status"] = _rstatus
+        item["has_radius_account"] = bool(_racct.get("external_username")) and _rstatus in ("active", "disabled")
         access_mode = get_beneficiary_access_mode(item)
         target_mode = "username" if access_mode == "cards" else "cards"
         can_switch, switch_reason = can_switch_to((item.get("user_type") or "").strip().lower(), target_mode)
