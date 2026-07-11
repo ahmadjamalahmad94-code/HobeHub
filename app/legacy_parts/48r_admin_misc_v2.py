@@ -231,19 +231,27 @@ def _radius_user_lookup_v2():
     sessions_json = usage_json = bandwidth_json = devices_cards_json = ""
     error_text = ""
     if username:
-        try:
-            client = get_radius_client()
-            sd = mask_sensitive_data(client.get_user_sessions({"username": username}))
-            ud = mask_sensitive_data(client.get_user_usage({"username": username}))
-            bd = mask_sensitive_data(client.get_user_bandwidth({"username": username}))
-            dd = mask_sensitive_data(client.get_user_devices({"username": username}))
-            cd = mask_sensitive_data(client.get_user_cards({"username": username}))
-            sessions_json = _json.dumps(sd, ensure_ascii=False, indent=2) if sd else ""
-            usage_json = _json.dumps(ud, ensure_ascii=False, indent=2) if ud else ""
-            bandwidth_json = _json.dumps(bd, ensure_ascii=False, indent=2) if bd else ""
-            devices_cards_json = _json.dumps({"devices": dd, "cards": cd}, ensure_ascii=False, indent=2) if (dd or cd) else ""
-        except Exception as exc:
-            error_text = str(exc)
+        # العميل الحديث (/api/v1) بدل القديم (advrapp) الذي كان يُظهر «إعدادات
+        # التكامل غير مكتملة».
+        from app.services.radius_client import get_radius_client as _mrc
+        from app.services.radius_client import is_api_under_development
+        if is_api_under_development():
+            error_text = "واجهة الريديوس غير مفعّلة — فعّل «تفعيل القراءة» من إعدادات المصادقة."
+        else:
+            try:
+                client = _mrc()
+                sd = mask_sensitive_data(client.get_user_sessions(username) or {})
+                ud = mask_sensitive_data(client.get_user_usage(username) or {})
+                bd = mask_sensitive_data(client.get_user_bandwidth(username) or {})
+                _found = client.search_users(username, limit=5)
+                _items = _found.get("data") if isinstance(_found, dict) else []
+                dd = mask_sensitive_data(_items[0] if _items else {})
+                sessions_json = _json.dumps(sd, ensure_ascii=False, indent=2) if sd else ""
+                usage_json = _json.dumps(ud, ensure_ascii=False, indent=2) if ud else ""
+                bandwidth_json = _json.dumps(bd, ensure_ascii=False, indent=2) if bd else ""
+                devices_cards_json = _json.dumps({"account": dd}, ensure_ascii=False, indent=2) if dd else ""
+            except Exception as exc:
+                error_text = str(exc)
 
     return render_template(
         "admin/radius/user_lookup.html",
