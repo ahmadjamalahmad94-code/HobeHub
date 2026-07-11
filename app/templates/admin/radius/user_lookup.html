@@ -10,38 +10,51 @@
 .soc-search .f{display:flex;flex-direction:column;gap:6px;flex:1;min-width:220px}
 .soc-search .lbl{font-size:12px;font-weight:800;color:var(--muted)}
 .soc-search input{padding:12px 15px;border-radius:12px;border:1.5px solid var(--d-border-strong);font-size:14.5px;background:#FAFAF8;font-family:inherit}
-.soc-search input:focus{outline:0;border-color:var(--acc);background:#fff;box-shadow:0 0 0 3px rgba(244,186,42,.20)}
+.soc-search input:focus{outline:0;border-color:var(--acc);background:#fff;box-shadow:0 0 0 3px rgba(244,186,42,.2)}
 .soc-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:12px;border:0;cursor:pointer;font-family:inherit;font-size:14.5px;font-weight:800;color:#1E1E1E;background:linear-gradient(135deg,var(--acc-d),var(--acc));box-shadow:0 8px 18px rgba(244,186,42,.32)}
 .soc-btn:hover{transform:translateY(-1px)}
 
-/* hero — بهوية الموقع: داكن + ذهبيّ */
-.soc-hero{position:relative;overflow:hidden;border-radius:22px;padding:26px 28px;margin-top:16px;color:#fff;
-  background:linear-gradient(135deg,var(--d-black,#1E1E1E),var(--d-black-deeper,#131313));box-shadow:0 18px 42px -18px rgba(0,0,0,.6)}
-.soc-hero::after{content:"";position:absolute;inset-block-start:-60%;inset-inline-start:-6%;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(244,186,42,.20),transparent 68%);pointer-events:none}
-.soc-hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;position:relative}
-.soc-uname{font-size:30px;font-weight:800;letter-spacing:.02em;font-family:monospace;line-height:1.1;color:var(--gold)}
-.soc-sub{font-size:13px;color:rgba(255,255,255,.72);margin-top:5px}
-.soc-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800}
-.soc-badge.on{background:rgba(52,211,153,.20);color:#d1fae5;border:1px solid rgba(52,211,153,.4)}
+/* KPI + tiles */
+.soc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:16px}
+.soc-tile{background:var(--d-surface,#fff);border:1px solid var(--d-border);border-radius:16px;padding:15px;box-shadow:0 1px 2px rgba(0,0,0,.04);display:flex;align-items:center;gap:12px}
+.soc-tile .ic{width:36px;height:36px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;background:rgba(244,186,42,.15);color:var(--acc-d);flex:none}
+.soc-tile .tx{display:flex;flex-direction:column;gap:2px;min-width:0}
+.soc-tile .k{font-size:11px;font-weight:700;color:var(--muted)}
+.soc-tile .val{font-size:19px;font-weight:800;color:var(--d-black,#18232e);font-variant-numeric:tabular-nums;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.soc-tile .val small{font-size:11.5px;font-weight:700;color:var(--muted)}
+
+/* two-col hero */
+.soc-hero2{display:grid;grid-template-columns:1.25fr 1fr;gap:14px;margin-top:16px}
+@media(max-width:760px){.soc-hero2{grid-template-columns:1fr}}
+.soc-id{position:relative;overflow:hidden;border-radius:20px;padding:22px 24px;color:#fff;background:linear-gradient(135deg,var(--d-black,#1E1E1E),var(--d-black-deeper,#131313));box-shadow:0 16px 38px -18px rgba(0,0,0,.6)}
+.soc-id::after{content:"";position:absolute;inset-block-start:-55%;inset-inline-start:-6%;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(244,186,42,.2),transparent 68%)}
+.soc-id-top{display:flex;justify-content:space-between;align-items:center;position:relative;gap:12px}
+.soc-chip-card{width:40px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--acc),var(--gold));box-shadow:inset 0 0 0 2px rgba(255,255,255,.25)}
+.soc-uname{font-size:28px;font-weight:800;font-family:monospace;color:var(--gold);margin-top:14px;position:relative}
+.soc-speed{font-size:13px;color:rgba(255,255,255,.8);margin-top:2px;position:relative}
+.soc-id-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;position:relative}
+.soc-id-meta .m{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.13);border-radius:10px;padding:6px 11px;font-size:12px;font-weight:700}
+.soc-id-meta .m span{color:rgba(255,255,255,.6);font-weight:600}
+.soc-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 13px;border-radius:999px;font-size:12px;font-weight:800}
+.soc-badge.on{background:rgba(52,211,153,.2);color:#d1fae5;border:1px solid rgba(52,211,153,.4)}
 .soc-badge.off{background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2)}
 .soc-pulse{width:8px;height:8px;border-radius:50%;background:#34d399;animation:socp 2s infinite}
 @keyframes socp{0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,.7)}50%{box-shadow:0 0 0 7px rgba(52,211,153,0)}}
-.soc-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;position:relative}
-.soc-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:11px;background:rgba(255,255,255,.1);font-size:12.5px;font-weight:700;border:1px solid rgba(255,255,255,.13)}
-.soc-chip i{color:var(--gold);opacity:.9}
 
-/* kpi + tiles */
-.soc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:13px;margin-top:16px}
-.soc-tile{background:var(--d-surface,#fff);border:1px solid var(--d-border);border-radius:16px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.04);display:flex;flex-direction:column;gap:6px}
-.soc-tile .ic{width:34px;height:34px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;background:rgba(244,186,42,.15);color:var(--acc-d)}
-.soc-tile .k{font-size:11.5px;font-weight:700;color:var(--muted)}
-.soc-tile .val{font-size:20px;font-weight:800;color:var(--d-black,#18232e);font-variant-numeric:tabular-nums;line-height:1.15}
-.soc-tile .val small{font-size:12px;font-weight:700;color:var(--muted)}
+.soc-status{background:var(--d-surface,#fff);border:1px solid var(--d-border);border-radius:20px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.soc-status-h{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--d-border)}
+.soc-status-h b{font-size:14.5px;font-weight:800;color:var(--d-black,#18232e)}
+.soc-status .row{display:flex;align-items:center;justify-content:space-between;padding:11px 18px;border-bottom:1px solid var(--d-border);font-size:13px}
+.soc-status .row:last-child{border-bottom:0}
+.soc-status .row .k{color:var(--muted);font-weight:700}
+.soc-status .row .v{font-weight:800;font-family:monospace;color:var(--d-black,#18232e)}
+.chip-g{background:rgba(31,143,81,.14);color:#166534;font-size:11.5px;font-weight:800;border-radius:999px;padding:3px 11px;display:inline-flex;align-items:center;gap:6px}
+.chip-x{background:rgba(120,120,120,.15);color:#555;font-size:11.5px;font-weight:800;border-radius:999px;padding:3px 11px}
 
-/* cards + sessions */
+/* card + sessions */
 .soc-card{background:var(--d-surface,#fff);border:1px solid var(--d-border);border-radius:18px;box-shadow:0 1px 2px rgba(0,0,0,.04);margin-top:16px;overflow:hidden}
 .soc-card-h{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--d-border)}
-.soc-card-h h3{font-size:15.5px;font-weight:800;margin:0;display:flex;gap:9px;align-items:center;color:var(--d-black,#18232e)}
+.soc-card-h h3{font-size:15px;font-weight:800;margin:0;display:flex;gap:9px;align-items:center;color:var(--d-black,#18232e)}
 .soc-card-h h3 i{color:var(--acc-d)}
 .soc-tablewrap{overflow-x:auto}
 .soc-table{width:100%;border-collapse:collapse;min-width:640px;font-size:13px}
@@ -51,16 +64,17 @@
 .soc-empty{padding:40px 20px;text-align:center;color:var(--muted)}
 
 /* actions */
-.soc-actions{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;padding:18px 20px}
+.soc-actions{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;padding:18px 20px}
 .soc-act{border:1px solid var(--d-border);border-radius:14px;padding:15px;display:flex;flex-direction:column;gap:9px;background:linear-gradient(180deg,#fff,#fffdf5)}
 .soc-act .t{font-size:14px;font-weight:800;display:flex;align-items:center;gap:9px;color:var(--d-black,#18232e)}
 .soc-act .d{font-size:11.5px;color:var(--muted)}
-.soc-act .ai{width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;color:#fff}
+.soc-act .ai{width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;color:#fff;flex:none}
 .soc-act button{margin-top:2px;border:0;border-radius:10px;padding:9px 12px;font-family:inherit;font-weight:800;font-size:12.5px;cursor:pointer;text-align:center}
 .soc-act .inrow{display:flex;gap:6px;flex-wrap:wrap}
-.soc-act .inrow input{width:70px;padding:7px 9px;border-radius:8px;border:1.5px solid var(--d-border-strong);font-size:12.5px;background:#FAFAF8;font-family:inherit}
+.soc-act .inrow input{width:72px;padding:7px 9px;border-radius:8px;border:1.5px solid var(--d-border-strong);font-size:12.5px;background:#FAFAF8;font-family:inherit}
 .b-red{background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff} .bg-red{background:#ef4444}
 .b-gold{background:linear-gradient(135deg,var(--acc-d),var(--acc));color:#1E1E1E} .bg-gold{background:var(--acc)}
+.bg-grn{background:#1f8f51} .bg-slate{background:#64748b}
 
 .raw-details{margin-top:14px}
 .raw-details>summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--muted);padding:8px 2px}
@@ -82,32 +96,52 @@
 {% if username and not error_text %}
   {% if summary and summary.found %}
 
-  <!-- HERO -->
-  <section class="soc-hero">
-    <div class="soc-hero-top">
-      <div>
-        <div class="soc-uname">{{ summary.username }}</div>
-        <div class="soc-sub">{% if summary.mobile %}جوّال: {{ summary.mobile }} · {% endif %}الباقة: {{ summary.plan or '—' }}</div>
-      </div>
-      {% if summary.online %}<span class="soc-badge on"><span class="soc-pulse"></span> متصل الآن</span>
-      {% else %}<span class="soc-badge off"><i class="fa-regular fa-circle"></i> غير متصل</span>{% endif %}
-    </div>
-    <div class="soc-chips">
-      <span class="soc-chip"><i class="fa-solid fa-gauge-high"></i> {{ summary.down or '—' }} ↓ / {{ summary.up or '—' }} ↑</span>
-      <span class="soc-chip"><i class="fa-solid fa-database"></i> استهلاك {{ summary.usage_gb }} GB</span>
-      <span class="soc-chip"><i class="fa-solid fa-plug"></i> {{ summary.sessions }} جلسة نشطة</span>
-      {% if summary.expires_at %}<span class="soc-chip"><i class="fa-regular fa-calendar"></i> تنتهي {{ summary.expires_at }}</span>{% endif %}
-    </div>
-  </section>
-
-  <!-- KPI -->
+  <!-- KPI ROW -->
   <div class="soc-grid">
-    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-database"></i></span><span class="k">الاستهلاك الكلّي</span><span class="val">{{ summary.usage_gb }} <small>GB</small></span></div>
-    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-arrow-down"></i></span><span class="k">إجمالي التنزيل</span><span class="val">{{ summary.down_mb }} <small>MB</small></span></div>
-    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-arrow-up"></i></span><span class="k">إجمالي الرفع</span><span class="val">{{ summary.up_mb }} <small>MB</small></span></div>
-    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-plug"></i></span><span class="k">الجلسات النشطة</span><span class="val">{{ summary.sessions }}</span></div>
-    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-gauge-high"></i></span><span class="k">سرعة الباقة</span><span class="val" style="font-size:15px">{{ summary.down or '—' }} / {{ summary.up or '—' }}</span></div>
-    <div class="soc-tile"><span class="ic"><i class="fa-regular fa-clock"></i></span><span class="k">آخر ظهور</span><span class="val" style="font-size:12.5px">{{ summary.last_seen or '—' }}</span></div>
+    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-database"></i></span><div class="tx"><span class="k">إجمالي الاستهلاك</span><span class="val">{{ summary.usage_gb }} <small>GB</small></span></div></div>
+    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-plug"></i></span><div class="tx"><span class="k">الجلسات النشطة</span><span class="val">{{ summary.sessions }}</span></div></div>
+    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-laptop"></i></span><div class="tx"><span class="k">أجهزة فريدة</span><span class="val">{{ summary.unique_macs }}</span></div></div>
+    <div class="soc-tile"><span class="ic"><i class="fa-regular fa-clock"></i></span><div class="tx"><span class="k">وقت الاستخدام</span><span class="val" style="font-size:16px">{{ summary.time_label }}</span></div></div>
+    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-gauge-high"></i></span><div class="tx"><span class="k">سرعة الباقة</span><span class="val" style="font-size:14px">{{ summary.down or '—' }} / {{ summary.up or '—' }}</span></div></div>
+  </div>
+
+  <!-- TWO-COL HERO: identity + status -->
+  <div class="soc-hero2">
+    <section class="soc-id">
+      <div class="soc-id-top">
+        <div class="soc-chip-card"></div>
+        {% if summary.online %}<span class="soc-badge on"><span class="soc-pulse"></span> متصل الآن</span>
+        {% else %}<span class="soc-badge off"><i class="fa-regular fa-circle"></i> غير متصل</span>{% endif %}
+      </div>
+      <div class="soc-uname">{{ summary.username }}</div>
+      <div class="soc-speed"><i class="fa-solid fa-gauge-high"></i> {{ summary.down or '—' }} ↓ / {{ summary.up or '—' }} ↑</div>
+      <div class="soc-id-meta">
+        <div class="m"><span>الباقة:</span> {{ summary.plan or '—' }}</div>
+        {% if summary.mobile %}<div class="m"><span>الجوّال:</span> {{ summary.mobile }}</div>{% endif %}
+        <div class="m"><span>الحالة:</span> {{ 'مفعّل' if summary.enabled else 'معطّل' }}</div>
+        {% if summary.expires_at %}<div class="m"><span>ينتهي:</span> {{ summary.expires_at }}</div>{% endif %}
+      </div>
+    </section>
+
+    <section class="soc-status">
+      <div class="soc-status-h"><b>حالة الحساب</b>
+        {% if summary.online %}<span class="chip-g"><span class="soc-pulse" style="background:#166534"></span> نشط الآن</span>{% else %}<span class="chip-x">غير متصل</span>{% endif %}
+      </div>
+      <div class="row"><span class="k">آخر ظهور</span><span class="v" style="font-size:11.5px">{{ summary.last_seen or '—' }}</span></div>
+      <div class="row"><span class="k">عنوان الشبكة (IP)</span><span class="v">{{ summary.cur_ip }}</span></div>
+      <div class="row"><span class="k">جهاز الشبكة (NAS)</span><span class="v">{{ summary.cur_nas }}</span></div>
+      <div class="row"><span class="k">MAC الحاليّ</span><span class="v">{{ summary.cur_mac }}</span></div>
+    </section>
+  </div>
+
+  <!-- DETAIL TILES -->
+  <div class="soc-grid">
+    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-arrow-down"></i></span><div class="tx"><span class="k">إجمالي التنزيل</span><span class="val">{{ summary.down_mb }} <small>MB</small></span></div></div>
+    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-arrow-up"></i></span><div class="tx"><span class="k">إجمالي الرفع</span><span class="val">{{ summary.up_mb }} <small>MB</small></span></div></div>
+    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-fingerprint"></i></span><div class="tx"><span class="k">ماكات فريدة</span><span class="val">{{ summary.unique_macs }}</span></div></div>
+    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-gem"></i></span><div class="tx"><span class="k">الكوتة الكلّية</span><span class="val" style="font-size:15px">{{ (summary.quota_total_mb ~ ' MB') if summary.quota_total_mb else 'بلا حدّ' }}</span></div></div>
+    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-box"></i></span><div class="tx"><span class="k">الباقة</span><span class="val" style="font-size:14px">{{ summary.plan or '—' }}</span></div></div>
+    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-circle-check"></i></span><div class="tx"><span class="k">حالة الحساب</span><span class="val" style="font-size:15px;color:{{ '#166534' if summary.enabled else '#b91c1c' }}">{{ 'مفعّل' if summary.enabled else 'معطّل' }}</span></div></div>
   </div>
 
   <!-- SESSIONS -->
@@ -120,12 +154,9 @@
         <tbody>
           {% for s in summary.sessions_list %}
           <tr>
-            <td class="mono">{{ s.ip }}</td>
-            <td class="mono">{{ s.mac }}</td>
-            <td class="mono">{{ s.nas }}</td>
+            <td class="mono">{{ s.ip }}</td><td class="mono">{{ s.mac }}</td><td class="mono">{{ s.nas }}</td>
             <td>{% set h = s.running_min // 60 %}{% set m = s.running_min % 60 %}{% if h %}{{ h }}س {% endif %}{{ m }}د</td>
-            <td>{{ s.in_mb }} MB</td>
-            <td>{{ s.out_mb }} MB</td>
+            <td>{{ s.in_mb }} MB</td><td>{{ s.out_mb }} MB</td>
           </tr>
           {% else %}
           <tr><td colspan="6" class="soc-empty"><i class="fa-solid fa-wifi" style="display:block;font-size:26px;margin-bottom:6px;opacity:.4"></i>لا جلسات نشطة الآن</td></tr>
@@ -137,8 +168,8 @@
 
   <!-- SMART ACTIONS -->
   <section class="soc-card">
-    <div class="soc-card-h"><h3><i class="fa-solid fa-bolt"></i> إجراءات ذكية</h3>
-      <span style="font-size:12px;color:var(--muted)">تحكّم مباشر على الريديوس</span></div>
+    <div class="soc-card-h"><h3><i class="fa-solid fa-bolt"></i> إجراءات ذكية — تحكّم كامل بالمشترك</h3>
+      <span style="font-size:12px;color:var(--muted)">مباشر على الريديوس</span></div>
     <div class="soc-actions">
       <div class="soc-act">
         <div class="t"><span class="ai bg-red"><i class="fa-solid fa-plug-circle-xmark"></i></span> قطع الجلسات</div>
@@ -155,7 +186,7 @@
         <form method="POST" action="{{ url_for('radius_lock_mac_page') }}" onsubmit="return confirm('قفل {{ summary.username }} على جهازه الحاليّ؟')">
           {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
           <input type="hidden" name="username" value="{{ summary.username }}">
-          {% if summary.sessions_list and summary.sessions_list[0].mac != '—' %}<input type="hidden" name="mac" value="{{ summary.sessions_list[0].mac }}">{% endif %}
+          {% if summary.cur_mac and summary.cur_mac != '—' %}<input type="hidden" name="mac" value="{{ summary.cur_mac }}">{% endif %}
           <button class="b-gold" type="submit">قفل الآن</button>
         </form>
       </div>
@@ -165,13 +196,38 @@
         <form method="POST" action="{{ url_for('radius_temp_speed_page') }}">
           {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
           <input type="hidden" name="username" value="{{ summary.username }}">
-          <div class="inrow">
-            <input name="down_kbps" type="number" placeholder="↓ Kbps" min="0">
-            <input name="up_kbps" type="number" placeholder="↑ Kbps" min="0">
-            <input name="minutes" type="number" placeholder="دقائق" min="1" value="60">
-          </div>
+          <div class="inrow"><input name="down_kbps" type="number" placeholder="↓ Kbps" min="0"><input name="up_kbps" type="number" placeholder="↑ Kbps" min="0"><input name="minutes" type="number" placeholder="دقائق" min="1" value="60"></div>
           <button class="b-gold" type="submit">طبّق مؤقّتًا</button>
         </form>
+      </div>
+      <div class="soc-act">
+        <div class="t"><span class="ai bg-slate"><i class="fa-solid fa-clock-rotate-left"></i></span> تمديد الوقت</div>
+        <div class="d">إضافة دقائق لوقت المشترك.</div>
+        <form method="POST" action="{{ url_for('radius_extend_time_page') }}">
+          {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
+          <input type="hidden" name="username" value="{{ summary.username }}">
+          <div class="inrow"><input name="minutes" type="number" placeholder="دقائق" min="1" value="60"></div>
+          <button class="b-gold" type="submit">تمديد</button>
+        </form>
+      </div>
+      <div class="soc-act">
+        {% if summary.enabled %}
+        <div class="t"><span class="ai bg-red"><i class="fa-solid fa-pause"></i></span> تعطيل الحساب</div>
+        <div class="d">يوقف المشترك ويفصل جلساته.</div>
+        <form method="POST" action="{{ url_for('radius_toggle_account_page') }}" onsubmit="return confirm('تعطيل {{ summary.username }}؟')">
+          {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
+          <input type="hidden" name="username" value="{{ summary.username }}"><input type="hidden" name="action" value="disable">
+          <button class="b-red" type="submit">تعطيل</button>
+        </form>
+        {% else %}
+        <div class="t"><span class="ai bg-grn"><i class="fa-solid fa-play"></i></span> تفعيل الحساب</div>
+        <div class="d">يعيد تفعيل المشترك.</div>
+        <form method="POST" action="{{ url_for('radius_toggle_account_page') }}">
+          {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
+          <input type="hidden" name="username" value="{{ summary.username }}"><input type="hidden" name="action" value="enable">
+          <button style="background:#1f8f51;color:#fff" type="submit">تفعيل</button>
+        </form>
+        {% endif %}
       </div>
     </div>
   </section>

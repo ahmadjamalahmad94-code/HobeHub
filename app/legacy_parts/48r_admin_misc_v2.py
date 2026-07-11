@@ -284,15 +284,26 @@ def _radius_user_lookup_v2():
                         "out_mb": round(_so / (1024 * 1024), 2),
                         "session_id": _s.get("session_id") or _s.get("acctsessionid") or "",
                     })
+                _secs = int(_usage.get("used_seconds") or _usage.get("total_seconds") or 0)
+                _uniq = {s["mac"] for s in _sessions_list if s.get("mac") and s["mac"] != "—"}
+                _cur = _sessions_list[0] if _sessions_list else {}
+                _qtot = _acct.get("download_quota_mb") or _acct.get("combined_quota_mb") or 0
                 summary.update({
                     "plan_id": _acct.get("plan_id") or "",
+                    "user_type": _acct.get("user_type") or "",
                     "down_kbps": _down,
                     "up_kbps": _up,
                     "down_mb": round(_bin / (1024 * 1024), 2),
                     "up_mb": round(_bout / (1024 * 1024), 2),
-                    "seconds": int(_usage.get("used_seconds") or _usage.get("total_seconds") or 0),
+                    "seconds": _secs,
+                    "time_label": (("%dس %dد" % (_secs // 3600, (_secs % 3600) // 60)) if _secs else "0د"),
                     "expires_at": _acct.get("expire_at") or _acct.get("expires_at") or "",
-                    "quota_mb": _acct.get("download_quota_mb") or _acct.get("combined_quota_mb") or "",
+                    "quota_total_mb": int(_qtot) if _qtot else 0,
+                    "unique_macs": len(_uniq),
+                    "cur_ip": _cur.get("ip") or "—",
+                    "cur_mac": _cur.get("mac") or "—",
+                    "cur_nas": _cur.get("nas") or "—",
+                    "enabled": str(_acct.get("status") or "").strip().lower() not in ("disabled", "suspended", "blocked", "expired"),
                     "sessions_list": _sessions_list,
                 })
                 sessions_json = _json.dumps(sd, ensure_ascii=False, indent=2) if sd else ""

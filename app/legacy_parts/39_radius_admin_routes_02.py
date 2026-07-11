@@ -118,6 +118,57 @@ def radius_temp_speed_page():
     return redirect(request.referrer or url_for("radius_online_users_page"))
 
 
+@app.route("/admin/radius/extend-time", methods=["POST"])
+@login_required
+@permission_required("disconnect_radius_user")
+def radius_extend_time_page():
+    username = clean_csv_value(request.form.get("username"))
+    try:
+        minutes = int(request.form.get("minutes") or 0)
+    except (TypeError, ValueError):
+        minutes = 0
+    if not username or minutes <= 0:
+        flash("اسم المستخدم وعدد الدقائق مطلوبان.", "error")
+        return redirect(request.referrer or url_for("radius_online_users_page"))
+    from app.services.radius_client import get_radius_client as _mrc
+    from app.services.radius_client import is_api_under_development
+    if is_api_under_development():
+        flash("واجهة الريديوس غير مفعّلة.", "error")
+        return redirect(request.referrer or url_for("radius_online_users_page"))
+    try:
+        client = _mrc()
+        res = client.add_time(username, sel_time=0, add_time=minutes,
+                              requested_by=session.get("username") or "admin")
+        if bool(getattr(res, "ok", False)):
+            flash(f"تم تمديد الوقت {minutes} دقيقة.", "success")
+        else:
+            flash(f"تعذّر التمديد: {safe(str(getattr(res, 'message', '') or ''))}", "error")
+    except Exception as exc:
+        flash(f"تعذّر التمديد: {safe(str(exc))}", "error")
+    return redirect(request.referrer or url_for("radius_online_users_page"))
+
+
+@app.route("/admin/radius/toggle-account", methods=["POST"])
+@login_required
+@permission_required("disconnect_radius_user")
+def radius_toggle_account_page():
+    username = clean_csv_value(request.form.get("username"))
+    action = clean_csv_value(request.form.get("action"))
+    if not username:
+        flash("اسم المستخدم مطلوب.", "error")
+        return redirect(request.referrer or url_for("radius_online_users_page"))
+    from app.services.radius_provisioning import set_subscriber_enabled
+    enable = action == "enable"
+    res = set_subscriber_enabled(username=username, enabled=enable,
+                                 requested_by=session.get("username") or "admin")
+    if res.get("ok"):
+        flash(("تم تفعيل الحساب." if enable else "تم تعطيل الحساب.") if res.get("live")
+              else "سُجِّل الإجراء (سيُنفَّذ عند تفعيل الكتابة).", "success")
+    else:
+        flash(f"تعذّر تنفيذ الإجراء: {safe(str(res.get('message')))}", "error")
+    return redirect(request.referrer or url_for("radius_online_users_page"))
+
+
 @app.route("/admin/radius/user-lookup", methods=["GET", "POST"])
 @login_required
 @permission_required("view_radius_status")
