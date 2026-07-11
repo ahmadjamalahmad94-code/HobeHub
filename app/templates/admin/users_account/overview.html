@@ -565,6 +565,33 @@
 </div>
 
 {# ─── API Status modal ─── #}
+<style>
+.apx-hero{border-radius:16px;padding:18px 20px;color:#fff;background:linear-gradient(135deg,var(--d-black,#1E1E1E),var(--d-black-deeper,#131313));position:relative;overflow:hidden;margin-bottom:14px}
+.apx-hero::after{content:"";position:absolute;top:-55%;inset-inline-start:-6%;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(244,186,42,.2),transparent 68%)}
+.apx-hero-top{display:flex;justify-content:space-between;align-items:center;position:relative;gap:12px}
+.apx-uname{font-size:22px;font-weight:800;font-family:monospace;color:#FFD96A}
+.apx-subx{font-size:12.5px;color:rgba(255,255,255,.72);margin-top:3px}
+.apx-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:800}
+.apx-badge.on{background:rgba(52,211,153,.2);color:#d1fae5;border:1px solid rgba(52,211,153,.4)}
+.apx-badge.off{background:rgba(255,255,255,.12);color:rgba(255,255,255,.85)}
+.apx-pulse{width:7px;height:7px;border-radius:50%;background:#34d399;animation:apxp 2s infinite}
+@keyframes apxp{0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,.7)}50%{box-shadow:0 0 0 6px rgba(52,211,153,0)}}
+.apx-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px;position:relative}
+.apx-chip{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.13);border-radius:9px;padding:5px 10px;font-size:11.5px;font-weight:700}
+.apx-chip i{color:#FFD96A}
+.apx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.apx-stat{display:flex;gap:10px;align-items:center;background:#faf9f6;border:1px solid var(--d-border,#eee);border-radius:12px;padding:12px}
+.apx-stat-ico{width:32px;height:32px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex:none}
+.apx-stat-ico.g{background:rgba(31,143,81,.14);color:#166534}
+.apx-stat-ico.r{background:rgba(220,38,38,.12);color:#b91c1c}
+.apx-stat-ico.y{background:rgba(244,186,42,.18);color:#c8951a}
+.apx-stat .lbl{font-size:11px;color:var(--d-text-muted,#777);font-weight:700;display:block}
+.apx-stat .val{font-size:15px;font-weight:800;color:#18232e}
+.apx-dev{display:flex;gap:12px;align-items:center;margin-top:12px;padding:14px;border:1px solid var(--d-border,#eee);border-radius:12px;background:linear-gradient(135deg,#faf7ec,#fff)}
+.apx-dev-ico{width:46px;height:46px;border-radius:12px;background:rgba(244,186,42,.18);color:#c8951a;display:inline-flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+.apx-dev-rows{font-size:12px;color:var(--d-text-muted,#777);line-height:1.9}
+.apx-dev-rows b{font-family:monospace;color:#18232e}
+</style>
 <div class="api-bd" id="api-bd" role="dialog" aria-modal="true">
   <div class="api-modal">
     <div class="api-head">
@@ -770,6 +797,18 @@ function uaReinitPagination(){
     });
   }
 
+  function shortDt(v){
+    v = String(v == null ? '' : v); if(!v) return '';
+    v = v.replace('T',' ').replace('Z','');
+    if(v.indexOf('.') > -1) v = v.split('.')[0];
+    var p = v.split(' ');
+    if(p.length === 2 && p[1].indexOf(':') > -1) return p[0] + ' ' + p[1].split(':').slice(0,2).join(':');
+    return v.slice(0,16);
+  }
+  function stat(ic, tone, lbl, val){
+    return '<div class="apx-stat"><span class="apx-stat-ico '+tone+'"><i class="fa-solid fa-'+ic+'"></i></span>'
+         + '<div><span class="lbl">'+lbl+'</span><span class="val">'+val+'</span></div></div>';
+  }
   function render(payload){
     if(!payload.ok){
       body.innerHTML = '<div class="api-err"><i class="fa-solid fa-triangle-exclamation"></i> '
@@ -778,26 +817,33 @@ function uaReinitPagination(){
     }
     var d = payload.details || {};
     var isOnline = d.conn_code === 'online' || d.is_online == 1;
-    var usageBytes = Number(d.val_usage_qouta || 0);
-    var usageGb = (usageBytes / 1073741824).toFixed(2);
-    var html = '<div class="api-stats">'
-             + '<div class="api-stat"><span class="api-stat-ico ' + (isOnline ? 'g' : 'r') + '"><i class="fa-solid fa-' + (isOnline ? 'wifi' : 'plug-circle-xmark') + '"></i></span>'
-             +   '<div><span class="lbl">الحالة</span><span class="val">' + (isOnline ? 'متصل' : 'غير متصل') + '</span></div></div>'
-             + '<div class="api-stat"><span class="api-stat-ico b"><i class="fa-solid fa-box"></i></span>'
-             +   '<div><span class="lbl">الباقة</span><span class="val">' + (d.profile_name || '—') + '</span></div></div>'
-             + '<div class="api-stat"><span class="api-stat-ico y"><i class="fa-solid fa-calendar-day"></i></span>'
-             +   '<div><span class="lbl">تنتهي في</span><span class="val" style="font-size:11.5px">' + (d.expiration || '—') + '</span></div></div>'
-             + '<div class="api-stat"><span class="api-stat-ico g"><i class="fa-solid fa-arrow-down"></i></span>'
-             +   '<div><span class="lbl">سرعة التنزيل</span><span class="val">' + (d.down_speed || '—') + '</span></div></div>'
-             + '<div class="api-stat"><span class="api-stat-ico b"><i class="fa-solid fa-arrow-up"></i></span>'
-             +   '<div><span class="lbl">سرعة الرفع</span><span class="val">' + (d.up_speed || '—') + '</span></div></div>'
-             + '<div class="api-stat"><span class="api-stat-ico ' + ((d.money || '0.00') == '0.00' ? 'g' : 'y') + '"><i class="fa-solid fa-wallet"></i></span>'
-             +   '<div><span class="lbl">الرصيد</span><span class="val">' + (d.money || '0.00') + ' ' + (d.currency || '') + '</span></div></div>'
-             + '</div>'
-             + '<div class="api-bar-wrap">'
-             +   '<div class="api-bar-head"><span>الاستهلاك التراكمي</span><b>' + usageGb + ' GB</b></div>'
-             +   '<div class="api-bar-track"><div class="api-bar-fill" style="width:' + Math.min(100, (parseFloat(usageGb)/500*100)) + '%"></div></div>'
-             + '</div>';
+    var usageGb = (Number(d.val_usage_qouta || 0) / 1073741824).toFixed(2);
+    var uname = esc(payload.username || '');
+    var exp = shortDt(d.expiration);
+    var html = '<div class="apx-hero"><div class="apx-hero-top">'
+      + '<div><div class="apx-uname">'+uname+'</div>'
+      +   '<div class="apx-subx">الباقة: '+esc(d.profile_name||'—')+(d.status_label?(' · '+esc(d.status_label)):'')+'</div></div>'
+      + (isOnline ? '<span class="apx-badge on"><span class="apx-pulse"></span> متصل الآن</span>' : '<span class="apx-badge off">غير متصل</span>')
+      + '</div><div class="apx-chips">'
+      +   '<span class="apx-chip"><i class="fa-solid fa-gauge-high"></i> '+esc(d.down_speed||'—')+' ↓ / '+esc(d.up_speed||'—')+' ↑</span>'
+      +   '<span class="apx-chip"><i class="fa-solid fa-database"></i> '+usageGb+' GB</span>'
+      +   (exp ? '<span class="apx-chip"><i class="fa-regular fa-calendar"></i> تنتهي '+esc(exp)+'</span>' : '')
+      + '</div></div>'
+      + '<div class="apx-grid">'
+      +   stat(isOnline?'wifi':'plug-circle-xmark', isOnline?'g':'r', 'الحالة', isOnline?'متصل':'غير متصل')
+      +   stat('box','y','الباقة', esc(d.profile_name||'—'))
+      +   stat('arrow-down','g','سرعة التنزيل', esc(d.down_speed||'—'))
+      +   stat('arrow-up','y','سرعة الرفع', esc(d.up_speed||'—'))
+      +   stat('database','y','الاستهلاك', usageGb+' GB')
+      +   stat('calendar-day','g','تنتهي في', '<span style="font-size:11.5px">'+esc(exp||'—')+'</span>')
+      + '</div>';
+    if(isOnline && d.mac_address){
+      html += '<div class="apx-dev"><span class="apx-dev-ico"><i class="fa-solid fa-wifi"></i></span>'
+            + '<div class="apx-dev-rows"><div>MAC: <b>'+esc(d.mac_address)+'</b></div>'
+            + (d.framed_ip ? '<div>IP: <b>'+esc(d.framed_ip)+'</b></div>' : '')
+            + (d.last_seen_at ? '<div>آخر ظهور: <b>'+esc(shortDt(d.last_seen_at))+'</b></div>' : '')
+            + '</div></div>';
+    }
     body.innerHTML = html;
   }
 
