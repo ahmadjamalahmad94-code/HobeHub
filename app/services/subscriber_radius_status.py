@@ -160,6 +160,42 @@ def get_subscriber_radius_status(beneficiary_id: int, username: str = "") -> dic
             }
         )
 
+    # تفاصيل الحساب الحيّة من الريديوس (الباقة/السرعة/الحالة/الانتهاء) — لا نكتفي
+    # بالحساب المحلّي الذي يكون فارغًا للمشتركين المُرحَّلين، فنجلب الحساب بالاسم.
+    acct = None
+    try:
+        _found = client.search_users(radius_username, limit=1)
+        _items = _found.get("data") if isinstance(_found, dict) else None
+        acct = _items[0] if isinstance(_items, list) and _items else None
+    except Exception:
+        acct = None
+    if isinstance(acct, dict):
+        snapshot["available"] = True
+        if snapshot.get("source") == "local":
+            snapshot["source"] = "radius_account"
+        _pname = _first(acct.get("plan_name"), acct.get("profile_name"), acct.get("plan"))
+        _pid = _first(acct.get("plan_id"), acct.get("profile_id"))
+        if _pname:
+            snapshot["profile_name"] = _pname
+        elif _pid and not snapshot.get("profile_name"):
+            snapshot["profile_name"] = f"باقة #{_pid}"
+        if _pid:
+            snapshot["profile_id"] = _pid
+        if not snapshot["is_online"]:
+            _st = _first(acct.get("status"), acct.get("state"))
+            if _st:
+                snapshot["status"] = _st
+                snapshot["status_label"] = _status_label(_st)
+        _exp = _first(acct.get("expire_at"), acct.get("expires_at"), acct.get("expiration"))
+        if _exp:
+            snapshot["expires_at"] = _exp
+        _down = _int(_first(acct.get("download_speed_kbps"), acct.get("speed_down_kbps"), acct.get("download_speed")))
+        _up = _int(_first(acct.get("upload_speed_kbps"), acct.get("speed_up_kbps"), acct.get("upload_speed")))
+        if _down:
+            snapshot["download_speed"] = _down
+        if _up:
+            snapshot["upload_speed"] = _up
+
     return snapshot
 
 
