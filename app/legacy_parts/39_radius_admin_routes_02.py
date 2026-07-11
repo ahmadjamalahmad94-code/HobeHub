@@ -77,6 +77,47 @@ def radius_lock_mac_page():
     return redirect(request.referrer or url_for("radius_online_users_page"))
 
 
+@app.route("/admin/radius/temp-speed", methods=["POST"])
+@login_required
+@permission_required("disconnect_radius_user")
+def radius_temp_speed_page():
+    username = clean_csv_value(request.form.get("username"))
+    if not username:
+        flash("اسم المستخدم مطلوب.", "error")
+        return redirect(request.referrer or url_for("radius_online_users_page"))
+
+    def _to_int(v):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return 0
+    down = _to_int(request.form.get("down_kbps"))
+    up = _to_int(request.form.get("up_kbps"))
+    minutes = _to_int(request.form.get("minutes")) or 60
+    if down <= 0 and up <= 0:
+        flash("حدّد سرعة تنزيل أو رفع.", "error")
+        return redirect(request.referrer or url_for("radius_online_users_page"))
+    from app.services.radius_client import get_radius_client as _mrc
+    from app.services.radius_client import is_api_under_development
+    if is_api_under_development():
+        flash("واجهة الريديوس غير مفعّلة.", "error")
+        return redirect(request.referrer or url_for("radius_online_users_page"))
+    try:
+        client = _mrc()
+        if not hasattr(client, "set_temp_speed"):
+            flash("رفع السرعة غير مدعوم في هذا الوضع.", "error")
+            return redirect(request.referrer or url_for("radius_online_users_page"))
+        res = client.set_temp_speed(username, down_kbps=down, up_kbps=up, minutes=minutes,
+                                    requested_by=session.get("username") or "admin")
+        if bool(getattr(res, "ok", False)):
+            flash(f"تم رفع السرعة مؤقتًا لـ{minutes} دقيقة.", "success")
+        else:
+            flash(f"تعذّر رفع السرعة: {safe(str(getattr(res, 'message', '') or ''))}", "error")
+    except Exception as exc:
+        flash(f"تعذّر رفع السرعة: {safe(str(exc))}", "error")
+    return redirect(request.referrer or url_for("radius_online_users_page"))
+
+
 @app.route("/admin/radius/user-lookup", methods=["GET", "POST"])
 @login_required
 @permission_required("view_radius_status")

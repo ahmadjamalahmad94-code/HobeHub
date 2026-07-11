@@ -268,6 +268,33 @@ def _radius_user_lookup_v2():
                     "last_seen": _usage.get("last_seen_at") or _usage.get("last_session_at") or "",
                     "mobile": _acct.get("mobile") or "",
                 }
+                _sessions_list = []
+                for _s in (_sess if isinstance(_sess, list) else []):
+                    if not isinstance(_s, dict):
+                        continue
+                    _si = int(_s.get("bytes_in") or 0)
+                    _so = int(_s.get("bytes_out") or 0)
+                    _rs = int(_s.get("running_seconds") or _s.get("running_sec") or 0)
+                    _sessions_list.append({
+                        "ip": _s.get("framed_ip") or _s.get("framedipaddress") or _s.get("ip") or "—",
+                        "mac": _s.get("calling_station_id") or _s.get("mac") or "—",
+                        "nas": _s.get("nas_ip") or _s.get("nasipaddress") or "—",
+                        "running_min": _rs // 60,
+                        "in_mb": round(_si / (1024 * 1024), 2),
+                        "out_mb": round(_so / (1024 * 1024), 2),
+                        "session_id": _s.get("session_id") or _s.get("acctsessionid") or "",
+                    })
+                summary.update({
+                    "plan_id": _acct.get("plan_id") or "",
+                    "down_kbps": _down,
+                    "up_kbps": _up,
+                    "down_mb": round(_bin / (1024 * 1024), 2),
+                    "up_mb": round(_bout / (1024 * 1024), 2),
+                    "seconds": int(_usage.get("used_seconds") or _usage.get("total_seconds") or 0),
+                    "expires_at": _acct.get("expire_at") or _acct.get("expires_at") or "",
+                    "quota_mb": _acct.get("download_quota_mb") or _acct.get("combined_quota_mb") or "",
+                    "sessions_list": _sessions_list,
+                })
                 sessions_json = _json.dumps(sd, ensure_ascii=False, indent=2) if sd else ""
                 usage_json = _json.dumps(ud, ensure_ascii=False, indent=2) if ud else ""
                 bandwidth_json = _json.dumps(bd, ensure_ascii=False, indent=2) if bd else ""

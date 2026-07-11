@@ -1,67 +1,183 @@
 {% extends "admin/_admin_layout.html" %}
-{% block title %}بحث مستخدم RADIUS{% endblock %}
-{% block page_title %}بحث مستخدم RADIUS{% endblock %}
-{% block crumbs %}<span>الإدارة</span><i class="fa-solid fa-chevron-left"></i><span>RADIUS</span><i class="fa-solid fa-chevron-left"></i><span>بحث مستخدم</span>{% endblock %}
+{% block title %}مركز عمليات المشترك{% endblock %}
+{% block page_title %}مركز عمليات المشترك{% endblock %}
+{% block crumbs %}<span>الإدارة</span><i class="fa-solid fa-chevron-left"></i><span>نظام المصادقة</span><i class="fa-solid fa-chevron-left"></i><span>عمليات المشترك</span>{% endblock %}
 
 {% block head_extra %}{{ super() }}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_addons.css') }}">
 <style>
-.search-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
-.search-bar .f{display:flex;flex-direction:column;gap:5px;flex:1;min-width:200px}
-.search-bar input{padding:11px 14px;border-radius:11px;border:1.5px solid var(--d-border-strong);font-size:14px;background:#FAFAF8;font-family:inherit}
-.search-bar input:focus{outline:0;border-color:var(--d-gold);background:#fff;box-shadow:0 0 0 3px rgba(244,186,42,.20)}
-.payload-box{padding:14px;border-radius:11px;background:#1E1E1E;color:#FFD96A;font-family:monospace;font-size:12.5px;line-height:1.7;overflow:auto;max-height:280px;white-space:pre-wrap;word-break:break-all}
-.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
-.stat{background:#FAFAF8;border:1px solid var(--d-border);border-radius:11px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
-.stat .k{font-size:11.5px;color:var(--d-text-muted);font-weight:700}
-.stat .v{font-size:15px;font-weight:800;color:var(--d-black)}
-.mono{font-family:monospace}
-.chip-on{background:rgba(31,143,81,.14);color:#166534;font-size:11.5px;font-weight:800;border-radius:999px;padding:3px 11px}
-.chip-off{background:rgba(120,120,120,.15);color:#555;font-size:11.5px;font-weight:800;border-radius:999px;padding:3px 11px}
-.raw-details{margin-top:6px}
-.raw-details>summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--d-text-muted);padding:8px 2px}
+.soc{--v1:#5b21b6;--v2:#7c3aed;--v3:#a78bfa;--ink:#1e1b34;--muted:#6b7280;font-family:inherit}
+.soc-search{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;background:var(--d-surface,#fff);border:1px solid var(--d-border);border-radius:16px;padding:16px 18px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.soc-search .f{display:flex;flex-direction:column;gap:6px;flex:1;min-width:220px}
+.soc-search .lbl{font-size:12px;font-weight:800;color:var(--muted)}
+.soc-search input{padding:12px 15px;border-radius:12px;border:1.5px solid var(--d-border-strong);font-size:14.5px;background:#FAFAF8;font-family:inherit}
+.soc-search input:focus{outline:0;border-color:var(--v2);background:#fff;box-shadow:0 0 0 3px rgba(124,58,237,.18)}
+.soc-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:12px;border:0;cursor:pointer;font-family:inherit;font-size:14.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--v1),var(--v2));box-shadow:0 8px 18px rgba(124,58,237,.28)}
+.soc-btn:hover{transform:translateY(-1px)}
+
+/* hero */
+.soc-hero{position:relative;overflow:hidden;border-radius:22px;padding:26px 28px;margin-top:16px;color:#fff;
+  background:linear-gradient(135deg,#4c1d95 0%,#6d28d9 55%,#7c3aed 100%);box-shadow:0 20px 45px -18px rgba(76,29,149,.7)}
+.soc-hero::after{content:"";position:absolute;inset-block-start:-60%;inset-inline-start:-6%;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 68%);pointer-events:none}
+.soc-hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;position:relative}
+.soc-uname{font-size:30px;font-weight:800;letter-spacing:.02em;font-family:monospace;line-height:1.1}
+.soc-sub{font-size:13px;color:rgba(255,255,255,.75);margin-top:4px}
+.soc-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800;backdrop-filter:blur(4px)}
+.soc-badge.on{background:rgba(52,211,153,.22);color:#d1fae5;border:1px solid rgba(52,211,153,.4)}
+.soc-badge.off{background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2)}
+.soc-pulse{width:8px;height:8px;border-radius:50%;background:#34d399;animation:socp 2s infinite}
+@keyframes socp{0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,.7)}50%{box-shadow:0 0 0 7px rgba(52,211,153,0)}}
+.soc-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;position:relative}
+.soc-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:11px;background:rgba(255,255,255,.12);font-size:12.5px;font-weight:700;border:1px solid rgba(255,255,255,.14)}
+.soc-chip i{opacity:.8}
+
+/* kpi + tiles */
+.soc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:13px;margin-top:16px}
+.soc-tile{background:var(--d-surface,#fff);border:1px solid var(--d-border);border-radius:16px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.04);display:flex;flex-direction:column;gap:6px;position:relative}
+.soc-tile .ic{width:34px;height:34px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;background:rgba(124,58,237,.1);color:var(--v2)}
+.soc-tile .k{font-size:11.5px;font-weight:700;color:var(--muted)}
+.soc-tile .val{font-size:20px;font-weight:800;color:var(--d-black,#18232e);font-variant-numeric:tabular-nums;line-height:1.15}
+.soc-tile .val small{font-size:12px;font-weight:700;color:var(--muted)}
+
+/* sessions table */
+.soc-card{background:var(--d-surface,#fff);border:1px solid var(--d-border);border-radius:18px;box-shadow:0 1px 2px rgba(0,0,0,.04);margin-top:16px;overflow:hidden}
+.soc-card-h{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--d-border)}
+.soc-card-h h3{font-size:15.5px;font-weight:800;margin:0;display:flex;gap:9px;align-items:center;color:var(--d-black,#18232e)}
+.soc-tablewrap{overflow-x:auto}
+.soc-table{width:100%;border-collapse:collapse;min-width:640px;font-size:13px}
+.soc-table th{background:var(--d-surface-2,#f4f6f8);color:var(--muted);font-weight:800;font-size:11.5px;text-align:right;padding:11px 16px;white-space:nowrap}
+.soc-table td{padding:12px 16px;border-top:1px solid var(--d-border);white-space:nowrap;font-variant-numeric:tabular-nums}
+.soc-table td.mono,.soc-table td .mono{font-family:monospace;font-size:12px}
+.soc-empty{padding:40px 20px;text-align:center;color:var(--muted)}
+
+/* actions */
+.soc-actions{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;padding:18px 20px}
+.soc-act{border:1px solid var(--d-border);border-radius:14px;padding:15px;display:flex;flex-direction:column;gap:9px;background:linear-gradient(180deg,#fff,#fbfaff)}
+.soc-act .t{font-size:14px;font-weight:800;display:flex;align-items:center;gap:9px;color:var(--d-black,#18232e)}
+.soc-act .d{font-size:11.5px;color:var(--muted)}
+.soc-act .ai{width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;color:#fff}
+.soc-act button,.soc-act .go{margin-top:2px;border:0;border-radius:10px;padding:9px 12px;font-family:inherit;font-weight:800;font-size:12.5px;cursor:pointer;color:#fff;text-align:center}
+.soc-act .inrow{display:flex;gap:6px;flex-wrap:wrap}
+.soc-act .inrow input{width:70px;padding:7px 9px;border-radius:8px;border:1.5px solid var(--d-border-strong);font-size:12.5px;background:#FAFAF8;font-family:inherit}
+.b-red{background:linear-gradient(135deg,#dc2626,#ef4444)} .bg-red{background:#ef4444}
+.b-amber{background:linear-gradient(135deg,#b45309,#d97706)} .bg-amber{background:#d97706}
+.b-violet{background:linear-gradient(135deg,var(--v1),var(--v2))} .bg-violet{background:var(--v2)}
+
+.raw-details{margin-top:14px}
+.raw-details>summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--muted);padding:8px 2px}
+.payload-box{padding:14px;border-radius:12px;background:#141026;color:#c4b5fd;font-family:monospace;font-size:12px;line-height:1.7;overflow:auto;max-height:260px;white-space:pre-wrap;word-break:break-all}
 </style>{% endblock %}
 
 {% block content %}
-<section class="d-hero">
-  <div><h2>🔍 بحث مستخدم RADIUS</h2><p>عرض الجلسات والاستهلاك والأجهزة والبطاقات لمستخدم محدد.</p></div>
-</section>
+<div class="soc">
 
-{% if error_text %}<div style="padding:12px 16px;border-radius:11px;background:#fde2e2;color:#b91c1c;border:1px solid rgba(185,28,28,.3);margin-bottom:14px">{{ error_text }}</div>{% endif %}
+<form method="POST" class="soc-search">
+  {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
+  <div class="f"><span class="lbl">اسم المستخدم / الجوّال</span>
+    <input name="username" value="{{ username or '' }}" placeholder="مثلاً: 0597xxxxxxx" required></div>
+  <button class="soc-btn" type="submit"><i class="fa-solid fa-magnifying-glass"></i> فحص</button>
+</form>
 
-<section class="d-card" style="margin-bottom:14px">
-  <div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-magnifying-glass"></i>البحث</h3></div>
-  <div class="d-card-body">
-    <form method="POST" class="search-bar">
-      {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
-      <div class="f"><label class="d-label">اسم المستخدم</label><input name="username" value="{{ username or '' }}" placeholder="مثلاً: ahmad_net" required></div>
-      <button class="d-pill-btn" type="submit"><i class="fa-solid fa-magnifying-glass"></i>بحث</button>
-    </form>
-  </div>
-</section>
+{% if error_text %}<div style="padding:13px 16px;border-radius:12px;background:#fde2e2;color:#b91c1c;border:1px solid rgba(185,28,28,.3);margin-top:14px">{{ error_text }}</div>{% endif %}
 
 {% if username and not error_text %}
   {% if summary and summary.found %}
-  <section class="d-card" style="margin-bottom:14px">
-    <div class="d-card-head" style="display:flex;align-items:center;justify-content:space-between">
-      <h3 class="d-card-title"><i class="fa-solid fa-id-card"></i>ملخّص المستخدم</h3>
-      {% if summary.online %}<span class="chip-on">● متصل الآن</span>{% else %}<span class="chip-off">غير متصل</span>{% endif %}
+
+  <!-- HERO -->
+  <section class="soc-hero">
+    <div class="soc-hero-top">
+      <div>
+        <div class="soc-uname">{{ summary.username }}</div>
+        <div class="soc-sub">{% if summary.mobile %}جوّال: {{ summary.mobile }} · {% endif %}الباقة: {{ summary.plan or '—' }}</div>
+      </div>
+      {% if summary.online %}<span class="soc-badge on"><span class="soc-pulse"></span> متصل الآن</span>
+      {% else %}<span class="soc-badge off"><i class="fa-regular fa-circle"></i> غير متصل</span>{% endif %}
     </div>
-    <div class="d-card-body">
-      <div class="stat-grid">
-        <div class="stat"><span class="k">اسم المستخدم</span><span class="v mono">{{ summary.username }}</span></div>
-        <div class="stat"><span class="k">الحالة</span><span class="v">{{ 'متصل' if summary.online else (summary.status or '—') }}</span></div>
-        <div class="stat"><span class="k">الباقة</span><span class="v">{{ summary.plan or '—' }}</span></div>
-        <div class="stat"><span class="k">سرعة التنزيل</span><span class="v">{{ summary.down or '—' }}</span></div>
-        <div class="stat"><span class="k">سرعة الرفع</span><span class="v">{{ summary.up or '—' }}</span></div>
-        <div class="stat"><span class="k">الاستهلاك</span><span class="v">{{ summary.usage_gb }} GB</span></div>
-        <div class="stat"><span class="k">الجلسات النشطة</span><span class="v">{{ summary.sessions }}</span></div>
-        <div class="stat"><span class="k">آخر ظهور</span><span class="v" style="font-size:12.5px">{{ summary.last_seen or '—' }}</span></div>
-        {% if summary.mobile %}<div class="stat"><span class="k">الجوّال</span><span class="v mono">{{ summary.mobile }}</span></div>{% endif %}
+    <div class="soc-chips">
+      <span class="soc-chip"><i class="fa-solid fa-gauge-high"></i> {{ summary.down or '—' }} ↓ / {{ summary.up or '—' }} ↑</span>
+      <span class="soc-chip"><i class="fa-solid fa-database"></i> استهلاك {{ summary.usage_gb }} GB</span>
+      <span class="soc-chip"><i class="fa-solid fa-plug"></i> {{ summary.sessions }} جلسة نشطة</span>
+      {% if summary.expires_at %}<span class="soc-chip"><i class="fa-regular fa-calendar"></i> تنتهي {{ summary.expires_at }}</span>{% endif %}
+    </div>
+  </section>
+
+  <!-- KPI -->
+  <div class="soc-grid">
+    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-database"></i></span><span class="k">الاستهلاك الكلّي</span><span class="val">{{ summary.usage_gb }} <small>GB</small></span></div>
+    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-arrow-down"></i></span><span class="k">إجمالي التنزيل</span><span class="val">{{ summary.down_mb }} <small>MB</small></span></div>
+    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-arrow-up"></i></span><span class="k">إجمالي الرفع</span><span class="val">{{ summary.up_mb }} <small>MB</small></span></div>
+    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-plug"></i></span><span class="k">الجلسات النشطة</span><span class="val">{{ summary.sessions }}</span></div>
+    <div class="soc-tile"><span class="ic"><i class="fa-solid fa-gauge-high"></i></span><span class="k">سرعة الباقة</span><span class="val" style="font-size:15px">{{ summary.down or '—' }} / {{ summary.up or '—' }}</span></div>
+    <div class="soc-tile"><span class="ic"><i class="fa-regular fa-clock"></i></span><span class="k">آخر ظهور</span><span class="val" style="font-size:12.5px">{{ summary.last_seen or '—' }}</span></div>
+  </div>
+
+  <!-- SESSIONS -->
+  <section class="soc-card">
+    <div class="soc-card-h"><h3><i class="fa-solid fa-clock-rotate-left"></i> الجلسات النشطة</h3>
+      <span style="font-size:12px;color:var(--muted)">{{ summary.sessions }} جلسة</span></div>
+    <div class="soc-tablewrap">
+      <table class="soc-table">
+        <thead><tr><th>عنوان الشبكة (IP)</th><th>الجهاز (MAC)</th><th>NAS</th><th>المدّة</th><th>تنزيل</th><th>رفع</th></tr></thead>
+        <tbody>
+          {% for s in summary.sessions_list %}
+          <tr>
+            <td class="mono">{{ s.ip }}</td>
+            <td class="mono">{{ s.mac }}</td>
+            <td class="mono">{{ s.nas }}</td>
+            <td>{% set h = s.running_min // 60 %}{% set m = s.running_min % 60 %}{% if h %}{{ h }}س {% endif %}{{ m }}د</td>
+            <td>{{ s.in_mb }} MB</td>
+            <td>{{ s.out_mb }} MB</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="soc-empty"><i class="fa-solid fa-wifi" style="display:block;font-size:26px;margin-bottom:6px;opacity:.4"></i>لا جلسات نشطة الآن</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SMART ACTIONS -->
+  <section class="soc-card">
+    <div class="soc-card-h"><h3><i class="fa-solid fa-bolt"></i> إجراءات ذكية</h3>
+      <span style="font-size:12px;color:var(--muted)">تحكّم مباشر على الريديوس</span></div>
+    <div class="soc-actions">
+      <div class="soc-act">
+        <div class="t"><span class="ai bg-red"><i class="fa-solid fa-plug-circle-xmark"></i></span> قطع الجلسات</div>
+        <div class="d">يفصل جلسات المشترك النشطة فورًا.</div>
+        <form method="POST" action="{{ url_for('radius_disconnect_user_page') }}" onsubmit="return confirm('قطع جلسات {{ summary.username }}؟')">
+          {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
+          <input type="hidden" name="username" value="{{ summary.username }}">
+          <button class="b-red" type="submit">قطع الآن</button>
+        </form>
+      </div>
+      <div class="soc-act">
+        <div class="t"><span class="ai bg-amber"><i class="fa-solid fa-lock"></i></span> قفل MAC</div>
+        <div class="d">تثبيت الحساب على جهازه الحاليّ (منع المشاركة).</div>
+        <form method="POST" action="{{ url_for('radius_lock_mac_page') }}" onsubmit="return confirm('قفل {{ summary.username }} على جهازه الحاليّ؟')">
+          {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
+          <input type="hidden" name="username" value="{{ summary.username }}">
+          {% if summary.sessions_list and summary.sessions_list[0].mac != '—' %}<input type="hidden" name="mac" value="{{ summary.sessions_list[0].mac }}">{% endif %}
+          <button class="b-amber" type="submit">قفل الآن</button>
+        </form>
+      </div>
+      <div class="soc-act">
+        <div class="t"><span class="ai bg-violet"><i class="fa-solid fa-gauge-high"></i></span> رفع سرعة مؤقّت</div>
+        <div class="d">تنزيل/رفع (Kbps) لمدّة (دقائق).</div>
+        <form method="POST" action="{{ url_for('radius_temp_speed_page') }}">
+          {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
+          <input type="hidden" name="username" value="{{ summary.username }}">
+          <div class="inrow">
+            <input name="down_kbps" type="number" placeholder="↓ Kbps" min="0">
+            <input name="up_kbps" type="number" placeholder="↑ Kbps" min="0">
+            <input name="minutes" type="number" placeholder="دقائق" min="1" value="60">
+          </div>
+          <button class="b-violet" type="submit">طبّق مؤقّتًا</button>
+        </form>
       </div>
     </div>
   </section>
+
   {% elif summary %}
-  <div style="padding:14px 16px;border-radius:11px;background:#fef3c7;color:#92400e;border:1px solid rgba(146,64,14,.25);margin-bottom:14px">
+  <div style="padding:16px 18px;border-radius:14px;background:#fef3c7;color:#92400e;border:1px solid rgba(146,64,14,.25);margin-top:16px">
     لم يُعثر على حساب بهذا الاسم على الريديوس. تأكّد من الاسم، أو استورده عبر «مطابقة المشتركين».
   </div>
   {% endif %}
@@ -69,13 +185,12 @@
   <details class="raw-details">
     <summary><i class="fa-solid fa-code"></i> البيانات الخام (JSON)</summary>
     <div class="d-grid-2" style="margin-top:12px">
-      <section class="d-card"><div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-clock"></i>الجلسات</h3></div><div class="d-card-body"><div class="payload-box">{{ sessions_json or '—' }}</div></div></section>
-      <section class="d-card"><div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-chart-line"></i>الاستهلاك</h3></div><div class="d-card-body"><div class="payload-box">{{ usage_json or '—' }}</div></div></section>
+      <div class="payload-box">{{ usage_json or '—' }}</div>
+      <div class="payload-box">{{ sessions_json or '—' }}</div>
     </div>
-    <div class="d-grid-2" style="margin-top:12px">
-      <section class="d-card"><div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-gauge-high"></i>الباندويث</h3></div><div class="d-card-body"><div class="payload-box">{{ bandwidth_json or '—' }}</div></div></section>
-      <section class="d-card"><div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-laptop"></i>بيانات الحساب</h3></div><div class="d-card-body"><div class="payload-box">{{ devices_cards_json or '—' }}</div></div></section>
-    </div>
+    <div class="payload-box" style="margin-top:12px">{{ devices_cards_json or '—' }}</div>
   </details>
 {% endif %}
+
+</div>
 {% endblock %}
