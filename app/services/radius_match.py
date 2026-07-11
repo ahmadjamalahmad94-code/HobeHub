@@ -67,10 +67,17 @@ def _parse_radius_user(u: Any) -> dict:
     """Normalise a raw radius user dict into a stable shape (defensive)."""
     if not isinstance(u, dict):
         return {"username": str(u or "").strip(), "external_id": "", "phone": "", "is_active": True, "raw": {}}
-    username = _first(u, "username", "user_name", "login", "name", "user")
+    username = _first(
+        u, "username", "user_name", "login", "name", "user",
+        "account_username", "radius_username", "login_name", "user_login", "subscriber",
+    )
     external_id = _first(u, "id", "user_id", "uid", "external_id", "userid", "user_ad_id")
     phone_raw = _first(u, "phone", "mobile", "msisdn", "tel", "phone_number", "cell")
     phone = normalize_phone(phone_raw) if phone_raw else ""
+    # مشترك الريديوس المدعوم يسجّل الدخول بجوّاله؛ فإن غاب حقل اسم دخول صريح،
+    # اعتمد الجوّال كاسم مستخدم (يصحّح العرض والاستيراد معًا).
+    if not username and phone:
+        username = phone
     return {
         "username": username,
         "external_id": external_id,
