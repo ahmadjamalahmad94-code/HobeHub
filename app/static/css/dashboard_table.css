@@ -108,9 +108,11 @@
 /* Sorting indicators */
 th.dpt-sortable{cursor:pointer;user-select:none;white-space:nowrap}
 th.dpt-sortable:hover{color:var(--d-black,#1E1E1E)}
-.dpt-sort{margin-inline-start:6px;font-size:10.5px;color:var(--d-text-muted,#b6b2a5);opacity:.7}
-th.dpt-sortable:hover .dpt-sort{opacity:1}
-.dpt-sort .fa-sort-up,.dpt-sort .fa-sort-down{color:var(--d-gold-deep,#c8951a);opacity:1}
+/* السهم مخفيّ افتراضيًّا — يظهر عند المرور، ويبقى على العمود المفروز فقط */
+.dpt-sort{margin-inline-start:6px;font-size:10px;color:var(--d-text-muted,#b6b2a5);opacity:0;transition:opacity .15s ease}
+th.dpt-sortable:hover .dpt-sort{opacity:.6}
+.dpt-sort:has(.fa-sort-up),.dpt-sort:has(.fa-sort-down){opacity:1}
+.dpt-sort .fa-sort-up,.dpt-sort .fa-sort-down{color:var(--d-gold-deep,#c8951a)}
 
 /* Column show/hide — زرّ في شريط علويّ فوق الجدول */
 .dpt-head{display:flex;justify-content:flex-start;align-items:center;gap:8px;padding:10px 14px 0}

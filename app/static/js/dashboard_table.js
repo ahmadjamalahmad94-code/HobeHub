@@ -275,6 +275,8 @@
     ths.forEach(function (th, idx) {
       if (th.hasAttribute("data-no-sort") || !th.textContent.trim() || th.querySelector("input")) return;
       th.classList.add("dpt-sortable");
+      var oldInd = th.querySelector(".dpt-sort");  // حارس: لا تُكرّر المؤشّر
+      if (oldInd) oldInd.parentNode.removeChild(oldInd);
       var ind = document.createElement("span");
       ind.className = "dpt-sort";
       ind.innerHTML = '<i class="fa-solid fa-sort"></i>';
