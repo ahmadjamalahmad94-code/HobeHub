@@ -45,6 +45,9 @@ def _ensure_radius_aligned_columns() -> None:
         ("plain_password",               "TEXT DEFAULT ''"),  # احتياط — تنظَّف بعد المزامنة
         ("mac_address",                  "TEXT DEFAULT ''"),
         ("expires_at",                   "TIMESTAMP NULL"),
+        ("schedule_days",                "TEXT DEFAULT ''"),   # أيام الدوام: قائمة مفصولة بفواصل sun..sat
+        ("schedule_from",                "TEXT DEFAULT ''"),   # بداية ساعات الدوام HH:MM
+        ("schedule_to",                  "TEXT DEFAULT ''"),   # نهاية ساعات الدوام HH:MM
         ("data_quota_mb_total",          "BIGINT DEFAULT 0"),
         ("data_quota_mb_used",           "BIGINT DEFAULT 0"),
         ("time_quota_minutes_total",     "INTEGER DEFAULT 0"),

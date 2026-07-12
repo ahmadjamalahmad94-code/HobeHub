@@ -284,68 +284,120 @@ def admin_user_set_portal_password(beneficiary_id):
 # /admin/users/<id>/api/status — يجلب البيانات الحية لمشترك من API
 # (يستخدم username + password المخزّنين لهذا المشترك)
 # ════════════════════════════════════════════════════════════════
+def _admin_subscriber_details(username, expires_local=""):
+    """يبني تفاصيل المشترك للعرض عبر **مفتاح الأدمن** (لا كلمة مرور المشترك):
+    السرعة تُشتقّ من الباقة، والاستهلاك من نقاط الأدمن — فيعمل لكل الحسابات
+    (المُنشأة والمُزامَنة). يُرجع None لو الواجهة غير مفعّلة."""
+    from app.services.radius_client import get_radius_client, is_api_under_development
+    if is_api_under_development():
+        return None
+    client = get_radius_client()
+
+    def _to_int(v):
+        try:
+            return int(v or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    sess = client.get_user_sessions(username) or {}
+    sess_list = sess.get("data") if isinstance(sess, dict) else sess
+    if not isinstance(sess_list, list):
+        sess_list = []
+    usage = client.get_user_usage(username) or {}
+    if not isinstance(usage, dict):
+        usage = {}
+    found = client.search_users(username, limit=5)
+    items = found.get("data") if isinstance(found, dict) else []
+    acct = (items[0] if items else {}) or {}
+
+    down = _to_int(acct.get("download_speed_kbps"))
+    up = _to_int(acct.get("upload_speed_kbps"))
+    plan_id = acct.get("plan_id") or acct.get("profile_id") or ""
+    plan_name = acct.get("plan_name") or ""
+    if plan_id and ((not down and not up) or not plan_name):
+        try:
+            for p in (client.get_profiles() or []):
+                if str(p.get("id") or p.get("external_id") or "") == str(plan_id):
+                    down = down or _to_int(p.get("speed_down_kbps"))
+                    up = up or _to_int(p.get("speed_up_kbps"))
+                    plan_name = plan_name or (p.get("name") or p.get("plan_name")
+                                              or p.get("title") or p.get("external_name") or "")
+                    break
+        except Exception:
+            pass
+
+    bin_ = _to_int(usage.get("used_bytes_in") or usage.get("total_bytes_in") or usage.get("bytes_in"))
+    bout = _to_int(usage.get("used_bytes_out") or usage.get("total_bytes_out") or usage.get("bytes_out"))
+    if not (bin_ or bout):
+        try:
+            acc = client.get_accounting_usage(username) or {}
+            if isinstance(acc, dict):
+                bin_ = bin_ or _to_int(acc.get("bytes_in") or acc.get("total_bytes_in"))
+                bout = bout or _to_int(acc.get("bytes_out") or acc.get("total_bytes_out"))
+        except Exception:
+            pass
+    if not (bin_ or bout):
+        bin_ = sum(_to_int(x.get("bytes_in")) for x in sess_list if isinstance(x, dict))
+        bout = sum(_to_int(x.get("bytes_out")) for x in sess_list if isinstance(x, dict))
+
+    cur = sess_list[0] if sess_list else {}
+    online = bool(sess_list)
+    return {
+        "conn_code": "online" if online else "offline",
+        "is_online": 1 if online else 0,
+        "profile_name": plan_name or (("باقة #%s" % plan_id) if plan_id else "—"),
+        "status_label": acct.get("status") or "",
+        "down_speed": ("%s Kbps" % down) if down else "",
+        "up_speed": ("%s Kbps" % up) if up else "",
+        "val_usage_qouta": bin_ + bout,
+        "expiration": acct.get("expire_at") or acct.get("expires_at") or expires_local or "",
+        "mac_address": (cur.get("calling_station_id") or cur.get("mac") or "") if online else "",
+        "framed_ip": (cur.get("framed_ip") or cur.get("framedipaddress") or cur.get("ip") or "") if online else "",
+        "last_seen_at": usage.get("last_seen_at") or usage.get("last_session_at") or "",
+    }
+
+
 @app.route("/admin/users/<int:beneficiary_id>/api/status", methods=["GET"])
 @admin_login_required
 def admin_user_api_status(beneficiary_id):
-    from app.services.radius_subscriber_bridge import (
-        fetch_subscriber_details_via_self,
-        get_radius_username_for,
-    )
+    from app.services.radius_subscriber_bridge import get_radius_username_for
 
     beneficiary = query_one("SELECT * FROM beneficiaries WHERE id=%s", [beneficiary_id])
     if not beneficiary:
         return jsonify({"ok": False, "error": "المشترك غير موجود."}), 404
 
-    # كلمة مرور RADIUS من جدول beneficiary_radius_accounts (مستقلّة عن البوابة)
     radius = query_one(
-        "SELECT external_username, plain_password FROM beneficiary_radius_accounts WHERE beneficiary_id=%s LIMIT 1",
+        "SELECT external_username, expires_at FROM beneficiary_radius_accounts WHERE beneficiary_id=%s LIMIT 1",
         [beneficiary_id],
     ) or {}
     username = radius.get("external_username") or get_radius_username_for(beneficiary)
-    password = radius.get("plain_password") or ""
-
     if not username:
-        return jsonify({
-            "ok": False,
-            "error": "لا يوجد اسم مستخدم RADIUS لهذا المشترك.",
-        })
-    if not password:
-        from app.services.subscriber_radius_status import get_subscriber_radius_status
+        return jsonify({"ok": False, "error": "لا يوجد اسم مستخدم RADIUS لهذا المشترك."})
 
-        snapshot = get_subscriber_radius_status(beneficiary_id, username)
+    # الجلب عبر مفتاح الأدمن (لا يحتاج كلمة مرور المشترك) — يعمل للمُزامَنة أيضًا.
+    try:
+        details = _admin_subscriber_details(username, expires_local=str(radius.get("expires_at") or ""))
+    except Exception as exc:  # noqa: BLE001 — أي عطل يسقط للقراءة المحلية
+        details = None
+        _err = str(exc)
+    else:
+        _err = ""
+
+    if details is not None:
         return jsonify({
-            "ok": True,
-            "source": snapshot.get("source") or "local",
-            "username": username,
-            "beneficiary_id": beneficiary_id,
-            "details": _status_snapshot_as_api_payload(snapshot),
-            "status": {},
-            "account": {},
-            "warning": "كلمة مرور حساب الإنترنت غير محفوظة لهذا المشترك، لذلك تظهر القراءة المتاحة محليًا فقط.",
+            "ok": True, "username": username, "beneficiary_id": beneficiary_id, "details": details,
         })
 
-    result = fetch_subscriber_details_via_self(username, password)
-    if result.get("ok"):
-        return jsonify({
-            "ok": True,
-            "username": username,
-            "beneficiary_id": beneficiary_id,
-            "details": result.get("details") or {},
-            "status": result.get("status") or {},
-            "account": result.get("account") or {},
-        })
+    # سقوط: الواجهة غير مفعّلة أو عطل → قراءة محلية.
     from app.services.subscriber_radius_status import get_subscriber_radius_status
-
     snapshot = get_subscriber_radius_status(beneficiary_id, username)
     return jsonify({
         "ok": True,
-        "source": snapshot.get("source") or "local_fallback",
+        "source": snapshot.get("source") or "local",
         "username": username,
         "beneficiary_id": beneficiary_id,
         "details": _status_snapshot_as_api_payload(snapshot),
-        "status": {},
-        "account": {},
-        "warning": result.get("error") or "تعذّر الاتصال بواجهة المصادقة، لذلك تظهر القراءة المتاحة محليًا.",
+        "warning": _err or "واجهة المصادقة غير مفعّلة — تظهر القراءة المحلية المتاحة.",
     })
 
 

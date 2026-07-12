@@ -1203,6 +1203,8 @@
     cvEl('cv-username').value = phone;
     cvEl('cv-password').value = cvGenPass();
     cvEl('cv-expire').value = '';
+    cvEl('cv-from').value = ''; cvEl('cv-to').value = '';
+    m.querySelectorAll('input[name="cv-sday"]').forEach(function(c){ c.checked = false; });
     cvEl('cv-msg').textContent = '';
     cvLoadProfiles();
     m.classList.add('is-open');
@@ -1228,6 +1230,10 @@
     fd.append('profile_id', pid);
     fd.append('profile_name', pname);
     fd.append('expire_at', expire);
+    document.querySelectorAll('#convert-user-modal input[name="cv-sday"]:checked').forEach(function(c){ fd.append('schedule_days', c.value); });
+    var _sf=(cvEl('cv-from').value||'').trim(), _st=(cvEl('cv-to').value||'').trim();
+    if(_sf) fd.append('schedule_from', _sf);
+    if(_st) fd.append('schedule_to', _st);
     if(csrfToken()) fd.append('_csrf_token', csrfToken());
     var sbtn = cvEl('cv-submit'); sbtn.disabled = true;
     fetch(url, {method:'POST', credentials:'same-origin',
@@ -1294,9 +1300,31 @@
       <label>الباقة</label>
       <select id="cv-profile"><option value="">— بدون باقة —</option></select>
     </div>
-    <div class="qe-field" style="margin-bottom:16px">
+    <div class="qe-field" style="margin-bottom:12px">
       <label>تاريخ الانتهاء <span class="hint">(اختياريّ)</span></label>
       <input type="date" id="cv-expire" style="direction:ltr">
+    </div>
+
+    <div class="qe-field" style="margin-bottom:10px">
+      <label>أيّام الدوام <span class="hint">(اختياريّ — فارغ = كل الأيّام)</span></label>
+      <div class="cv-days" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
+        <label class="cv-day"><input type="checkbox" name="cv-sday" value="sat"> السبت</label>
+        <label class="cv-day"><input type="checkbox" name="cv-sday" value="sun"> الأحد</label>
+        <label class="cv-day"><input type="checkbox" name="cv-sday" value="mon"> الإثنين</label>
+        <label class="cv-day"><input type="checkbox" name="cv-sday" value="tue"> الثلاثاء</label>
+        <label class="cv-day"><input type="checkbox" name="cv-sday" value="wed"> الأربعاء</label>
+        <label class="cv-day"><input type="checkbox" name="cv-sday" value="thu"> الخميس</label>
+        <label class="cv-day"><input type="checkbox" name="cv-sday" value="fri"> الجمعة</label>
+      </div>
+    </div>
+    <div class="qe-field" style="margin-bottom:16px">
+      <label>ساعات الدوام <span class="hint">(اختياريّ)</span></label>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+        <span style="font-size:12px;color:var(--d-text-muted)">من</span>
+        <input type="time" id="cv-from" style="direction:ltr;flex:1">
+        <span style="font-size:12px;color:var(--d-text-muted)">إلى</span>
+        <input type="time" id="cv-to" style="direction:ltr;flex:1">
+      </div>
     </div>
 
     <div class="qe-actions">
@@ -1305,6 +1333,11 @@
     </div>
   </div>
 </div>
+<style>
+.cv-day{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;border:1.5px solid var(--d-border-strong,#d8d4c4);font-size:12px;font-weight:700;cursor:pointer;background:#fafaf7;user-select:none}
+.cv-day input{accent-color:var(--d-gold-deep,#c8951a);cursor:pointer;margin:0}
+.cv-day:has(input:checked){border-color:var(--d-gold,#F4BA2A);background:var(--d-gold-faint,#FEF8E5)}
+</style>
 
 <!-- ═══════════════════════════════════════════════════════════════
      Portal Management Modal — إدارة حساب بوابة المستفيد

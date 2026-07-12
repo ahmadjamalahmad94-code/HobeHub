@@ -68,15 +68,24 @@ def _guarded(call, ok_msg: str, fail_prefix: str) -> dict:
 # ── التزويد (provisioning) ─────────────────────────────────────────────────
 def provision_subscriber(*, beneficiary_id: int | None, username: str,
                          password: str, profile_id: str = "",
-                         expire_at: str = "", requested_by: str = "") -> dict:
-    """ينشئ يوزر المشترك على الريديوس (create_user). ``expire_at`` اختياريّ
-    (سلسلة تاريخ ISO) تُمرَّر لجسم الطلب كـ ``expire_at`` إن حُدِّدت."""
+                         expire_at: str = "", schedule_days: str = "",
+                         schedule_from: str = "", schedule_to: str = "",
+                         requested_by: str = "") -> dict:
+    """ينشئ يوزر المشترك على الريديوس (create_user). ``expire_at`` والجدولة
+    (أيّام/ساعات الدوام) اختياريّة، تُمرَّر لجسم الطلب إن حُدِّدت (أفضل جهد —
+    يتجاهلها الريديوس إن لم يدعم الحقل)."""
     username = (username or "").strip()
     if not username or not password:
         return {"ok": False, "live": False, "message": "اسم المستخدم وكلمة المرور مطلوبان."}
     opts: dict[str, Any] = {}
     if (expire_at or "").strip():
         opts["expire_at"] = str(expire_at).strip()
+    if (schedule_days or "").strip():
+        opts["allowed_days"] = str(schedule_days).strip()
+    if (schedule_from or "").strip():
+        opts["time_from"] = str(schedule_from).strip()
+    if (schedule_to or "").strip():
+        opts["time_to"] = str(schedule_to).strip()
     return _guarded(
         lambda: _client().create_user(
             username, password, str(profile_id or ""),

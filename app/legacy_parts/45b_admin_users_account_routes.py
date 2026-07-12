@@ -444,7 +444,8 @@ def admin_user_request_cancel(action_id):
     log_action("user_action_cancel", "radius_pending_actions", action_id, notes)
     flash("تم إلغاء الطلب.", "success")
     return redirect(request.referrer or url_for("admin_request_center", type="user"))
-def _upsert_radius_account(beneficiary_id, username, password, profile_id, profile_name, expire_at):
+def _upsert_radius_account(beneficiary_id, username, password, profile_id, profile_name,
+                           expire_at, schedule_days="", schedule_from="", schedule_to=""):
     """يخزّن/يحدّث بيانات حساب الريديوس محليًّا (المصدر للمزامنة)."""
     exists = query_one(
         "SELECT id FROM beneficiary_radius_accounts WHERE beneficiary_id=%s LIMIT 1",
@@ -454,17 +455,21 @@ def _upsert_radius_account(beneficiary_id, username, password, profile_id, profi
         execute_sql(
             "UPDATE beneficiary_radius_accounts SET external_username=%s, plain_password=%s, "
             "current_profile_id=%s, current_profile_name=COALESCE(%s, current_profile_name), "
-            "expires_at=%s, status='active', updated_at=CURRENT_TIMESTAMP WHERE beneficiary_id=%s",
+            "expires_at=%s, schedule_days=%s, schedule_from=%s, schedule_to=%s, "
+            "status='active', updated_at=CURRENT_TIMESTAMP WHERE beneficiary_id=%s",
             [username, password, profile_id or None, profile_name or None,
-             expire_at or None, beneficiary_id],
+             expire_at or None, schedule_days or "", schedule_from or "", schedule_to or "",
+             beneficiary_id],
         )
     else:
         execute_sql(
             "INSERT INTO beneficiary_radius_accounts "
             "(beneficiary_id, external_username, plain_password, current_profile_id, "
-            "current_profile_name, expires_at, status) VALUES (%s,%s,%s,%s,%s,%s,'active')",
+            "current_profile_name, expires_at, schedule_days, schedule_from, schedule_to, status) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'active')",
             [beneficiary_id, username, password, profile_id or None,
-             profile_name or None, expire_at or None],
+             profile_name or None, expire_at or None,
+             schedule_days or "", schedule_from or "", schedule_to or ""],
         )
 
 
@@ -556,13 +561,18 @@ def admin_beneficiary_convert_access(beneficiary_id):
         f_profile_name = clean_csv_value(request.form.get("profile_name"))
         f_expire = clean_csv_value(request.form.get("expire_at"))
         r_profile = f_profile or clean_csv_value(acct.get("current_profile_id")) or ""
+        # جدولة الأيّام/الساعات (اختياريّة، مبسّطة)
+        _days = [clean_csv_value(d) for d in request.form.getlist("schedule_days") if clean_csv_value(d)]
+        f_days = ",".join(_days)
+        f_from = clean_csv_value(request.form.get("schedule_from"))
+        f_to = clean_csv_value(request.form.get("schedule_to"))
 
         if already_live:
             # إعادة تحويل: الحساب موجود مسبقًا → فحص وإعادة تفعيل فقط (لا إنشاء جديد).
             r_user = prior_user
             _upsert_radius_account(
                 beneficiary_id, r_user, f_pass or (acct.get("plain_password") or ""),
-                r_profile, f_profile_name, f_expire)
+                r_profile, f_profile_name, f_expire, f_days, f_from, f_to)
             from app.services.radius_provisioning import set_subscriber_enabled
             er = set_subscriber_enabled(username=r_user, enabled=True,
                                         beneficiary_id=beneficiary_id, requested_by=actor)
@@ -583,11 +593,14 @@ def admin_beneficiary_convert_access(beneficiary_id):
                 import secrets as _secrets
                 r_pass = _secrets.token_urlsafe(6)  # كلمة مرور آمنة افتراضيّة إن لم تُعطَ
             if r_user and r_pass:
-                _upsert_radius_account(beneficiary_id, r_user, r_pass, r_profile, f_profile_name, f_expire)
+                _upsert_radius_account(beneficiary_id, r_user, r_pass, r_profile,
+                                       f_profile_name, f_expire, f_days, f_from, f_to)
                 from app.services.radius_provisioning import provision_subscriber
                 pr = provision_subscriber(
                     beneficiary_id=beneficiary_id, username=r_user, password=r_pass,
-                    profile_id=r_profile, expire_at=f_expire, requested_by=actor)
+                    profile_id=r_profile, expire_at=f_expire,
+                    schedule_days=f_days, schedule_from=f_from, schedule_to=f_to,
+                    requested_by=actor)
                 if pr.get("ok") and pr.get("live"):
                     execute_sql(
                         "UPDATE beneficiary_radius_accounts SET status='active', "
