@@ -80,12 +80,19 @@ def provision_subscriber(*, beneficiary_id: int | None, username: str,
     opts: dict[str, Any] = {}
     if (expire_at or "").strip():
         opts["expire_at"] = str(expire_at).strip()
-    if (schedule_days or "").strip():
-        opts["allowed_days"] = str(schedule_days).strip()
-    if (schedule_from or "").strip():
-        opts["time_from"] = str(schedule_from).strip()
-    if (schedule_to or "").strip():
-        opts["time_to"] = str(schedule_to).strip()
+    # الجدولة: أسماء حقول الريديوس الفعليّة.
+    _days = (schedule_days or "").strip()
+    _from = (schedule_from or "").strip()
+    _to = (schedule_to or "").strip()
+    if _days:
+        # CSV (sat,sun,mon,...) — يقبله /api/v1/accounts ويُنفِّذ تقييد الأيّام.
+        opts["working_days"] = _days
+    if _days or _from or _to:
+        # الجدول الكامل (أيّام+ساعات) عبر connection_schedule (نوافذ). يُنفِّذه
+        # الريديوس (أيّام+ساعات) متى قُبِل الحقل في الـAPI؛ يُتجاهَل بأمان الآن.
+        import json as _json
+        _window = {"days": _days.split(",") if _days else [], "from": _from, "to": _to}
+        opts["connection_schedule"] = _json.dumps({"windows": [_window]})
     return _guarded(
         lambda: _client().create_user(
             username, password, str(profile_id or ""),
