@@ -309,7 +309,7 @@
   }
   function setupColumnToggle(state) {
     var ths = headerCells(state.table);
-    if (!ths.length || !state.ctrl) return;
+    if (!ths.length) return;
     var box = document.createElement("div");
     box.className = "dpt-cols-box";
     var btn = document.createElement("button");
@@ -319,8 +319,10 @@
     var menu = document.createElement("div");
     menu.className = "dpt-cols-menu";
     var hidden = loadHidden(state);
+    var count = 0;
     ths.forEach(function (th, idx) {
       if (th.hasAttribute("data-no-hide")) return;
+      count++;
       var label = (th.textContent || "").trim() || ("عمود " + (idx + 1));
       var item = document.createElement("label");
       item.className = "dpt-cols-item";
@@ -333,13 +335,35 @@
       menu.appendChild(item);
       if (!cb.checked) setColVisible(state, idx, false);
     });
+    if (!count) return;  // لا أعمدة قابلة للإخفاء → لا زرّ
     box.appendChild(btn);
     box.appendChild(menu);
-    btn.addEventListener("click", function (e) { e.stopPropagation(); box.classList.toggle("open"); });
+    function positionMenu() {
+      var r = btn.getBoundingClientRect();
+      menu.style.top = (r.bottom + 6) + "px";
+      menu.style.left = "auto";
+      menu.style.right = Math.max(6, window.innerWidth - r.right) + "px";
+    }
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var willOpen = !box.classList.contains("open");
+      box.classList.toggle("open");
+      if (willOpen) positionMenu();
+    });
     menu.addEventListener("click", function (e) { e.stopPropagation(); });
     document.addEventListener("click", function () { box.classList.remove("open"); });
-    state.ctrl.foot.insertBefore(box, state.ctrl.foot.firstChild);
-    state.ctrl.foot.classList.remove("dpt-min");
+    window.addEventListener("scroll", function () { box.classList.remove("open"); }, true);
+    window.addEventListener("resize", function () { box.classList.remove("open"); });
+
+    // شريط علويّ فوق الجدول (خارج حاوية overflow كي تفتح القائمة فوق كل شيء بلا قصّ)
+    var wrap = state.table.closest(".d-table-wrap") || state.table;
+    var head = wrap.previousElementSibling;
+    if (!head || !head.classList || !head.classList.contains("dpt-head")) {
+      head = document.createElement("div");
+      head.className = "dpt-head";
+      if (wrap.parentNode) wrap.parentNode.insertBefore(head, wrap);
+    }
+    head.appendChild(box);
   }
 
   function init() {
@@ -363,6 +387,11 @@
         sib.parentNode.removeChild(sib);
       }
       sib = next;
+    }
+    // أزل الشريط العلويّ القديم (كي لا يتكرّر زرّ الأعمدة)
+    var prevHead = wrap.previousElementSibling;
+    if (prevHead && prevHead.classList && prevHead.classList.contains("dpt-head")) {
+      prevHead.parentNode.removeChild(prevHead);
     }
     table.__dptAttached = false;
     attach(table);

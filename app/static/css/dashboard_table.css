@@ -112,14 +112,15 @@ th.dpt-sortable:hover{color:var(--d-black,#1E1E1E)}
 th.dpt-sortable:hover .dpt-sort{opacity:1}
 .dpt-sort .fa-sort-up,.dpt-sort .fa-sort-down{color:var(--d-gold-deep,#c8951a);opacity:1}
 
-/* Column show/hide */
+/* Column show/hide — زرّ في شريط علويّ فوق الجدول */
+.dpt-head{display:flex;justify-content:flex-start;align-items:center;gap:8px;padding:10px 14px 0}
 .dpt-cols-box{position:relative}
 .dpt-cols-btn{width:auto;height:auto;min-width:0;padding:6px 12px;gap:7px;font-size:12.5px;font-weight:700;white-space:nowrap}
 .dpt-cols-menu{
-  position:absolute;inset-block-start:calc(100% + 6px);inset-inline-start:0;z-index:50;
-  min-width:190px;max-height:300px;overflow:auto;background:var(--d-surface,#fff);
+  position:fixed;z-index:100000;
+  min-width:200px;max-height:60vh;overflow:auto;background:var(--d-surface,#fff);
   border:1px solid var(--d-border,#e5e2d8);border-radius:12px;padding:6px;
-  box-shadow:0 12px 30px rgba(0,0,0,.14);display:none;
+  box-shadow:0 18px 44px rgba(0,0,0,.24);display:none;
 }
 .dpt-cols-box.open .dpt-cols-menu{display:block}
 .dpt-cols-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;
