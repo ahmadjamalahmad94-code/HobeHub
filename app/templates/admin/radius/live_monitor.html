@@ -39,11 +39,6 @@
   background:#fbfaf7;border-bottom:1px solid var(--d-border)}
 .lm-card-head h3{margin:0;font-size:14px;font-weight:900}
 .lm-card-head .updated{margin-inline-start:auto;font-size:11px;color:var(--d-text-muted);font-feature-settings:"tnum"}
-.lm-table{width:100%;border-collapse:collapse}
-.lm-table th,.lm-table td{padding:10px 14px;font-size:12.5px;text-align:start;border-bottom:1px solid #f5f3ee}
-.lm-table th{font-size:11px;color:var(--d-text-soft);font-weight:800;text-transform:uppercase;letter-spacing:.3px;
-  background:#fbfaf7;white-space:nowrap}
-.lm-table tbody tr:hover{background:#fafafa}
 .lm-online{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;
   background:#e8f6ee;color:#166534;font-size:10.5px;font-weight:800}
 .lm-online .dot{width:6px;height:6px;border-radius:50%;background:#22c55e;animation:lmBlink 1.2s infinite}
@@ -87,9 +82,9 @@
     <span>تحديث تلقائي</span>
   </label>
   <button class="lm-toggle" id="lm-refresh-btn"><i class="fa-solid fa-rotate"></i> تحديث الآن</button>
-  <form method="POST" action="{{ url_for('admin_radius_snapshots_run') }}" style="margin-inline-start:auto">
+  <form method="POST" action="{{ url_for('admin_radius_snapshots_run') }}" style="margin-inline-start:auto" data-confirm="أخذ snapshot لكل المشتركين النشطين الآن؟">
     {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
-    <button class="lm-toggle" type="submit" onclick="return confirm('أخذ snapshot لكل المشتركين النشطين الآن؟')"><i class="fa-solid fa-camera"></i> Snapshot يومي</button>
+    <button class="lm-toggle" type="submit"><i class="fa-solid fa-camera"></i> Snapshot يومي</button>
   </form>
 </div>
 
@@ -117,17 +112,25 @@
     return t.toLocaleTimeString('ar-EG', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
   }
 
+  var lastSig = '';
   function renderRows(users){
     if(!users || !users.length){
+      lastSig = '';
       wrapEl.innerHTML = '<div class="lm-empty"><i class="fa-solid fa-circle-info"></i><div>لا يوجد مشتركون متصلون حاليًا.</div></div>';
       return;
     }
-    var html = '<table class="lm-table"><thead><tr>'
-             + '<th>اليوزر</th><th>الاسم</th><th>الباقة</th><th>نزول</th><th>صعود</th><th>الاستهلاك</th><th>IP</th><th>الجلسة</th><th>الحالة</th>'
+    // لا نُعيد بناء الجدول إن لم تتغيّر البيانات — كي يبقى الفرز/الصفحة/الأعمدة ثابتًا رغم التحديث الحيّ.
+    var sig = JSON.stringify(users.map(function(u){
+      return [u.username, u.ip_address||u.ip||u.framed_ip, u.usage_quota||u.usage, u.session_time||u.uptime];
+    }));
+    if(sig === lastSig) return;
+    lastSig = sig;
+    var html = '<div class="d-table-wrap"><table class="d-table" data-paginated="1" data-page-size="15" data-page-sizes="15,30,50" data-persist-key="lm-online"><thead><tr>'
+             + '<th data-no-hide>اليوزر</th><th>الاسم</th><th>الباقة</th><th>نزول</th><th>صعود</th><th>الاستهلاك</th><th>IP</th><th>الجلسة</th><th data-no-sort data-no-hide>الحالة</th>'
              + '</tr></thead><tbody>';
     users.forEach(function(u){
       html += '<tr>'
-            + '<td style="font-family:monospace;font-weight:900">' + (u.username || '—') + '</td>'
+            + '<td style="font-family:monospace;font-weight:800">' + (u.username || '—') + '</td>'
             + '<td>' + (u.firstname || u.name || '—') + '</td>'
             + '<td><span class="d-badge">' + (u.profile_name || '—') + '</span></td>'
             + '<td style="font-family:monospace">' + (u.down_speed || u.down || '—') + '</td>'
@@ -138,8 +141,10 @@
             + '<td><span class="lm-online"><span class="dot"></span>متصل</span></td>'
             + '</tr>';
     });
-    html += '</tbody></table>';
+    html += '</tbody></table></div>';
     wrapEl.innerHTML = html;
+    var tbl = wrapEl.querySelector('table.d-table');
+    if(tbl && window.DashboardTable){ try{ window.DashboardTable.attach(tbl); }catch(e){} }
   }
 
   function fetchData(){

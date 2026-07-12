@@ -111,8 +111,8 @@
 <div class="mr-card">
   <h3><i class="fa-solid fa-list"></i>سجل الـ snapshots</h3>
   {% if snapshots %}
-  <table class="mr-table">
-    <thead><tr><th>التاريخ</th><th>الاستهلاك</th><th>الباقة</th><th>الحالة</th><th>السرعة (نزول/صعود)</th></tr></thead>
+  <div class="d-table-wrap"><table class="d-table" data-paginated="1" data-page-size="20" data-page-sizes="20,50,100" data-persist-key="mr-snapshots">
+    <thead><tr><th>التاريخ</th><th>الاستهلاك</th><th>الباقة</th><th data-no-sort>الحالة</th><th>السرعة (نزول/صعود)</th></tr></thead>
     <tbody>
       {% for s in snapshots %}
       <tr>
@@ -126,7 +126,7 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% else %}
   <div class="mr-empty"><i class="fa-regular fa-folder-open"></i><div>لا توجد بيانات بعد.</div></div>
   {% endif %}
