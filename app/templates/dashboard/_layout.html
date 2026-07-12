@@ -48,7 +48,9 @@
   {% endif %}
 {% endwith %}
 
-<div class="d-shell is-collapsed" id="d-shell">
+<div class="d-shell" id="d-shell">
+<script>/* الحاسوب: مفتوح افتراضيًّا؛ الجوّال: مطويّ (خارج الشاشة) */
+if(window.matchMedia('(max-width:860px)').matches){document.getElementById('d-shell').classList.add('is-collapsed');}</script>
   {# ── Sidebar ────────────────────────────────── #}
   <aside class="d-sidebar" id="d-sidebar" aria-label="القائمة الجانبية">
     <div class="d-sidebar-head">
@@ -78,6 +80,51 @@
       </div>
     </div>
   </aside>
+  <script>
+  /* أكورديون السايد بار: كل الأقسام مغلقة افتراضيًّا، واحد مفتوح فقط،
+     مع حفظ القسم المفتوح وموضع التمرير أثناء التنقّل (بلا رجوع لأعلى). */
+  (function(){
+    var sidebar = document.getElementById('d-sidebar');
+    var nav = sidebar && sidebar.querySelector('.d-nav');
+    if(!nav) return;
+    var groups = [].slice.call(nav.querySelectorAll('.d-nav-group'));
+    var K_OPEN = 'hh_sb_open', K_SCROLL = 'hh_sb_scroll';
+    function setOpen(idx){
+      groups.forEach(function(g,i){
+        g.classList.toggle('is-open', i===idx);
+        var l = g.querySelector('.d-nav-group-label');
+        if(l) l.setAttribute('aria-expanded', i===idx ? 'true' : 'false');
+      });
+    }
+    // استعادة القسم المفتوح
+    var saved = null; try{ saved = sessionStorage.getItem(K_OPEN); }catch(e){}
+    if(saved !== null && saved !== '' && groups[+saved]) setOpen(+saved);
+    groups.forEach(function(g,i){
+      var label = g.querySelector('.d-nav-group-label'); if(!label) return;
+      label.setAttribute('role','button'); label.setAttribute('tabindex','0');
+      label.setAttribute('aria-expanded', g.classList.contains('is-open') ? 'true' : 'false');
+      function toggle(){
+        var shell = document.getElementById('d-shell');
+        // في وضع الشريط المصغّر على الحاسوب لا أكورديون
+        if(shell && shell.classList.contains('is-collapsed') && !window.matchMedia('(max-width:860px)').matches) return;
+        var willOpen = !g.classList.contains('is-open');
+        setOpen(willOpen ? i : -1);
+        try{ sessionStorage.setItem(K_OPEN, willOpen ? String(i) : ''); }catch(e){}
+      }
+      label.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
+      label.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); } });
+    });
+    // ذاكرة موضع التمرير داخل السايد بار
+    var st = null; try{ st = sessionStorage.getItem(K_SCROLL); }catch(e){}
+    if(st !== null && !isNaN(+st)) sidebar.scrollTop = +st;
+    var tmr = null;
+    sidebar.addEventListener('scroll', function(){
+      if(tmr) return;
+      tmr = setTimeout(function(){ tmr = null; try{ sessionStorage.setItem(K_SCROLL, String(sidebar.scrollTop)); }catch(e){} }, 120);
+    });
+    window.addEventListener('pagehide', function(){ try{ sessionStorage.setItem(K_SCROLL, String(sidebar.scrollTop)); }catch(e){} });
+  })();
+  </script>
 
   {# ── Main column ────────────────────────────── #}
   <div class="d-main">
