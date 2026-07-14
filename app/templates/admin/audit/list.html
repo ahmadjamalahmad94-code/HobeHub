@@ -17,6 +17,8 @@
 .audit-row td.col-id{font-family:monospace;color:var(--d-text-muted);font-size:11.5px}
 .audit-row td.col-user{font-weight:700;color:var(--d-black)}
 .audit-row td.col-details{font-size:12.5px;color:var(--d-text-soft);max-width:340px;white-space:normal;line-height:1.55}
+.audit-row td.col-details .ben-line{font-size:12px;font-weight:700;color:var(--d-black,#1E1E1E);margin-bottom:3px}
+.audit-row td.col-details .ben-line i{color:var(--d-gold-deep,#c8951a);margin-inline-end:3px}
 .audit-row td.col-time{font-size:11.5px;color:var(--d-text-muted);font-family:monospace;white-space:nowrap}
 
 .act-badge{
@@ -131,7 +133,12 @@
             {% else %}—{% endif %}
           </td>
           <td class="col-id">{{ r.target_id or '—' }}</td>
-          <td class="col-details">{{ (r.details or '—')|arabize_audit }}</td>
+          <td class="col-details">
+            {% if r.ben_name or r.ben_phone %}
+            <div class="ben-line"><i class="fa-solid fa-user"></i> <strong>{{ r.ben_name or '—' }}</strong>{% if r.ben_phone %} · <span dir="ltr" style="font-family:monospace">{{ r.ben_phone }}</span>{% endif %}</div>
+            {% endif %}
+            <div>{{ (r.details or '—')|arabize_audit }}</div>
+          </td>
           <td class="col-time">{{ format_dt_compact(r.created_at) }}</td>
         </tr>
         {% else %}

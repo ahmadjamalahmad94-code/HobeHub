@@ -21,6 +21,26 @@ def _audit_log_v2_view():
         [_AUDIT_LOG_LIMIT],
     )
 
+    # إثراء: اسم المستفيد ورقم جوّاله في «التفاصيل» (للأهداف من نوع مستفيد).
+    _BEN_TYPES = {"beneficiary", "beneficiary_login", "beneficiary_change_password"}
+    _ben_ids = {
+        int(r["target_id"]) for r in rows
+        if r.get("target_type") in _BEN_TYPES and str(r.get("target_id") or "").isdigit()
+    }
+    _ben_map = {}
+    if _ben_ids:
+        _ph = ",".join(["%s"] * len(_ben_ids))
+        for b in (query_all(
+                f"SELECT id, full_name, phone FROM beneficiaries WHERE id IN ({_ph})",
+                list(_ben_ids)) or []):
+            _ben_map[b.get("id")] = b
+    for r in rows:
+        _b = None
+        if r.get("target_type") in _BEN_TYPES and str(r.get("target_id") or "").isdigit():
+            _b = _ben_map.get(int(r["target_id"]))
+        r["ben_name"] = (_b or {}).get("full_name") or ""
+        r["ben_phone"] = (_b or {}).get("phone") or ""
+
     return render_template(
         "admin/audit/list.html",
         rows=rows,
