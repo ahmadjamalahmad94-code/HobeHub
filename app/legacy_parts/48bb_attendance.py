@@ -5,8 +5,15 @@
 
 import csv as _csv
 import io as _io
+import re as _re
 from datetime import datetime as _dt
 from flask import render_template, request, Response
+
+
+def _norm_phone(v):
+    """آخر ٩ أرقام من رقم الجوّال (يتجاوز اختلاف الصيفر/المقدّمة الدوليّة)."""
+    digits = _re.sub(r"\D", "", str(v or ""))
+    return digits[-9:] if len(digits) >= 9 else digits
 
 _TYPE_LABEL = {"university": "جامعي", "freelancer": "عمل حر", "tawjihi": "توجيهي"}
 _AR_DAYS = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
@@ -106,7 +113,7 @@ def _internet_attendance(d_from, d_to):
         sessions = []
     if not sessions:
         return []
-    # خريطة اسم المستخدم (الجوّال/الخارجيّ) → مستفيد
+    # خريطة اسم المستخدم → مستفيد مسجّل (بالاسم الخارجيّ أو الجوّال المُطبّع).
     ben_map = {}
     try:
         for b in query_all(
@@ -115,10 +122,11 @@ def _internet_attendance(d_from, d_to):
             "b.tawjihi_year, b.tawjihi_branch, r.external_username "
             "FROM beneficiaries b "
             "LEFT JOIN beneficiary_radius_accounts r ON r.beneficiary_id=b.id"):
-            if b.get("phone"):
-                ben_map[str(b["phone"]).strip()] = b
             if b.get("external_username"):
-                ben_map[str(b["external_username"]).strip()] = b
+                ben_map["u:" + str(b["external_username"]).strip().lower()] = b
+            _np = _norm_phone(b.get("phone"))
+            if _np:
+                ben_map.setdefault("p:" + _np, b)
     except Exception:
         ben_map = {}
     out = []
@@ -126,12 +134,20 @@ def _internet_attendance(d_from, d_to):
         if not isinstance(s, dict):
             continue
         uname = str(s.get("username") or "").strip()
+        if not uname:
+            continue
+        # اربط بمشترك مسجّل؛ إن لم يُربَط (تجريبيّ مايكروتيك بـMAC أو غير مسجّل) تخطَّ.
+        b = ben_map.get("u:" + uname.lower())
+        if not b:
+            _np = _norm_phone(uname)
+            b = ben_map.get("p:" + _np) if _np else None
+        if not b:
+            continue
         start = s.get("started_at") or s.get("acctstarttime") or ""
         stop = s.get("stopped_at") or s.get("acctstoptime") or ""
         day = str(start)[:10]
         if day and (day < d_from or day > d_to):
             continue
-        b = ben_map.get(uname) or {}
         secs = 0
         try:
             secs = int(s.get("duration_sec") or s.get("acctsessiontime") or 0)
