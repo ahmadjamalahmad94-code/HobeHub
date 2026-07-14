@@ -137,6 +137,19 @@
 .act-icon.act-issue i{color:#1f8f51}
 .act-icon.act-delete i{color:#b91c1c}
 .act-icon.act-delete:hover{border-color:#b91c1c}
+/* قائمة الإجراءات المنسدلة */
+.act-more{position:relative;display:inline-flex}
+.act-menu{position:fixed;z-index:100000;display:none;min-width:200px;background:var(--d-surface,#fff);
+  border:1px solid var(--d-border,#e5e2d8);border-radius:12px;padding:6px;box-shadow:0 18px 44px rgba(0,0,0,.24)}
+.act-more.open .act-menu{display:block}
+.act-menu-item{display:flex;align-items:center;gap:9px;width:100%;padding:9px 11px;border:0;background:none;
+  border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;color:var(--d-black,#18232e);
+  cursor:pointer;text-align:start;text-decoration:none;white-space:nowrap}
+.act-menu-item:hover{background:var(--d-surface-2,#f4f2ea)}
+.act-menu-item i{width:16px;text-align:center;font-size:13px;flex:none}
+.act-menu-item.act-delete{color:#b91c1c}
+.act-menu-item.act-delete i{color:#b91c1c}
+.act-menu-item.act-delete:hover{background:#fde2e2}
 
 /* Hide "الإنترنت" column (5th) when a segment filter is active — it's redundant */
 .d-table.seg-active th:nth-child(5),
@@ -1128,6 +1141,43 @@
         else { showToast(d.message||'فشل الحذف','error'); }
       }).catch(function(){ showToast('فشل الاتصال','error'); });
   });
+
+  // ─── Actions dropdown (قائمة الإجراءات المنسدلة) ───
+  function closeActMenus(){ document.querySelectorAll('.act-more.open').forEach(function(o){ o.classList.remove('open'); }); }
+  document.addEventListener('click', function(e){
+    var moreBtn = e.target.closest && e.target.closest('.act-more-btn');
+    if(moreBtn){
+      e.stopPropagation();
+      var box = moreBtn.closest('.act-more');
+      var wasOpen = box.classList.contains('open');
+      closeActMenus();
+      if(!wasOpen){
+        box.classList.add('open');
+        var menu = box.querySelector('.act-menu');
+        var r = moreBtn.getBoundingClientRect();
+        menu.style.top = (r.bottom + 6) + 'px';
+        var mw = menu.offsetWidth;
+        // محاذاة يمين القائمة بيمين الزرّ؛ فإن خرجت من الحافة اليسرى مُدَّها يمينًا
+        if(r.right - mw < 6){
+          menu.style.right = 'auto';
+          menu.style.left = Math.max(6, r.left) + 'px';
+        } else {
+          menu.style.left = 'auto';
+          menu.style.right = Math.max(6, window.innerWidth - r.right) + 'px';
+        }
+        var mh = menu.offsetHeight;
+        if(r.bottom + 6 + mh > window.innerHeight && r.top - 6 - mh > 0){
+          menu.style.top = (r.top - 6 - mh) + 'px';  // اقلبها لأعلى قرب الأسفل
+        }
+      }
+      return;
+    }
+    var item = e.target.closest && e.target.closest('.act-menu-item');
+    if(item){ var b = item.closest('.act-more'); if(b) setTimeout(function(){ b.classList.remove('open'); }, 0); return; }
+    closeActMenus();
+  });
+  window.addEventListener('scroll', closeActMenus, true);
+  window.addEventListener('resize', closeActMenus);
 
   // ─── Convert Access Button ───
   document.addEventListener('click', async function(e){
