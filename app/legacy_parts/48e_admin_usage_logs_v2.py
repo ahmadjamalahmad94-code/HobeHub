@@ -11,7 +11,7 @@ def _admin_usage_logs_v2_view():
     rows = query_all(
         f"""
         SELECT l.*, b.full_name, b.phone, b.user_type,
-               b.university_name, b.university_college,
+               b.university_specialization,
                b.freelancer_specialization, b.tawjihi_branch
         FROM beneficiary_usage_logs l
         JOIN beneficiaries b ON b.id = l.beneficiary_id
@@ -25,7 +25,7 @@ def _admin_usage_logs_v2_view():
     for _r in rows:
         _t = (_r.get("user_type") or "").lower()
         if _t == "university":
-            _r["spec"] = _r.get("university_college") or _r.get("university_name") or ""
+            _r["spec"] = _r.get("university_specialization") or ""
         elif _t == "freelancer":
             _r["spec"] = _r.get("freelancer_specialization") or ""
         elif _t == "tawjihi":
