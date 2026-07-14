@@ -159,7 +159,7 @@
     <i class="fa-solid fa-circle-check" style="color:var(--d-gold)"></i>
     <span style="font-weight:700;font-size:13.5px">سيُطبَّق على الصفوف المحدّدة فقط — <span id="rm-sel-count">0</span> محدد</span>
     <span style="flex:1"></span>
-    <a class="rm-confirm-btn" style="background:rgba(255,255,255,.12);color:#fff" href="/admin/radius/match/start" id="rm-restart"><i class="fa-solid fa-rotate"></i> جولة جديدة</a>
+    <a class="rm-confirm-btn" style="background:rgba(255,255,255,.12);color:#fff" href="/admin/radius/match" id="rm-restart"><i class="fa-solid fa-rotate"></i> جولة جديدة</a>
     <button type="submit" class="rm-confirm-btn" id="rm-confirm"><i class="fa-solid fa-wand-magic-sparkles"></i> تطبيق المحدد</button>
   </div>
 </form>
@@ -240,6 +240,22 @@
     // resume an in-flight run rendered as running
     var resumeId = startBtn.getAttribute('data-run-id');
     if(resumeId){ startBtn.disabled = true; stepLoop(resumeId); }
+  }
+
+  // «جولة جديدة»: يجب أن يكون POST (لا رابط GET → 405). يبدأ جولة ويحوّل لعرضها.
+  var restartBtn = document.getElementById('rm-restart');
+  if(restartBtn){
+    restartBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      restartBtn.style.pointerEvents = 'none';
+      fetch('/admin/radius/match/start', {
+        method:'POST', credentials:'same-origin',
+        headers:{'X-CSRFToken':csrfToken(),'X-Requested-With':'XMLHttpRequest'}
+      }).then(function(r){ return r.json(); }).then(function(p){
+        if(!p || !p.ok){ showToast((p&&p.message)||'تعذّر بدء الجولة','error'); restartBtn.style.pointerEvents=''; return; }
+        window.location = '/admin/radius/match?run=' + p.run_id;
+      }).catch(function(){ showToast('فشل الاتصال','error'); restartBtn.style.pointerEvents=''; });
+    });
   }
 
   // ── Selection count + head checkboxes ──
