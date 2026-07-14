@@ -609,6 +609,9 @@
       .then(function(r){ return r.json(); }).then(function(d){
         if(!d || !d.ok) return;
         rowsEl.innerHTML = d.tbody_html;
+        // أعِد تهيئة مُحسِّن الجدول على الصفوف الجديدة (فرز/ترقيم/إخفاء أعمدة)
+        // وإلّا يبقى العمود المخفيّ مخفيًّا في الرأس فقط فتختلّ محاذاة الأعمدة.
+        try { var _tbl = rowsEl.closest('table'); if(_tbl && window.DashboardTable && window.DashboardTable.reattach) window.DashboardTable.reattach(_tbl); } catch(e){}
         // KPIs + counts
         var tc = document.getElementById('total-count'); if(tc) tc.textContent = d.total;
         if(d.kpis){
