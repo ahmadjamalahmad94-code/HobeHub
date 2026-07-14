@@ -9,8 +9,14 @@
 
 {% block content %}
 <style>
-.att-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-bottom:14px}
-.att-filter{display:flex;flex-wrap:wrap;gap:10px;align-items:end;background:#fff;border:1px solid var(--d-border);border-radius:14px;padding:12px 16px}
+.att-hero{background:#fff;border:1px solid var(--d-border);border-top:3px solid var(--d-gold,#F4BA2A);border-radius:16px;padding:16px 18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(30,30,30,.05)}
+.att-hero-title{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--d-border)}
+.att-hero-ico{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--d-black,#1E1E1E),#2A2A2A);color:var(--d-gold,#F4BA2A);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+.att-hero-title h2{margin:0;font-size:17px;font-weight:900;color:var(--d-black)}
+.att-hero-title p{margin:2px 0 0;font-size:12px;color:var(--d-text-muted);font-family:monospace}
+.att-hero-title .att-all{margin-inline-start:auto}
+.att-hero-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:14px}
+.att-filter{display:flex;flex-wrap:wrap;gap:10px;align-items:end;background:var(--d-surface-2,#faf9f5);border:1px solid var(--d-border);border-radius:12px;padding:10px 14px}
 .att-filter label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:700;color:var(--d-text-muted)}
 .att-filter input[type=date]{padding:8px 10px;border-radius:9px;border:1.5px solid var(--d-border-strong);font-family:inherit;font-size:13px;direction:ltr}
 .att-btn{border:0;border-radius:10px;padding:9px 18px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer;background:linear-gradient(135deg,var(--d-gold-deep,#c8951a),var(--d-gold,#F4BA2A));color:#1e1e1e}
@@ -22,7 +28,7 @@
 .att-search:focus-within{border-color:var(--d-gold)}
 .att-all{display:inline-flex;align-items:center;gap:8px;text-decoration:none;background:linear-gradient(135deg,#177f42,#1f8f51)!important;color:#fff}
 .att-all:hover{filter:brightness(1.05)}
-.att-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.att-tabs{display:flex;gap:8px;margin:0;flex-wrap:wrap}
 .att-tab{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--d-border-strong);background:#fff;border-radius:12px;padding:10px 18px;font-family:inherit;font-weight:800;font-size:13.5px;cursor:pointer;color:var(--d-text-soft)}
 .att-tab i{color:var(--d-gold-deep,#c8951a)}
 .att-tab span{background:var(--d-gold-faint,#FEF8E5);color:var(--d-gold-deep,#c8951a);border-radius:999px;padding:1px 9px;font-size:12px}
@@ -43,20 +49,25 @@
 .att-card td.att-trunc{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
 
-<div class="att-bar">
-  <form method="GET" class="att-filter" action="{{ url_for('admin_attendance_page') }}">
-    <label>من التاريخ <input type="date" name="from" value="{{ d_from }}"></label>
-    <label>إلى التاريخ <input type="date" name="to" value="{{ d_to }}"></label>
-    <button type="submit" class="att-btn"><i class="fa-solid fa-filter"></i> تطبيق</button>
-    <a class="att-week" href="{{ url_for('admin_attendance_page') }}"><i class="fa-solid fa-calendar-week"></i> هذا الأسبوع</a>
-  </form>
-  <div class="att-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="att-search" placeholder="ابحث عن اسم أو رقم جوّال…" autocomplete="off"></div>
-  <a class="att-btn att-all" href="{{ url_for('admin_attendance_page') }}?from={{ d_from }}&to={{ d_to }}&export=all"><i class="fa-solid fa-file-excel"></i> تحميل الكل (Excel)</a>
-</div>
-
-<div class="att-tabs">
-  <button type="button" class="att-tab is-active" data-tab="cards"><i class="fa-solid fa-ticket"></i> حضور البطاقات <span>{{ cards_count }}</span></button>
-  <button type="button" class="att-tab" data-tab="internet"><i class="fa-solid fa-wifi"></i> حضور الإنترنت <span>{{ internet_count }}</span></button>
+<div class="att-hero">
+  <div class="att-hero-title">
+    <span class="att-hero-ico"><i class="fa-solid fa-user-clock"></i></span>
+    <div><h2>الحضور والغياب</h2><p>من {{ d_from }} إلى {{ d_to }}</p></div>
+    <a class="att-btn att-all" href="{{ url_for('admin_attendance_page') }}?from={{ d_from }}&to={{ d_to }}&export=all"><i class="fa-solid fa-file-excel"></i> تحميل الكل (Excel)</a>
+  </div>
+  <div class="att-hero-controls">
+    <form method="GET" class="att-filter" action="{{ url_for('admin_attendance_page') }}">
+      <label>من التاريخ <input type="date" name="from" value="{{ d_from }}"></label>
+      <label>إلى التاريخ <input type="date" name="to" value="{{ d_to }}"></label>
+      <button type="submit" class="att-btn"><i class="fa-solid fa-filter"></i> تطبيق</button>
+      <a class="att-week" href="{{ url_for('admin_attendance_page') }}"><i class="fa-solid fa-calendar-week"></i> هذا الأسبوع</a>
+    </form>
+    <div class="att-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="att-search" placeholder="ابحث عن اسم أو رقم جوّال…" autocomplete="off"></div>
+  </div>
+  <div class="att-tabs">
+    <button type="button" class="att-tab is-active" data-tab="cards"><i class="fa-solid fa-ticket"></i> حضور البطاقات <span>{{ cards_count }}</span></button>
+    <button type="button" class="att-tab" data-tab="internet"><i class="fa-solid fa-wifi"></i> حضور الإنترنت <span>{{ internet_count }}</span></button>
+  </div>
 </div>
 
 {# ─── حضور البطاقات ─── #}
