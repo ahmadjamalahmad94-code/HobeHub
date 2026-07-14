@@ -86,7 +86,14 @@ def _user_cards_dashboard_v2():
 
 
 def _user_cards_request_v2():
-    """يقبل usage_reason ويسجّله في beneficiary_usage_logs + card_audit_log."""
+    """طلب بطاقة من بوابة المشترك — **توليد فوري حيّ عبر RADIUS أوّلًا**،
+    ويقبل usage_reason ويسجّله في beneficiary_usage_logs.
+
+    ملاحظة مهمّة: كانت النسخة السابقة تجرّب المخزون المحلّي (الفارغ) أوّلًا ثم
+    تعامل أيّ نجاح من ``request_card_via_radius`` كأنّه «طلب معلّق» فتُحوّل
+    المشترك لصفحة المعلّقات الفارغة — رغم أنّ البطاقة تُولَّد فعليًّا على
+    الريديوس. النتيجة: البطاقة تُصدَر لكن المشترك يظنّ أنّه «لم يُصدَر شيء».
+    الإصلاح: نفرّق بين نجاح حيّ (issued_card_id) ونجاح معلّق (pending_action_id)."""
     from app.services.card_dispatcher import (
         issue_card_from_inventory,
         request_card_via_radius,
@@ -103,41 +110,51 @@ def _user_cards_request_v2():
         flash("الرجاء اختيار فئة البطاقة.", "error")
         return redirect(url_for("user_cards_dashboard"))
 
-    # محاولة 1: إصدار فوري من المخزون
-    result = issue_card_from_inventory(
+    note = "توليد فوري من بوابة المشترك"
+    if usage_reason and usage_reason != "تلقائي":
+        note += f" — السبب: {usage_reason}"
+
+    # ── المسار الأساسي: توليد فوري حيّ من الباقة المربوطة عبر RADIUS ──────
+    result = request_card_via_radius(
         beneficiary_id, category_code,
         actor_username=_portal_actor_username(),
+        notes=note,
     )
 
-    if result.ok:
-        # سجّل في beneficiary_usage_logs مع السبب
+    # (أ) نجاح حيّ: بطاقة حقيقية وُلّدت وسُلّمت فورًا → أظهرها في الداشبورد
+    if result.ok and result.issued_card_id:
         try:
             _log_card_usage_reason(beneficiary_id, category_code, usage_reason, result)
         except Exception:
             pass
-        msg = f"تم إصدار بطاقتك ({result.duration_label}) بنجاح! تجدها في الأسفل."
+        msg = f"تم توليد بطاقتك ({result.duration_label}) فورًا! تجدها في الأسفل جاهزة للدخول."
         if usage_reason:
             msg += f" (السبب: {usage_reason})"
         flash(msg, "success")
         return redirect(url_for("user_cards_dashboard"))
 
-    # محاولة 2: لم يوجد مخزون — أنشئ طلب pending
-    if "لا توجد بطاقات متاحة" in (result.message or ""):
-        notes = "طلب من بوابة المشترك — المخزون فارغ"
+    # (ب) كتابة معطّلة/وضع يدوي → طلب مُسجّل بانتظار التنفيذ فعلًا
+    if result.ok and result.pending_action_id:
+        flash("تم تسجيل طلبك. ستسلّمك الإدارة البطاقة قريبًا.", "info")
+        return redirect(url_for("user_cards_pending_list"))
+
+    # (ج) فشل (أهلية/حصة أو خطأ تقني) → جرّب المخزون المحلّي احتياطيًّا (legacy)
+    fallback = issue_card_from_inventory(
+        beneficiary_id, category_code,
+        actor_username=_portal_actor_username(),
+    )
+    if fallback.ok:
+        try:
+            _log_card_usage_reason(beneficiary_id, category_code, usage_reason, fallback)
+        except Exception:
+            pass
+        msg = f"تم إصدار بطاقتك ({fallback.duration_label}) من المخزون. تجدها في الأسفل."
         if usage_reason:
-            notes += f" — السبب: {usage_reason}"
-        result2 = request_card_via_radius(
-            beneficiary_id, category_code,
-            actor_username=_portal_actor_username(),
-            notes=notes,
-        )
-        if result2.ok:
-            flash("تم تسجيل طلبك. ستسلّمك الإدارة البطاقة قريبًا.", "info")
-            return redirect(url_for("user_cards_pending_list"))
-        flash(result2.message, "error")
+            msg += f" (السبب: {usage_reason})"
+        flash(msg, "success")
         return redirect(url_for("user_cards_dashboard"))
 
-    flash(result.message, "error")
+    flash(result.message or fallback.message, "error")
     return redirect(url_for("user_cards_dashboard"))
 
 
