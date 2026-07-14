@@ -13,7 +13,7 @@
   font-weight:800;
   letter-spacing:.2px;
   color:var(--d-text-muted,#8a8675);
-  text-align:start;
+  text-align:center;
   padding:10px 12px;
   background:#FAFAF8;
   border-bottom:1px solid var(--d-border,#e6e3da);
@@ -24,7 +24,13 @@
   padding:9px 12px;
   border-bottom:1px solid var(--d-border,#e6e3da);
   vertical-align:middle;
+  text-align:center;
 }
+/* أعمدة النصّ الطويل تبقى بمحاذاة البداية للقراءة (الرأس أيضًا) */
+.d-table th.cell-wrap,.d-table td.cell-wrap,
+.d-table th.cell-truncate,.d-table td.cell-truncate,
+.d-table th.col-details,.d-table td.col-details,
+.d-table th.cell-start,.d-table td.cell-start{text-align:start}
 .d-table tbody tr:hover td{background:#FAFAF8}
 .d-table td.cell-wrap{white-space:normal}
 .d-table td.cell-truncate{max-width:240px;overflow:hidden;text-overflow:ellipsis}
