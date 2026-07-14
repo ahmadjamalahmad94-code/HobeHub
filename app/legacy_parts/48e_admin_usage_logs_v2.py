@@ -72,7 +72,7 @@ def _admin_usage_logs_v2_view():
   <td class="col-name">{{ r.full_name or '—' }}</td>
   <td class="col-phone">{{ r.phone or '—' }}</td>
   <td>{% if r.user_type == 'tawjihi' %}<span class="user-type-badge utype-tawjihi">توجيهي</span>{% elif r.user_type == 'university' %}<span class="user-type-badge utype-university">جامعي</span>{% elif r.user_type == 'freelancer' %}<span class="user-type-badge utype-freelancer">عمل حر</span>{% else %}—{% endif %}</td>
-  <td class="col-spec cell-truncate">{{ r.spec or '—' }}</td>
+  <td class="col-spec">{{ r.spec or '—' }}</td>
   <td><span class="reason-tag">{{ r.usage_reason or '—' }}</span></td>
   <td><span class="card-tag">{{ r.card_type or '—' }}</span></td>
   <td class="col-when">{{ format_dt_short(r.usage_time) }}</td>
