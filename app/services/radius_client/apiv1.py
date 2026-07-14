@@ -730,12 +730,28 @@ class ApiV1RadiusClient(RadiusClient):
         مضبوطة بسعر 0 (قرار المالك) فلا خصم ولا إيراد وهميّ. ``count`` يُتجاهَل —
         كل طلب = بطاقة واحدة للمشترك."""
         self._guard_write()
-        pkg_id = _int_or_zero(radius_offer_external_id)
+        ref = str(radius_offer_external_id or "").strip()
+        pkg_id = _int_or_zero(ref)
         if pkg_id <= 0:
             return Result.failure(
                 "الربط لا يشير إلى باقة سوق صالحة. أعد ربط الفئة من صفحة "
                 "«ربط العروض» باختيار باقة من السوق الإلكترونيّ."
             )
+
+        # صلابة تجاه الروابط القديمة: لو كان المعرّف المخزَّن ليس معرّف باقة فعليّ
+        # (رابط قديم يحمل plan_id) نحاول مطابقته كـ plan_id ونختار باقته.
+        try:
+            offers = self.get_marketplace_offers() or []
+            pkg_ids = {str(o.get("external_id")) for o in offers}
+            if str(pkg_id) not in pkg_ids:
+                for o in offers:
+                    if str(o.get("plan_id") or "").strip() == ref:
+                        resolved = _int_or_zero(o.get("external_id"))
+                        if resolved > 0:
+                            pkg_id = resolved
+                            break
+        except Exception:  # noqa: BLE001 — تدهور ناعم؛ نُكمل بالمعرّف كما هو
+            pass
 
         issuer_id = self._ensure_issuer_card_user()
         if issuer_id <= 0:
