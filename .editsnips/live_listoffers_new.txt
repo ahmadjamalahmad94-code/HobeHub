@@ -1,0 +1,24 @@
+    def list_offers(self) -> list:
+        """قائمة عروض/باقات RADIUS القابلة للربط (marketplace offers). ✅ مُفعَّل (قراءة).
+
+        يستدعي نقطة النهاية التي تسرد الباقات/العروض المتاحة لحساب الخدمة. لا يوجد
+        في سطح app_ad2 الموثّق نقطة «سرد عروض بطاقات» مستقلة؛ الأقرب المؤكَّد هو
+        ``get_profiles_for_user`` (نفسها التي يستخدمها get_profiles) والتي تُرجع
+        الباقات/العروض التي يولّد المسؤول البطاقات ضمنها. الاسم قابل للتبديل عبر
+        ``RADIUS_API_OFFERS_ENDPOINT`` دون إعادة نشر إن كشف الـ marketplace نقطة
+        عروض مخصّصة — بلا أي تعديل على RADIUS.
+        """
+        try:
+            _guard_read()
+            self._login()
+            endpoint = (os.getenv("RADIUS_API_OFFERS_ENDPOINT", "") or "get_profiles_for_user").strip().lstrip("/")
+            body = self._http_post(endpoint, {})
+            if body.get("error"):
+                return []
+            return _extract_offers(body)
+        except (RadiusClientError, RadiusClientNotImplemented):
+            return []
+
+    def broadcast_sms(self, message, *, profile_filter_external_id="", requested_by=""):
+        _guard_write()
+        raise RadiusClientNotImplemented("broadcast_sms — لم يُختبر بعد")

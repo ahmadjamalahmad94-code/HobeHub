@@ -1,0 +1,55 @@
+    account_id, username = _resolve_actor(actor_username)
+
+    # ── ربط العرض: كل فئة HobeHub تُولَّد *داخل* عرض RADIUS المربوط بها ──────
+    # نقرأ العرض المربوط من card_offer_radius_links ونمرّره للتوليد بدل تخمين
+    # الفئة. إن لم يوجد ربط: لا نخمّن عرضًا؛ نتدهور بأمان إلى المخزون المحلي،
+    # وإلا نُرجع خطأً واضحًا للمسؤول كي يربطه من صفحة «ربط العروض».
+    from .card_offer_links import get_linked_external_id
+
+    radius_offer_external_id = get_linked_external_id(category_code)
+    if not radius_offer_external_id:
+        fallback = issue_card_from_inventory(
+            beneficiary_id, category_code, actor_username=username, skip_quota=True,
+        )
+        if fallback.ok:
+            return fallback
+        _audit(
+            "card_request_unlinked_offer",
+            beneficiary_id=beneficiary_id,
+            category_code=category_code,
+            actor_account_id=account_id,
+            actor_username=username,
+            details={"reason": "no_radius_offer_link", "inventory_message": fallback.message},
+        )
+        return DispatchResult.fail(
+            "العرض غير مربوط بعرض على الريدياس. اربطه من صفحة «ربط العروض» "
+            "أو أضف بطاقات للمخزون.",
+            quota=quota,
+        )
+
+    client = get_radius_client()
+    fallback_reason = ""
+    try:
+        result = client.generate_user_cards(
+            category_code=category_code,
+            count=1,
+            radius_offer_external_id=radius_offer_external_id,
+            beneficiary_id=beneficiary_id,
+            requested_by=username,
+            notes=notes,
+        )
+    except (RadiusClientNotImplemented, RadiusClientError) as exc:
+        # القراءة من RADIUS قد تكون مفعلة بينما الكتابة ما زالت مغلقة. في هذه
+        # الحالة لا نكسر تجربة المشترك؛ نسجل طلبًا يدويًا لتنفذه الإدارة.
+        from .radius_client.manual import ManualRadiusClient
+
+        fallback_reason = str(exc)
+        client = ManualRadiusClient()
+        result = client.generate_user_cards(
+            category_code=category_code,
+            count=1,
+            radius_offer_external_id=radius_offer_external_id,
+            beneficiary_id=beneficiary_id,
+            requested_by=username,
+            notes=(f"{notes} — تم تحويله للتنفيذ اليدوي لأن الكتابة على RADIUS غير مفعلة.").strip(" —"),
+        )

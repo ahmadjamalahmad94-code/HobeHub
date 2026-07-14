@@ -1,0 +1,18 @@
+        endpoint = (os.getenv("RADIUS_API_CARDS_ENDPOINT", "") or "generate_user_cards").strip().lstrip("/")
+        offer_id = str(radius_offer_external_id or "").strip()
+        params = {
+            "category_code": category_code,
+            "category": category_code,
+            "count": int(count or 1),
+            "beneficiary_id": "" if beneficiary_id is None else beneficiary_id,
+            "requested_by": requested_by or "",
+            "notes": notes or "",
+        }
+        # العرض المربوط: نمرّره تحت عدة مفاتيح شائعة كي تُولَّد البطاقة *داخل*
+        # العرض المحدّد على RADIUS بغض النظر عن اسم الحقل المتوقَّع في الـ API.
+        if offer_id:
+            params["offer_id"] = offer_id
+            params["profile_id"] = offer_id
+            params["external_id"] = offer_id
+            params["id"] = offer_id
+        body = self._http_post(endpoint, params)

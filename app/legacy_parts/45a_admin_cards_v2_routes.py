@@ -453,8 +453,14 @@ app.view_functions["admin_cards_import_page"] = admin_login_required(admin_cards
 @app.route("/admin/cards/categories/sync-profiles", methods=["GET", "POST"])
 @admin_login_required
 def admin_cards_sync_profiles():
-    """يعرض الـ profiles من RADIUS API ويسمح بربطها بالفئات المحلية."""
+    """صفحة قديمة (تربط الفئة بـ profile/خطّة عبر radius_profile_id) — لم تعد
+    مصدر التوليد. التوليد الحيّ يقرأ «ربط العروض» (card_offer_radius_links) فقط.
+    لتفادي وجود مكانين للربط، نحوّل العرض إلى الصفحة المعتمدة «ربط العروض»."""
     from app.services.radius_dashboard import get_radius_profiles, invalidate_cache
+
+    if request.method == "GET":
+        flash("تم توحيد ربط العروض هنا — اربط كل فئة بباقة من السوق الإلكترونيّ.", "info")
+        return redirect(url_for("admin_cards_radius_links_page"))
 
     if request.method == "POST":
         # حفظ الـ mapping: للحقول category_<id> = profile_id_value

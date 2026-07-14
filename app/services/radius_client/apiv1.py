@@ -608,9 +608,13 @@ class ApiV1RadiusClient(RadiusClient):
         return offers
 
     def get_marketplace_offers(self) -> list:
-        """عروض السوق الإلكترونيّ المنشورة فقط (لا كل الباقات) عبر
-        GET /api/v1/card-marketplace/packages. كل عرض يُشكَّل للربط مع
-        ``external_id = plan_id`` كي يتوافق مع توليد البطاقات داخل العرض."""
+        """باقات السوق الإلكترونيّ المنشورة عبر
+        GET /api/v1/card-marketplace/packages.
+
+        كل باقة تُميَّز بـ ``external_id = id`` (معرّف الباقة الفريد) — لا
+        ``plan_id``، لأنّ عدّة باقات (طلاب ٢ ساعة / ٣ ساعات …) قد تتشارك نفس
+        ``plan_id`` فتتصادم في القائمة. نحمل ``plan_id`` و``duration_minutes``
+        كحقلين مستقلّين ليُولَّد الكرت لاحقًا حسب مدّة الباقة الخاصّة بها."""
         try:
             self._guard_read()
         except RadiusClientNotImplemented:
@@ -626,8 +630,9 @@ class ApiV1RadiusClient(RadiusClient):
         for p in items:
             if not isinstance(p, dict):
                 continue
+            pkg_id = p.get("id")
             plan_id = _pick(p, "plan_id", "planid")
-            ext = str(plan_id or p.get("id") or "")
+            ext = str(pkg_id or "")  # معرّف الباقة الفريد (لا plan_id)
             if not ext:
                 continue
             down = _int_or_zero(p.get("display_speed_down_kbps") or p.get("speed_down_kbps"))
@@ -637,7 +642,9 @@ class ApiV1RadiusClient(RadiusClient):
             duration_label = f"{mins} دقيقة" if mins else ""
             enabled = p.get("active")
             offers.append({
-                "external_id": ext,  # = plan_id للتوليد داخل العرض
+                "external_id": ext,           # = معرّف الباقة الفريد (للربط)
+                "plan_id": str(plan_id or ""),  # الخطّة التي يُولَّد داخلها
+                "duration_minutes": mins,       # مدّة الباقة (تتجاوز مدّة الخطّة)
                 "name": p.get("name") or p.get("plan_name") or ext,
                 "duration_label": duration_label,
                 "speed": speed,
@@ -690,19 +697,43 @@ class ApiV1RadiusClient(RadiusClient):
                             radius_offer_external_id: str = "",
                             beneficiary_id: int | None = None,
                             requested_by: str = "", notes: str = "") -> Result:
-        """يولّد كروتًا من خطّة/عرض عبر POST /api/v1/cards/generate.
+        """يولّد كروتًا من باقة سوق مربوطة عبر POST /api/v1/cards/generate.
 
-        الـ ``radius_offer_external_id`` المربوط = ``plan_id`` في الـ API الحديث.
-        عند النجاح يُرجع Result.success يحوي أول كرت (card_username/card_password/
-        external_id) ليحفظه card_dispatcher ويسلّمه المشترك."""
+        الـ ``radius_offer_external_id`` المربوط = **معرّف باقة السوق الفريد**.
+        نحلّه إلى ``plan_id`` + ``duration_minutes`` الخاصّين بالباقة، فيُولَّد
+        الكرت داخل الخطّة الصحيحة وبمدّة الباقة (لا مدّة الخطّة الافتراضيّة).
+        تدهور رجعيّ: إن لم تُطابَق الباقة، نُعامل القيمة كـ ``plan_id`` مباشرة.
+        عند النجاح يُرجع Result.success يحوي أوّل كرت."""
         self._guard_write()
-        plan_id_raw = str(radius_offer_external_id or "").strip()
-        if not plan_id_raw.isdigit():
+        ref = str(radius_offer_external_id or "").strip()
+
+        # حلّ الباقة → plan_id + مدّتها الخاصّة (مصدر الحقيقة = باقة السوق الحيّة)
+        plan_id_gen, duration_minutes, pkg_name = "", 0, ""
+        try:
+            for o in (self.get_marketplace_offers() or []):
+                if str(o.get("external_id")) == ref:
+                    plan_id_gen = str(o.get("plan_id") or "").strip()
+                    duration_minutes = _int_or_zero(o.get("duration_minutes"))
+                    pkg_name = str(o.get("name") or "")
+                    break
+        except Exception:  # noqa: BLE001 — تدهور ناعم عند تعذّر جلب الباقات
+            plan_id_gen = ""
+        if not plan_id_gen:
+            plan_id_gen = ref  # تدهور رجعيّ: القيمة نفسها plan_id
+
+        if not plan_id_gen.isdigit():
             return Result.failure(
-                "توليد الكروت الحديث يتطلّب plan_id رقميًّا مربوطًا بالعرض. "
-                "اربط العرض من صفحة «ربط العروض» بمعرّف خطّة صحيح."
+                "الربط لا يشير إلى باقة سوق صالحة. أعد ربط الفئة من صفحة "
+                "«ربط العروض» باختيار باقة من السوق الإلكترونيّ."
             )
-        body = {"plan_id": int(plan_id_raw), "count": int(count or 1)}
+        body = {"plan_id": int(plan_id_gen), "count": int(count or 1)}
+        if duration_minutes > 0:
+            # مدّة الباقة تتجاوز مدّة الخطّة الافتراضيّة عبر time_value/time_unit
+            body["duration_mode"] = "time_unit"
+            body["time_value"] = int(duration_minutes)
+            body["time_unit"] = "minutes"
+        if pkg_name:
+            body["package_name"] = pkg_name[:120]
         if notes:
             body["notes"] = notes[:300]
         resp = self._request("POST", "cards/generate", json_body=body)

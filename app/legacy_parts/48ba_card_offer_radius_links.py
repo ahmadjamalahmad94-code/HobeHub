@@ -7,34 +7,30 @@ from flask import jsonify, render_template, request, session
 
 
 def _load_offers():
-    """يجلب **خطط الريديوس** (كل خطّة plan_id فريد + مدّة). هي هدف التوليد
-    الصحيح لأنّ /cards/generate يولّد حسب plan_id (المدّة من الخطّة). عروض
-    السوق قد تتشارك plan_id فلا تُميَّز في القائمة — لذا نعتمد الخطط. لا يرمي."""
+    """يجلب **باقات السوق الإلكترونيّ** (كل باقة بمعرّف فريد ومدّتها الخاصّة).
+    كلّ باقة تُميَّز بـ external_id = معرّف الباقة الفريد، وتحمل plan_id + المدّة
+    ليُولَّد الكرت داخل الخطّة الصحيحة وبمدّة الباقة. لا يرمي مهما كان خطأ الاتصال."""
     from app.services.radius_client import get_radius_client, is_api_under_development
 
     offers, error = [], ""
     try:
         client = get_radius_client()
-        profs = client.get_profiles() if hasattr(client, "get_profiles") else []
+        raw = client.get_marketplace_offers() if hasattr(client, "get_marketplace_offers") else []
         seen = set()
-        for p in (profs or []):
+        for p in (raw or []):
             if not isinstance(p, dict):
                 continue
-            ext = str(p.get("external_id") or p.get("id") or p.get("profile_id") or "").strip()
+            ext = str(p.get("external_id") or "").strip()
             if not ext or ext in seen:
                 continue
             seen.add(ext)
-            down = int(p.get("speed_down_kbps") or 0)
-            up = int(p.get("speed_up_kbps") or 0)
-            mins = int(p.get("duration_minutes") or 0)
-            _act = p.get("active")
             offers.append({
                 "external_id": ext,
                 "name": p.get("name") or ext,
-                "duration_label": ("%d دقيقة" % mins) if mins else "",
-                "speed": ("%s/%s Kbps" % (down or "?", up or "?")) if (down or up) else "",
+                "duration_label": p.get("duration_label") or "",
+                "speed": p.get("speed") or "",
                 "price": p.get("price") or "",
-                "active": True if _act is None else bool(_act),
+                "active": bool(p.get("active", True)),
             })
     except Exception as exc:  # لا نُسقط الصفحة مهما كان خطأ الاتصال
         error = str(exc)

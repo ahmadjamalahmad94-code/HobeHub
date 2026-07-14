@@ -92,11 +92,11 @@
 <section class="d-card" style="background:linear-gradient(135deg,var(--d-gold-faint),#fff);border-color:var(--d-gold-soft)">
   <div class="d-card-body" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap">
     <div>
-      <strong style="display:block;color:var(--d-text);font-size:14px">🔗 مزامنة مع RADIUS API</strong>
-      <small style="color:var(--d-text-soft)">اربط كل فئة بـ profile_id الموافق لها — مطلوب قبل تفعيل توليد البطاقات التلقائي.</small>
+      <strong style="display:block;color:var(--d-text);font-size:14px">🔗 ربط العروض بالريديوس</strong>
+      <small style="color:var(--d-text-soft)">اربط كل فئة بباقة من السوق الإلكترونيّ — مطلوب قبل توليد البطاقات على الريديوس مباشرة.</small>
     </div>
-    <a class="d-pill-btn d-pill-btn--gold" href="{{ url_for('admin_cards_sync_profiles') }}">
-      <i class="fa-solid fa-satellite-dish"></i>افتح صفحة المزامنة
+    <a class="d-pill-btn d-pill-btn--gold" href="{{ url_for('admin_cards_radius_links_page') }}">
+      <i class="fa-solid fa-diagram-project"></i>افتح صفحة ربط العروض
     </a>
   </div>
 </section>
