@@ -202,7 +202,7 @@ def admin_beneficiary_issue_card(beneficiary_id):
             "reasons": list(USAGE_REASON_OPTIONS) if USAGE_REASON_OPTIONS else [],
         })
 
-    # POST: تسجيل الإصدار اليدوي (لا خصم من DB)
+    # POST: توليد بطاقة حيّة على الريديوس عبر الـdispatcher (لا سحب من مخزون محلّيّ)
     category_code = clean_csv_value(request.form.get("category_code"))
     reason = clean_csv_value(request.form.get("reason"))
     delivery_mode = clean_csv_value(request.form.get("delivery_mode")) or "paper"
@@ -217,10 +217,29 @@ def admin_beneficiary_issue_card(beneficiary_id):
         "SELECT label_ar, duration_minutes FROM card_categories WHERE code=%s", [category_code]
     ) or {}
     card_type_label = category.get("label_ar") or category_code
-
-    # سجّل في beneficiary_usage_logs
     delivery_label = "ورقية" if delivery_mode == "paper" else "SMS"
-    full_notes = (notes + (" — تسليم: " + delivery_label)).strip(" —")
+    full_notes = (notes + (" — تسليم: " + delivery_label) + (" — سبب: " + reason)).strip(" —")
+
+    # التوليد الحيّ: يُنشئ بطاقة حقيقيّة داخل عرض الريديوس المربوط بالفئة.
+    # (يتطلّب ربط الفئة بعرض من «ربط العروض» + تفعيل الكتابة؛ وإلّا يُرجع خطأً
+    # واضحًا بدل تسجيل إصدار وهميّ من مخزون فارغ.)
+    try:
+        from app.services.card_dispatcher import request_card_via_radius
+        disp = request_card_via_radius(
+            beneficiary_id, category_code,
+            actor_username=session.get("username") or "admin",
+            skip_quota=True, notes=full_notes,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"ok": False, "message": f"تعذّر توليد البطاقة: {safe(str(exc))}"}), 500
+
+    if not getattr(disp, "ok", False):
+        return jsonify({"ok": False, "message": getattr(disp, "message", "تعذّر توليد البطاقة.")}), 400
+
+    card_user = getattr(disp, "card_username", "") or ""
+    card_pass = getattr(disp, "card_password", "") or ""
+
+    # سجّل في beneficiary_usage_logs (للتقارير/الحضور) + العداد الأسبوعي.
     try:
         execute_sql(
             """
@@ -234,8 +253,6 @@ def admin_beneficiary_issue_card(beneficiary_id):
         )
     except Exception:
         pass
-
-    # حدّث العداد الأسبوعي
     try:
         execute_sql(
             "UPDATE beneficiaries SET weekly_usage_count=COALESCE(weekly_usage_count,0)+1 WHERE id=%s",
@@ -245,22 +262,21 @@ def admin_beneficiary_issue_card(beneficiary_id):
         pass
 
     log_action(
-        "admin_issue_card_manual", "beneficiary", beneficiary_id,
-        f"إصدار يدوي ({delivery_label}): فئة={card_type_label}, سبب={reason} — {ben['full_name']}",
+        "admin_issue_card_live", "beneficiary", beneficiary_id,
+        f"توليد بطاقة على الريديوس ({delivery_label}): فئة={card_type_label}, سبب={reason} — {ben['full_name']}",
     )
 
-    # SMS فعلي قيد التطوير
-    sms_pending = (delivery_mode == "sms")
-
-    msg = (
-        f"✓ تم تسجيل إصدار البطاقة لـ {ben['full_name']} ({card_type_label})."
-        if delivery_mode == "paper"
-        else f"✓ تم تسجيل الإصدار وإرسال SMS إلى {ben.get('phone') or 'المشترك'} (قيد التطوير)."
-    )
+    if card_user:
+        msg = f"✓ تم توليد بطاقة {card_type_label} على الريديوس لـ {ben['full_name']}."
+    else:
+        # نجاح بلا بيانات حيّة = طُوِّب للتنفيذ اليدوي (الكتابة على الريديوس مقفلة).
+        msg = getattr(disp, "message", "") or f"سُجِّل طلب بطاقة {card_type_label} (سيُنفَّذ عند تفعيل الكتابة)."
 
     return jsonify({
         "ok": True,
         "message": msg,
+        "card_username": card_user,
+        "card_password": card_pass,
         "delivery_mode": delivery_mode,
-        "sms_pending": sms_pending,
+        "sms_pending": (delivery_mode == "sms"),
     })

@@ -974,7 +974,16 @@
       fetch('/admin/beneficiaries/'+currentBid+'/issue-card', {
         method:'POST', credentials:'same-origin', body:new FormData(icForm)
       }).then(function(r){ return r.json(); }).then(function(d){
-        if(d.ok){ icClose(); loadRows(readState(),false); showToast(d.message || 'تم إصدار البطاقة', 'success'); }
+        if(d.ok){
+          loadRows(readState(),false);
+          if(d.card_username){
+            // بطاقة حيّة مُولَّدة على الريديوس — اعرض بياناتها للمشترك (ابقِ النافذة).
+            icShowMsg('success','✓ تم التوليد على الريديوس — اليوزر: '+d.card_username+'  ·  كلمة المرور: '+(d.card_password||'—'));
+            if(icSave) icSave.disabled = false;
+          } else {
+            icClose(); showToast(d.message || 'تم إصدار البطاقة', 'success');
+          }
+        }
         else { icShowMsg('error', d.message || 'فشل الإصدار'); if(icSave) icSave.disabled = false; }
       }).catch(function(){ icShowMsg('error','فشل الاتصال'); if(icSave) icSave.disabled = false; });
     });
