@@ -301,45 +301,87 @@ def _matrix_people(rows):
     return people
 
 
-def _xlsx_matrix_response(filename, days, people):
-    """ملفّ Excel: صفّ لكل شخص، عمود لكل يوم (✓ حاضر / فارغ)، وإجماليّ."""
+def _xlsx_matrix_response(filename, title, subtitle, days, people):
+    """ملفّ Excel مُنسَّق: عنوان + صفّ لكل شخص + عمود لكل يوم (أخضر=حاضر/أحمر=غائب)
+    + إجماليّ مميّز + مفتاح ألوان + تظليل متناوب."""
     from openpyxl import Workbook
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
     from openpyxl.utils import get_column_letter
+
+    # لوحة الألوان
+    DARK, GOLD, GOLD_LT = "1E1E1E", "F4BA2A", "FDF1CF"
+    GREEN, GREEN_LT = "1F8F51", "DCF3E6"
+    RED, RED_LT = "DC2626", "FBE3E3"
+    HEAD, ZEBRA, WHITE, MUTED = "2A2A2A", "FAF9F5", "FFFFFF", "8A8675"
+
     wb = Workbook()
     ws = wb.active
     ws.title = "الحضور"
     ws.sheet_view.rightToLeft = True
-    day_labels = ["%s %s/%s" % (_day_name(d), d[8:10], d[5:7]) for d in days]
-    header = ["الاسم", "الجوال", "النوع", "التخصص", "الجامعة/الشركة"] + day_labels + ["إجمالي الأيام"]
-    ws.append(header)
-    hfill = PatternFill("solid", fgColor="1E1E1E")
-    hfont = Font(bold=True, color="FFFFFF", size=11)
+    ws.sheet_view.showGridLines = False
+
+    ncols = 5 + len(days) + 1
+    last = get_column_letter(ncols)
     center = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    thin = Side(style="thin", color="DDDDDD")
+    thin = Side(style="thin", color="E6E3DA")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
-    for c in ws[1]:
-        c.fill, c.font, c.alignment, c.border = hfill, hfont, center, border
-    for p in sorted(people.values(), key=lambda x: x["full_name"]):
-        row = [p["full_name"], p["phone"], p["type_label"], p["spec"], p["org"]]
+
+    def _cell(r, c, val, *, fill=None, color="1E1E1E", bold=False, size=10, wrap=True):
+        cell = ws.cell(row=r, column=c, value=val)
+        if fill:
+            cell.fill = PatternFill("solid", fgColor=fill)
+        cell.font = Font(bold=bold, color=color, size=size)
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=wrap)
+        cell.border = border
+        return cell
+
+    # 1) العنوان
+    ws.merge_cells("A1:%s1" % last)
+    _cell(1, 1, title, fill=DARK, color=WHITE, bold=True, size=16)
+    ws.row_dimensions[1].height = 32
+    # 2) العنوان الفرعيّ
+    ws.merge_cells("A2:%s2" % last)
+    _cell(2, 1, subtitle, fill=GOLD_LT, color="8A6D12", bold=True, size=11)
+    ws.row_dimensions[2].height = 22
+
+    # 3) الرأس
+    HR = 3
+    header = ["الاسم", "الجوال", "النوع", "التخصص", "الجامعة/الشركة"] \
+        + ["%s\n%s/%s" % (_day_name(d), d[8:10], d[5:7]) for d in days] + ["إجمالي"]
+    for ci, val in enumerate(header, start=1):
+        _cell(HR, ci, val, fill=HEAD, color=WHITE, bold=True, size=10.5)
+    ws.row_dimensions[HR].height = 36
+
+    # 4) الصفوف
+    r = HR + 1
+    for idx, p in enumerate(sorted(people.values(), key=lambda x: x["full_name"])):
+        zeb = ZEBRA if idx % 2 else WHITE
+        for ci, val in enumerate([p["full_name"], p["phone"], p["type_label"], p["spec"], p["org"]], start=1):
+            _cell(r, ci, val, fill=zeb, bold=(ci == 1), size=10)
         cnt = 0
-        for d in days:
+        for di, d in enumerate(days):
             hit = d in p["days"]
-            row.append("✓" if hit else "")
+            _cell(r, 6 + di, "✓" if hit else "✗",
+                  fill=GREEN_LT if hit else RED_LT,
+                  color=GREEN if hit else RED, bold=True, size=12, wrap=False)
             cnt += 1 if hit else 0
-        row.append(cnt)
-        ws.append(row)
-    widths = [26, 14, 10, 20, 22]
-    for i, w in enumerate(widths, start=1):
+        _cell(r, 6 + len(days), cnt, fill=GOLD, color=DARK, bold=True, size=11)
+        ws.row_dimensions[r].height = 20
+        r += 1
+
+    # 5) مفتاح الألوان
+    lr = r + 1
+    _cell(lr, 1, "✓ حاضر", fill=GREEN_LT, color=GREEN, bold=True, size=11)
+    _cell(lr, 2, "✗ غائب", fill=RED_LT, color=RED, bold=True, size=11)
+    _cell(lr, 3, "الإجمالي", fill=GOLD, color=DARK, bold=True, size=10)
+
+    # الأعمدة والتجميد
+    for i, w in enumerate([24, 13, 9, 18, 20], start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
-    for i in range(6, 6 + len(days) + 1):
-        ws.column_dimensions[get_column_letter(i)].width = 11
-    for r in ws.iter_rows(min_row=2):
-        for c in r:
-            c.border = border
-            if c.column >= 6:
-                c.alignment = center
-    ws.freeze_panes = "F2"
+    for i in range(6, ncols + 1):
+        ws.column_dimensions[get_column_letter(i)].width = 8.5
+    ws.freeze_panes = "F%d" % (HR + 1)
+
     buf = _io.BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -362,7 +404,11 @@ def admin_attendance_page():
         src = _cards_attendance(d_from, d_to) if export == "cards_matrix" else _internet_attendance(d_from, d_to)
         people = _matrix_people(src)
         label = "cards" if export == "cards_matrix" else "internet"
-        return _xlsx_matrix_response(f"attendance-{label}-matrix-{d_from}_{d_to}.xlsx", days, people)
+        label_ar = "البطاقات" if export == "cards_matrix" else "الإنترنت"
+        title = "جدول حضور %s" % label_ar
+        subtitle = "من %s إلى %s  ·  %d شخص" % (d_from, d_to, len(people))
+        return _xlsx_matrix_response(
+            f"attendance-{label}-matrix-{d_from}_{d_to}.xlsx", title, subtitle, days, people)
 
     if export == "cards":
         rows = _cards_attendance(d_from, d_to)
