@@ -693,65 +693,83 @@ class ApiV1RadiusClient(RadiusClient):
     # ═══════════════════════════════════════════════════════════════════
     # كتابة — البطاقات
     # ═══════════════════════════════════════════════════════════════════
+    # اسم زبون السوق الموحّد الذي تُنسَب إليه كل مشتريات HobeHub في الريديوس.
+    _ISSUER_DISPLAY_NAME = "HobeHub"
+
+    def _ensure_issuer_card_user(self) -> int:
+        """يُرجع معرّف «زبون السوق» الموحّد لـHobeHub (يُنشئه مرّة إن لزم).
+
+        كل إصدار بطاقة عبر HobeHub يُسجَّل كشراء سوق باسم هذا الزبون الواحد
+        (قرار المالك). نبحث عنه بالاسم أوّلًا لتجنّب التكرار، وإلّا ننشئه."""
+        # بحث عن زبون قائم بنفس الاسم
+        ok, data, _err = self._get_data("card-users", params={"limit": 500})
+        if ok:
+            items = (data or {}).get("items") if isinstance(data, dict) else data
+            for u in (items or []):
+                if isinstance(u, dict) and str(u.get("display_name") or "").strip() == self._ISSUER_DISPLAY_NAME:
+                    return _int_or_zero(u.get("id"))
+        # إنشاء زبون موحّد جديد (الاسم فقط مطلوب؛ لا محفظة نحتاج شحنها لأنّ الباقات بسعر 0)
+        resp = self._request("POST", "card-users",
+                             json_body={"display_name": self._ISSUER_DISPLAY_NAME})
+        ok, data, _err = self._envelope(resp)
+        if ok:
+            cu = (data or {}).get("card_user") if isinstance(data, dict) else None
+            return _int_or_zero((cu or {}).get("id"))
+        return 0
+
     def generate_user_cards(self, category_code: str, count: int = 1, *,
                             radius_offer_external_id: str = "",
                             beneficiary_id: int | None = None,
                             requested_by: str = "", notes: str = "") -> Result:
-        """يولّد كروتًا من باقة سوق مربوطة عبر POST /api/v1/cards/generate.
+        """يُصدر بطاقة **كشراء من السوق الإلكترونيّ** عبر
+        POST /api/v1/card-users/<issuer>/purchase ثم يُعيد بيانات الكرت.
 
         الـ ``radius_offer_external_id`` المربوط = **معرّف باقة السوق الفريد**.
-        نحلّه إلى ``plan_id`` + ``duration_minutes`` الخاصّين بالباقة، فيُولَّد
-        الكرت داخل الخطّة الصحيحة وبمدّة الباقة (لا مدّة الخطّة الافتراضيّة).
-        تدهور رجعيّ: إن لم تُطابَق الباقة، نُعامل القيمة كـ ``plan_id`` مباشرة.
-        عند النجاح يُرجع Result.success يحوي أوّل كرت."""
+        هكذا تظهر البطاقة تحت الباقة في «مشتريات العرض» على الريديوس، ثم تُنسخ
+        بياناتها (اسم مستخدم/كلمة مرور) لملف المشترك في HobeHub. الباقات المربوطة
+        مضبوطة بسعر 0 (قرار المالك) فلا خصم ولا إيراد وهميّ. ``count`` يُتجاهَل —
+        كل طلب = بطاقة واحدة للمشترك."""
         self._guard_write()
-        ref = str(radius_offer_external_id or "").strip()
-
-        # حلّ الباقة → plan_id + مدّتها الخاصّة (مصدر الحقيقة = باقة السوق الحيّة)
-        plan_id_gen, duration_minutes, pkg_name = "", 0, ""
-        try:
-            for o in (self.get_marketplace_offers() or []):
-                if str(o.get("external_id")) == ref:
-                    plan_id_gen = str(o.get("plan_id") or "").strip()
-                    duration_minutes = _int_or_zero(o.get("duration_minutes"))
-                    pkg_name = str(o.get("name") or "")
-                    break
-        except Exception:  # noqa: BLE001 — تدهور ناعم عند تعذّر جلب الباقات
-            plan_id_gen = ""
-        if not plan_id_gen:
-            plan_id_gen = ref  # تدهور رجعيّ: القيمة نفسها plan_id
-
-        if not plan_id_gen.isdigit():
+        pkg_id = _int_or_zero(radius_offer_external_id)
+        if pkg_id <= 0:
             return Result.failure(
                 "الربط لا يشير إلى باقة سوق صالحة. أعد ربط الفئة من صفحة "
                 "«ربط العروض» باختيار باقة من السوق الإلكترونيّ."
             )
-        body = {"plan_id": int(plan_id_gen), "count": int(count or 1)}
-        if duration_minutes > 0:
-            # مدّة الباقة تتجاوز مدّة الخطّة الافتراضيّة عبر time_value/time_unit
-            body["duration_mode"] = "time_unit"
-            body["time_value"] = int(duration_minutes)
-            body["time_unit"] = "minutes"
-        if pkg_name:
-            body["package_name"] = pkg_name[:120]
-        if notes:
-            body["notes"] = notes[:300]
-        resp = self._request("POST", "cards/generate", json_body=body)
+
+        issuer_id = self._ensure_issuer_card_user()
+        if issuer_id <= 0:
+            return Result.failure("تعذّر تجهيز زبون السوق الموحّد لـHobeHub على الريديوس.")
+
+        resp = self._request(
+            "POST", f"card-users/{issuer_id}/purchase",
+            json_body={"package_id": pkg_id},
+        )
         ok, data, err = self._envelope(resp)
         if not ok:
-            return Result.failure(err or "تعذّر توليد الكروت من RADIUS.")
-        cards = (data or {}).get("cards") if isinstance(data, dict) else None
-        first = cards[0] if isinstance(cards, list) and cards else None
-        if not isinstance(first, dict) or not (first.get("username") and first.get("password")):
-            return Result.failure("رد RADIUS لا يحتوي على بيانات كرت صالحة.")
+            # رسالة أوضح للمالك: سبب الفشل الأشيع = الباقة سعرها ليس 0
+            if "غير كاف" in (err or "") or "balance" in (err or "").lower():
+                return Result.failure(
+                    "الباقة المربوطة سعرها ليس 0. اضبط سعر باقة السوق المربوطة = 0 "
+                    "على الريديوس ليُصدَر الكرت مجّانًا للمستفيد."
+                )
+            return Result.failure(err or "تعذّر شراء الباقة من السوق على الريديوس.")
+
+        purchase = (data or {}).get("purchase") if isinstance(data, dict) else None
+        purchase = purchase if isinstance(purchase, dict) else {}
+        card_user = str(purchase.get("cred_username") or "").strip()
+        card_pass = str(purchase.get("cred_password") or "").strip()
+        if not (card_user and card_pass):
+            return Result.failure("رد السوق لا يحتوي على بيانات كرت صالحة (تأكّد أنّ الباقة بنمط «توليد فوري»).")
+
         return Result.success(
-            "تم توليد الكرت من RADIUS.",
-            card_username=str(first.get("username")),
-            card_password=str(first.get("password")),
-            external_id=str(first.get("id") or ""),
+            "تم إصدار الكرت كشراء من السوق على الريديوس.",
+            card_username=card_user,
+            card_password=card_pass,
+            external_id=str(purchase.get("card_id") or purchase.get("id") or ""),
             category_code=category_code,
-            duration_minutes=_int_or_zero(first.get("duration_minutes")),
-            api_endpoint="/api/v1/cards/generate",
+            duration_minutes=_int_or_zero(purchase.get("duration_minutes")),
+            api_endpoint="/api/v1/card-users/<issuer>/purchase",
         )
 
     def validate_card(self, username: str, password: str) -> Result:
