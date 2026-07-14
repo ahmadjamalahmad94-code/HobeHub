@@ -495,6 +495,23 @@ def admin_radius_profiles_json():
     return jsonify({"ok": True, "profiles": out})
 
 
+def _beneficiary_remark(ben):
+    """ملاحظة الريديوس من بيانات المستفيد: جامعة/شركة + كليّة + تخصص/مجال."""
+    t = (ben.get("user_type") or "").strip().lower()
+    parts = []
+    if t == "university":
+        if ben.get("university_name"): parts.append("الجامعة: " + str(ben["university_name"]))
+        if ben.get("university_college"): parts.append("الكلية: " + str(ben["university_college"]))
+        if ben.get("university_specialization"): parts.append("التخصص: " + str(ben["university_specialization"]))
+    elif t == "freelancer":
+        if ben.get("freelancer_company"): parts.append("الشركة: " + str(ben["freelancer_company"]))
+        if ben.get("freelancer_specialization"): parts.append("المجال: " + str(ben["freelancer_specialization"]))
+    elif t == "tawjihi":
+        if ben.get("tawjihi_year"): parts.append("السنة: " + str(ben["tawjihi_year"]))
+        if ben.get("tawjihi_branch"): parts.append("الفرع: " + str(ben["tawjihi_branch"]))
+    return " · ".join(parts)
+
+
 # /admin/beneficiary/<id>/convert-access — تحويل المشترك (cards ↔ username)
 @app.route("/admin/beneficiary/<int:beneficiary_id>/convert-access", methods=["POST"])
 @admin_login_required
@@ -511,12 +528,16 @@ def admin_beneficiary_convert_access(beneficiary_id):
         return redirect(url_for("admin_users_account_list"))
 
     ben = query_one(
-        "SELECT id, full_name, user_type FROM beneficiaries WHERE id=%s LIMIT 1",
+        "SELECT id, full_name, user_type, university_name, university_college, "
+        "university_specialization, freelancer_company, freelancer_specialization, "
+        "tawjihi_year, tawjihi_branch FROM beneficiaries WHERE id=%s LIMIT 1",
         [beneficiary_id],
     )
     if not ben:
         flash("المشترك غير موجود.", "error")
         return redirect(url_for("admin_users_account_list"))
+    _ben_full_name = clean_csv_value(ben.get("full_name"))
+    _ben_remark = _beneficiary_remark(ben)
 
     ut = (ben.get("user_type") or "").strip().lower()
     ok, reason = can_switch_to(ut, target_mode)
@@ -573,9 +594,19 @@ def admin_beneficiary_convert_access(beneficiary_id):
             _upsert_radius_account(
                 beneficiary_id, r_user, f_pass or (acct.get("plain_password") or ""),
                 r_profile, f_profile_name, f_expire, f_days, f_from, f_to)
-            from app.services.radius_provisioning import set_subscriber_enabled
+            from app.services.radius_provisioning import set_subscriber_enabled, update_subscriber_attrs
             er = set_subscriber_enabled(username=r_user, enabled=True,
                                         beneficiary_id=beneficiary_id, requested_by=actor)
+            # زامن الاسم/الملاحظات/الجدولة على الحساب الموجود أيضًا.
+            import json as _json
+            _cs = ""
+            if f_days or f_from or f_to:
+                _cs = _json.dumps({"windows": [{"days": f_days.split(",") if f_days else [],
+                                                "from": f_from, "to": f_to}]})
+            update_subscriber_attrs(
+                username=r_user, requested_by=actor,
+                full_name=_ben_full_name, remark=_ben_remark,
+                working_days=f_days, connection_schedule=_cs)
             execute_sql(
                 "UPDATE beneficiary_radius_accounts SET status='active', "
                 "updated_at=CURRENT_TIMESTAMP WHERE beneficiary_id=%s", [beneficiary_id])
@@ -600,7 +631,7 @@ def admin_beneficiary_convert_access(beneficiary_id):
                     beneficiary_id=beneficiary_id, username=r_user, password=r_pass,
                     profile_id=r_profile, expire_at=f_expire,
                     schedule_days=f_days, schedule_from=f_from, schedule_to=f_to,
-                    requested_by=actor)
+                    full_name=_ben_full_name, remark=_ben_remark, requested_by=actor)
                 if pr.get("ok") and pr.get("live"):
                     execute_sql(
                         "UPDATE beneficiary_radius_accounts SET status='active', "

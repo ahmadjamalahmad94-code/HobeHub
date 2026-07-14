@@ -66,10 +66,24 @@ def _guarded(call, ok_msg: str, fail_prefix: str) -> dict:
 
 
 # ── التزويد (provisioning) ─────────────────────────────────────────────────
+def update_subscriber_attrs(*, username: str, requested_by: str = "", **fields) -> dict:
+    """تحديث حقول حساب المشترك على الريديوس (update_user) — يتجاهل الفارغ."""
+    username = (username or "").strip()
+    fields = {k: v for k, v in fields.items() if v not in (None, "")}
+    if not username or not fields:
+        return {"ok": True, "live": False, "message": "لا تغييرات."}
+    return _guarded(
+        lambda: _client().update_user(username, requested_by=requested_by, **fields),
+        "تم تحديث بيانات المشترك على الريديوس.",
+        "تعذّر تحديث بيانات المشترك",
+    )
+
+
 def provision_subscriber(*, beneficiary_id: int | None, username: str,
                          password: str, profile_id: str = "",
                          expire_at: str = "", schedule_days: str = "",
                          schedule_from: str = "", schedule_to: str = "",
+                         full_name: str = "", remark: str = "",
                          requested_by: str = "") -> dict:
     """ينشئ يوزر المشترك على الريديوس (create_user). ``expire_at`` والجدولة
     (أيّام/ساعات الدوام) اختياريّة، تُمرَّر لجسم الطلب إن حُدِّدت (أفضل جهد —
@@ -78,6 +92,10 @@ def provision_subscriber(*, beneficiary_id: int | None, username: str,
     if not username or not password:
         return {"ok": False, "live": False, "message": "اسم المستخدم وكلمة المرور مطلوبان."}
     opts: dict[str, Any] = {}
+    if (full_name or "").strip():
+        opts["full_name"] = str(full_name).strip()   # اسم المشترك على الريديوس
+    if (remark or "").strip():
+        opts["remark"] = str(remark).strip()          # الجامعة/التخصص/التفاصيل
     if (expire_at or "").strip():
         opts["expire_at"] = str(expire_at).strip()
     # الجدولة: أسماء حقول الريديوس الفعليّة.
