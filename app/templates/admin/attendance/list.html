@@ -16,6 +16,12 @@
 .att-btn{border:0;border-radius:10px;padding:9px 18px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer;background:linear-gradient(135deg,var(--d-gold-deep,#c8951a),var(--d-gold,#F4BA2A));color:#1e1e1e}
 .att-week{align-self:end;font-size:12.5px;font-weight:700;color:var(--d-text-soft);text-decoration:none;padding:9px 12px;border:1px solid var(--d-border-strong);border-radius:10px;background:#fff}
 .att-week:hover{border-color:var(--d-gold)}
+.att-search{display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--d-border-strong);border-radius:12px;padding:9px 14px;min-width:220px;flex:1}
+.att-search i{color:var(--d-text-muted);font-size:13px}
+.att-search input{border:0;outline:0;background:none;font-family:inherit;font-size:13.5px;width:100%;color:var(--d-black)}
+.att-search:focus-within{border-color:var(--d-gold)}
+.att-all{display:inline-flex;align-items:center;gap:8px;text-decoration:none;background:linear-gradient(135deg,#177f42,#1f8f51)!important;color:#fff}
+.att-all:hover{filter:brightness(1.05)}
 .att-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .att-tab{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--d-border-strong);background:#fff;border-radius:12px;padding:10px 18px;font-family:inherit;font-weight:800;font-size:13.5px;cursor:pointer;color:var(--d-text-soft)}
 .att-tab i{color:var(--d-gold-deep,#c8951a)}
@@ -44,6 +50,8 @@
     <button type="submit" class="att-btn"><i class="fa-solid fa-filter"></i> تطبيق</button>
     <a class="att-week" href="{{ url_for('admin_attendance_page') }}"><i class="fa-solid fa-calendar-week"></i> هذا الأسبوع</a>
   </form>
+  <div class="att-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="att-search" placeholder="ابحث عن اسم أو رقم جوّال…" autocomplete="off"></div>
+  <a class="att-btn att-all" href="{{ url_for('admin_attendance_page') }}?from={{ d_from }}&to={{ d_to }}&export=all"><i class="fa-solid fa-file-excel"></i> تحميل الكل (Excel)</a>
 </div>
 
 <div class="att-tabs">
@@ -136,6 +144,35 @@
       secs.forEach(function(s){ s.style.display = (s.getAttribute('data-sec')===key) ? '' : 'none'; });
     });
   });
+
+  // بحث في الصفحة: يُظهر المطابق في الجدولين ويُخفي الترقيم؛ يستعيده عند المسح.
+  var searchInput = document.getElementById('att-search');
+  function attSearch(q){
+    q = (q || '').trim().toLowerCase();
+    document.querySelectorAll('.att-sec .d-table').forEach(function(tbl){
+      var wrap = tbl.closest('.d-table-wrap');
+      var foot = (wrap && wrap.nextElementSibling && wrap.nextElementSibling.classList.contains('dpt-foot')) ? wrap.nextElementSibling : null;
+      if(!q){
+        if(window.DashboardTable && window.DashboardTable.reattach){ try{ window.DashboardTable.reattach(tbl); }catch(e){} }
+        return;
+      }
+      if(foot) foot.style.display = 'none';
+      var body = tbl.tBodies[0];
+      if(!body) return;
+      Array.prototype.forEach.call(body.rows, function(tr){
+        if(tr.classList.contains('no-paginate')) return;
+        tr.style.display = (tr.textContent.toLowerCase().indexOf(q) !== -1) ? '' : 'none';
+      });
+    });
+  }
+  if(searchInput){
+    var _t = null;
+    searchInput.addEventListener('input', function(){
+      var v = this.value;
+      if(_t) clearTimeout(_t);
+      _t = setTimeout(function(){ attSearch(v); }, 150);
+    });
+  }
 })();
 </script>
 {% endblock %}

@@ -301,10 +301,9 @@ def _matrix_people(rows):
     return people
 
 
-def _xlsx_matrix_response(filename, title, subtitle, days, people):
-    """ملفّ Excel مُنسَّق: عنوان + صفّ لكل شخص + عمود لكل يوم (أخضر=حاضر/أحمر=غائب)
-    + إجماليّ مميّز + مفتاح ألوان + تظليل متناوب."""
-    from openpyxl import Workbook
+def _style_matrix_sheet(ws, title, subtitle, days, people):
+    """يُنسّق ورقة Excel واحدة: عنوان + صفّ لكل شخص + عمود لكل يوم
+    (أخضر=حاضر/أحمر=غائب) + إجماليّ مميّز + مفتاح ألوان + تظليل متناوب."""
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
     from openpyxl.utils import get_column_letter
 
@@ -314,9 +313,6 @@ def _xlsx_matrix_response(filename, title, subtitle, days, people):
     RED, RED_LT = "DC2626", "FBE3E3"
     HEAD, ZEBRA, WHITE, MUTED = "2A2A2A", "FAF9F5", "FFFFFF", "8A8675"
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "الحضور"
     ws.sheet_view.rightToLeft = True
     ws.sheet_view.showGridLines = False
 
@@ -382,6 +378,8 @@ def _xlsx_matrix_response(filename, title, subtitle, days, people):
         ws.column_dimensions[get_column_letter(i)].width = 8.5
     ws.freeze_panes = "F%d" % (HR + 1)
 
+
+def _xlsx_download(filename, wb):
     buf = _io.BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -392,6 +390,29 @@ def _xlsx_matrix_response(filename, title, subtitle, days, people):
     )
 
 
+def _xlsx_matrix_response(filename, title, subtitle, days, people):
+    """ملفّ Excel بورقة واحدة."""
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "الحضور"
+    _style_matrix_sheet(ws, title, subtitle, days, people)
+    return _xlsx_download(filename, wb)
+
+
+def _xlsx_matrix_multi(filename, sections):
+    """ملفّ Excel بعدّة أوراق: sections = [(sheet_name, title, subtitle, days, people), …]."""
+    from openpyxl import Workbook
+    wb = Workbook()
+    first = True
+    for sheet_name, title, subtitle, days, people in sections:
+        ws = wb.active if first else wb.create_sheet()
+        ws.title = sheet_name[:31]
+        first = False
+        _style_matrix_sheet(ws, title, subtitle, days, people)
+    return _xlsx_download(filename, wb)
+
+
 @app.route("/admin/attendance", methods=["GET"])
 @login_required
 @permission_required("view")
@@ -399,6 +420,16 @@ def admin_attendance_page():
     d_from, d_to = _attendance_range()
     export = clean_csv_value(request.args.get("export"))
 
+    if export == "all":
+        days = _week_dates(d_from, d_to)
+        cards_people = _matrix_people(_cards_attendance(d_from, d_to))
+        net_people = _matrix_people(_internet_attendance(d_from, d_to))
+        _sub = lambda n: "من %s إلى %s  ·  %d شخص" % (d_from, d_to, n)
+        return _xlsx_matrix_multi(
+            f"attendance-all-{d_from}_{d_to}.xlsx",
+            [("حضور البطاقات", "جدول حضور البطاقات", _sub(len(cards_people)), days, cards_people),
+             ("حضور الإنترنت", "جدول حضور الإنترنت", _sub(len(net_people)), days, net_people)],
+        )
     if export in ("cards_matrix", "internet_matrix"):
         days = _week_dates(d_from, d_to)
         src = _cards_attendance(d_from, d_to) if export == "cards_matrix" else _internet_attendance(d_from, d_to)
