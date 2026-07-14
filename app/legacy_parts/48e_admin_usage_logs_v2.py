@@ -10,7 +10,9 @@ def _admin_usage_logs_v2_view():
 
     rows = query_all(
         f"""
-        SELECT l.*, b.full_name, b.phone, b.user_type
+        SELECT l.*, b.full_name, b.phone, b.user_type,
+               b.university_name, b.university_college,
+               b.freelancer_specialization, b.tawjihi_branch
         FROM beneficiary_usage_logs l
         JOIN beneficiaries b ON b.id = l.beneficiary_id
         WHERE {where}
@@ -19,6 +21,17 @@ def _admin_usage_logs_v2_view():
         """,
         params,
     )
+    # التخصص مشتقّ من نوع المستفيد: كليّة الجامعيّ / تخصّص العمل الحرّ / فرع التوجيهيّ.
+    for _r in rows:
+        _t = (_r.get("user_type") or "").lower()
+        if _t == "university":
+            _r["spec"] = _r.get("university_college") or _r.get("university_name") or ""
+        elif _t == "freelancer":
+            _r["spec"] = _r.get("freelancer_specialization") or ""
+        elif _t == "tawjihi":
+            _r["spec"] = _r.get("tawjihi_branch") or ""
+        else:
+            _r["spec"] = ""
 
     today = today_local()
     week_start = get_week_start(today)
@@ -59,12 +72,13 @@ def _admin_usage_logs_v2_view():
   <td class="col-name">{{ r.full_name or '—' }}</td>
   <td class="col-phone">{{ r.phone or '—' }}</td>
   <td>{% if r.user_type == 'tawjihi' %}<span class="user-type-badge utype-tawjihi">توجيهي</span>{% elif r.user_type == 'university' %}<span class="user-type-badge utype-university">جامعي</span>{% elif r.user_type == 'freelancer' %}<span class="user-type-badge utype-freelancer">عمل حر</span>{% else %}—{% endif %}</td>
+  <td class="col-spec cell-truncate">{{ r.spec or '—' }}</td>
   <td><span class="reason-tag">{{ r.usage_reason or '—' }}</span></td>
   <td><span class="card-tag">{{ r.card_type or '—' }}</span></td>
   <td class="col-when">{{ format_dt_short(r.usage_time) }}</td>
   <td style="font-size:11.5px;color:var(--d-text-soft)">{{ r.added_by_username or '—' }}</td>
   <td class="col-notes">{{ r.notes or '—' }}</td>
-</tr>{% else %}<tr class="no-paginate"><td colspan="9" style="text-align:center;color:var(--d-text-muted);padding:30px">لا توجد بطاقات مطابقة.</td></tr>{% endfor %}""",
+</tr>{% else %}<tr class="no-paginate"><td colspan="10" style="text-align:center;color:var(--d-text-muted);padding:30px">لا توجد بطاقات مطابقة.</td></tr>{% endfor %}""",
             rows=rows,
             format_dt_short=format_dt_short,
         )
