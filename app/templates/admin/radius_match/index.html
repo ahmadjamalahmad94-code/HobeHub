@@ -142,7 +142,7 @@
               {% else %}<input type="checkbox" class="rm-cb rm-row-cb only-cb" name="candidate_ids" value="{{ c.id }}" {% if c.selected_default %}checked{% endif %}>{% endif %}
             </td>
             <td dir="ltr" style="font-family:monospace">{{ c.radius_username or c.matched_phone or c.radius_external_id or '—' }}</td>
-            <td dir="ltr" style="font-family:monospace">{{ c.matched_phone or '—' }}</td>
+            <td dir="ltr" style="font-family:monospace">{{ c.matched_phone or c.radius_username or '—' }}</td>
             <td dir="ltr" style="font-family:monospace">{{ c.radius_external_id or '—' }}</td>
             <td>{% if c.is_admin_like %}<span class="rm-badge admin"><i class="fa-solid fa-user-shield"></i> إداري — تحقّق</span>{% else %}<span class="rm-badge sub">مشترك</span>{% endif %}</td>
             <td style="font-size:12px;color:var(--d-text-muted)">{% if c.is_admin_like %}مراجعة يدوية{% else %}استيراد + بوابة{% endif %}</td>

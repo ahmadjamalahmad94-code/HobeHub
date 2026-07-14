@@ -74,14 +74,22 @@ def _parse_radius_user(u: Any) -> dict:
     external_id = _first(u, "id", "user_id", "uid", "external_id", "userid", "user_ad_id")
     phone_raw = _first(u, "phone", "mobile", "msisdn", "tel", "phone_number", "cell")
     phone = normalize_phone(phone_raw) if phone_raw else ""
+    full_name = _first(u, "full_name", "fullname", "display_name", "name_ar", "customer_name")
     # مشترك الريديوس المدعوم يسجّل الدخول بجوّاله؛ فإن غاب حقل اسم دخول صريح،
     # اعتمد الجوّال كاسم مستخدم (يصحّح العرض والاستيراد معًا).
     if not username and phone:
         username = phone
+    # وبالعكس: إن غاب حقل جوّال منفصل واسم المستخدم رقم جوّال، اعتمده جوّالًا
+    # (فلا يُستورَد المشترك بجوّال فارغ).
+    if not phone and username:
+        _np = normalize_phone(username)
+        if _np and _np.isdigit() and len(_np) >= 9:
+            phone = _np
     return {
         "username": username,
         "external_id": external_id,
         "phone": phone,
+        "full_name": full_name,
         "is_active": _radius_is_active(u),
         "raw": u,
     }
@@ -383,10 +391,11 @@ def _scan_radius_only(run_id: int, client) -> None:
                  radius_username, radius_external_id, matched_phone,
                  radius_is_active, classification, is_admin_like,
                  suggested_action, selected_default)
-            VALUES (%s, 'radius_only', NULL, '', %s, %s, %s, TRUE, %s, %s, %s, %s)
+            VALUES (%s, 'radius_only', NULL, %s, %s, %s, %s, TRUE, %s, %s, %s, %s)
             """,
             [
-                run_id, uname, parsed["external_id"], parsed["phone"],
+                run_id, clean_csv_value(parsed.get("full_name")) or "",
+                uname, parsed["external_id"], parsed["phone"],
                 classification, bool(is_admin),
                 "review" if is_admin else "import_subscription",
                 (not is_admin),
@@ -603,7 +612,8 @@ def _apply_import_subscription(cand: dict, actor: str, summary: dict) -> None:
         _activate_portal_account(bid, username or phone, summary)
         return
 
-    display_name = clean_csv_value(username) or (phone or "مشترك RADIUS")
+    display_name = (clean_csv_value(cand.get("beneficiary_name"))
+                    or clean_csv_value(username) or (phone or "مشترك RADIUS"))
     row = db.execute_sql(
         """
         INSERT INTO beneficiaries
