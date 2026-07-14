@@ -2257,7 +2257,9 @@ headers:{'Content-Type':'application/json'},
     btn.innerHTML='<i class="fa-solid fa-spinner fa-spin" style="color:#1E1E1E"></i>';
     var fd=new FormData();
     fd.append('username', phone||name);
-    fetch('/admin/beneficiaries/'+bid+'/create-portal-account',{method:'POST',credentials:'same-origin',body:fd})
+    if(csrfToken()) fd.append('_csrf_token', csrfToken());
+    fetch('/admin/beneficiaries/'+bid+'/create-portal-account',{method:'POST',credentials:'same-origin',
+      headers:{'X-CSRFToken':csrfToken(),'X-Requested-With':'XMLHttpRequest'},body:fd})
       .then(r=>r.json()).then(function(d){
         btn.disabled=false; btn.innerHTML=origHtml;
         if(!d.ok){ showToast(d.message||'فشل','error'); return; }
