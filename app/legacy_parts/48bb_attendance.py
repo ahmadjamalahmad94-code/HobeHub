@@ -232,12 +232,100 @@ def _csv_response(filename, headers, rows_iter):
     )
 
 
+def _week_dates(d_from, d_to):
+    """قائمة التواريخ من d_from إلى d_to (شاملة، بحدّ أقصى 40 يومًا)."""
+    from datetime import timedelta as _td
+    try:
+        a = _dt.fromisoformat(str(d_from)[:10])
+        b = _dt.fromisoformat(str(d_to)[:10])
+    except Exception:
+        return []
+    if b < a:
+        a, b = b, a
+    days, cur = [], a
+    while cur <= b and len(days) <= 40:
+        days.append(cur.date().isoformat())
+        cur += _td(days=1)
+    return days
+
+
+def _matrix_people(rows):
+    """يجمع الصفوف حسب الشخص (بالجوّال المُطبّع) مع مجموعة أيّام حضوره."""
+    people = {}
+    for r in rows:
+        key = _norm_phone(r.get("phone")) or (r.get("username") or r.get("full_name") or "?")
+        p = people.setdefault(key, {
+            "full_name": r.get("full_name") or "—", "phone": r.get("phone") or "—",
+            "type_label": r.get("type_label") or "—", "spec": r.get("spec") or "—",
+            "org": r.get("org") or "—", "days": set()})
+        d = str(r.get("date") or "")[:10]
+        if d:
+            p["days"].add(d)
+    return people
+
+
+def _xlsx_matrix_response(filename, days, people):
+    """ملفّ Excel: صفّ لكل شخص، عمود لكل يوم (✓ حاضر / فارغ)، وإجماليّ."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "الحضور"
+    ws.sheet_view.rightToLeft = True
+    day_labels = ["%s %s/%s" % (_day_name(d), d[8:10], d[5:7]) for d in days]
+    header = ["الاسم", "الجوال", "النوع", "التخصص", "الجامعة/الشركة"] + day_labels + ["إجمالي الأيام"]
+    ws.append(header)
+    hfill = PatternFill("solid", fgColor="1E1E1E")
+    hfont = Font(bold=True, color="FFFFFF", size=11)
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    thin = Side(style="thin", color="DDDDDD")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    for c in ws[1]:
+        c.fill, c.font, c.alignment, c.border = hfill, hfont, center, border
+    for p in sorted(people.values(), key=lambda x: x["full_name"]):
+        row = [p["full_name"], p["phone"], p["type_label"], p["spec"], p["org"]]
+        cnt = 0
+        for d in days:
+            hit = d in p["days"]
+            row.append("✓" if hit else "")
+            cnt += 1 if hit else 0
+        row.append(cnt)
+        ws.append(row)
+    widths = [26, 14, 10, 20, 22]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    for i in range(6, 6 + len(days) + 1):
+        ws.column_dimensions[get_column_letter(i)].width = 11
+    for r in ws.iter_rows(min_row=2):
+        for c in r:
+            c.border = border
+            if c.column >= 6:
+                c.alignment = center
+    ws.freeze_panes = "F2"
+    buf = _io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return Response(
+        buf.read(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 @app.route("/admin/attendance", methods=["GET"])
 @login_required
 @permission_required("view")
 def admin_attendance_page():
     d_from, d_to = _attendance_range()
     export = clean_csv_value(request.args.get("export"))
+
+    if export in ("cards_matrix", "internet_matrix"):
+        days = _week_dates(d_from, d_to)
+        src = _cards_attendance(d_from, d_to) if export == "cards_matrix" else _internet_attendance(d_from, d_to)
+        people = _matrix_people(src)
+        label = "cards" if export == "cards_matrix" else "internet"
+        return _xlsx_matrix_response(f"attendance-{label}-matrix-{d_from}_{d_to}.xlsx", days, people)
 
     if export == "cards":
         rows = _cards_attendance(d_from, d_to)
