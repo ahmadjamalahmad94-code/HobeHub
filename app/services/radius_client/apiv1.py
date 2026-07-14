@@ -465,6 +465,21 @@ class ApiV1RadiusClient(RadiusClient):
         items = (data or {}).get("items") if isinstance(data, dict) else data
         return items if isinstance(items, list) else []
 
+    def get_accounting_sessions(self, *, limit: int = 500) -> list:
+        """جلسات المحاسبة الأحدث لكل المشتركين (بلا username) عبر
+        GET /api/v1/accounting?limit=N — لتقرير الحضور. مُطبّعة (started_at/
+        stopped_at/duration_sec/username...)."""
+        try:
+            self._guard_read()
+        except RadiusClientNotImplemented:
+            return []
+        ok, data, _err = self._get_data(
+            "accounting", params={"limit": int(limit or 500), "offset": 0})
+        if not ok:
+            return []
+        items = (data or {}).get("items") if isinstance(data, dict) else data
+        return items if isinstance(items, list) else []
+
     def get_nas_list(self) -> list:
         """قائمة الـNAS/الراوترات عبر GET /api/v1/nas — قواميس كما ترد."""
         try:

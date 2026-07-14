@@ -115,6 +115,10 @@
      href="/admin/usage-logs" data-label="سجل البطاقات">
     <i class="fa-solid fa-table-list"></i><span>سجل البطاقات</span>
   </a>
+  <a class="d-nav-item {% if p == '/admin/attendance' %}is-active{% endif %}"
+     href="/admin/attendance" data-label="الحضور والغياب">
+    <i class="fa-solid fa-user-clock"></i><span>الحضور والغياب</span>
+  </a>
   <a class="d-nav-item {% if p in ('/admin/usage-archive', '/admin/archive', '/usage-archive') %}is-active{% endif %}"
      href="/admin/usage-archive" data-label="أرشيف البطاقات">
     <i class="fa-solid fa-box-archive"></i><span>أرشيف البطاقات</span>
@@ -174,6 +178,10 @@
   <a class="d-nav-item {% if p.startswith('/admin/radius/user-lookup') %}is-active{% endif %}"
      href="/admin/radius/user-lookup" data-label="بحث مستخدم">
     <i class="fa-solid fa-magnifying-glass"></i><span>بحث مستخدم</span>
+  </a>
+  <a class="d-nav-item {% if p == '/admin/radius/nas' %}is-active{% endif %}"
+     href="/admin/radius/nas" data-label="الراوترات / NAS">
+    <i class="fa-solid fa-network-wired"></i><span>الراوترات / NAS</span>
   </a>
 </div>
 
