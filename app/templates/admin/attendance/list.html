@@ -99,7 +99,7 @@
   <div class="d-table-wrap"><table class="d-table" data-paginated="1" data-page-size="25" data-page-sizes="25,50,100" data-persist-key="att-net">
     <thead><tr>
       <th>الاسم</th><th>الجوال</th><th>النوع</th><th>التخصص</th><th>الجامعة/الشركة</th>
-      <th>اليوم</th><th>التاريخ</th><th>الدخول</th><th>الخروج</th><th>المدة</th>
+      <th>اليوم</th><th>التاريخ</th><th>أوّل دخول</th><th>آخر خروج</th><th>إجماليّ المدّة</th>
     </tr></thead>
     <tbody>
       {% for r in internet_rows %}
@@ -118,7 +118,7 @@
       {% endfor %}
     </tbody>
   </table></div>
-  <div class="att-note"><i class="fa-solid fa-circle-info"></i> حضور الإنترنت من أحدث جلسات الريديوس (حتى ٥٠٠ جلسة) ضمن الفترة المحدَّدة.</div>
+  <div class="att-note"><i class="fa-solid fa-circle-info"></i> صفّ واحد لكل مشترك في اليوم: أوّل دخول ← آخر خروج (أو «متصل الآن») وإجماليّ وقت الاتصال. المصدر: المتصلون الآن + أحدث جلسات الريديوس (حتى ٥٠٠).</div>
   {% else %}
   <div class="att-empty"><i class="fa-solid fa-wifi"></i><div>لا حضور إنترنت في هذه الفترة (أو واجهة الريديوس غير مفعّلة).</div></div>
   {% endif %}

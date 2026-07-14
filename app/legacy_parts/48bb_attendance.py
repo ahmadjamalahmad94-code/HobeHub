@@ -159,10 +159,10 @@ def _internet_attendance(d_from, d_to):
             "online": online,
         }
 
-    out, seen = [], set()
+    # اجمع الجلسات المطبّقة (متصل الآن + مُغلَقة) ثم جمّعها: صفّ لكل (شخص، يوم).
+    flat, seen = [], set()
     today_str = str(today_local())
 
-    # 1) المتصلون الآن (حضور حاليّ — جلسات مفتوحة لا تظهر في السجل المُغلَق).
     if d_from <= today_str <= d_to:
         try:
             online = client.get_online_users() or []
@@ -178,16 +178,14 @@ def _internet_attendance(d_from, d_to):
             sid = str(s.get("session_id") or s.get("acctsessionid") or "")
             if sid:
                 seen.add(sid)
-            secs = 0
             try:
                 secs = int(s.get("running_seconds") or s.get("session_time") or 0)
             except (TypeError, ValueError):
                 secs = 0
             start_raw = s.get("started_at") or s.get("acctstarttime") or ""
-            out.append(_row(b, uname, today_str,
-                            _hm(start_raw) if start_raw else "—", "متصل الآن", secs, online=True))
+            flat.append((_norm_phone(b.get("phone")) or uname, today_str, b, uname,
+                         _hm(start_raw) if start_raw else "", "", True, secs))
 
-    # 2) الجلسات المُغلَقة (السجل التاريخيّ).
     try:
         sessions = client.get_accounting_sessions(limit=500) if hasattr(client, "get_accounting_sessions") else []
     except Exception:
@@ -207,12 +205,34 @@ def _internet_attendance(d_from, d_to):
         day = str(start)[:10]
         if day and (day < d_from or day > d_to):
             continue
-        secs = 0
         try:
             secs = int(s.get("duration_sec") or s.get("acctsessiontime") or 0)
         except (TypeError, ValueError):
             secs = 0
-        out.append(_row(b, uname, day, _hm(start), _hm(stop) if stop else "—", secs))
+        flat.append((_norm_phone(b.get("phone")) or uname, day, b, uname,
+                     _hm(start), _hm(stop) if stop else "", False, secs))
+
+    # تجميع: أوّل دخول ← آخر خروج + إجماليّ المدّة لكل (شخص، يوم).
+    agg = {}
+    for key, day, b, uname, start_hm, stop_hm, online, secs in flat:
+        if not day:
+            continue
+        g = agg.get((key, day))
+        if not g:
+            g = {"b": b, "uname": uname, "first": "", "last": "", "online": False, "total": 0}
+            agg[(key, day)] = g
+        if start_hm and (not g["first"] or start_hm < g["first"]):
+            g["first"] = start_hm
+        if online:
+            g["online"] = True
+        elif stop_hm and stop_hm > g["last"]:
+            g["last"] = stop_hm
+        g["total"] += secs
+
+    out = []
+    for (key, day), g in agg.items():
+        stop_disp = "متصل الآن" if g["online"] else (g["last"] or "—")
+        out.append(_row(g["b"], g["uname"], day, g["first"] or "—", stop_disp, g["total"], online=g["online"]))
 
     out.sort(key=lambda x: (1 if x.get("online") else 0, x["date"], x["start"]), reverse=True)
     return out
