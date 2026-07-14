@@ -186,10 +186,27 @@ def _internet_attendance(d_from, d_to):
             flat.append((_norm_phone(b.get("phone")) or uname, today_str, b, uname,
                          _hm(start_raw) if start_raw else "", "", True, secs))
 
-    try:
-        sessions = client.get_accounting_sessions(limit=500) if hasattr(client, "get_accounting_sessions") else []
-    except Exception:
-        sessions = []
+    # ترقيم عبر الصفحات (الأحدث أوّلًا) حتى تغطية بداية المدى — لا اليوم فقط.
+    sessions = []
+    if hasattr(client, "get_accounting_sessions"):
+        offset = 0
+        for _pg in range(12):  # سقف ~6000 جلسة
+            try:
+                page = client.get_accounting_sessions(limit=500, offset=offset) or []
+            except Exception:
+                page = []
+            if not page:
+                break
+            sessions.extend(page)
+            oldest = ""
+            for _s in page:
+                if isinstance(_s, dict):
+                    _dd = str(_s.get("started_at") or _s.get("acctstarttime") or "")[:10]
+                    if _dd and (not oldest or _dd < oldest):
+                        oldest = _dd
+            if len(page) < 500 or (oldest and oldest < d_from):
+                break
+            offset += 500
     for s in (sessions or []):
         if not isinstance(s, dict):
             continue
