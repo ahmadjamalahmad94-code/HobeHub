@@ -102,17 +102,23 @@ def _cards_attendance(d_from, d_to):
     return out
 
 
+def _fmt_dur(secs):
+    try:
+        secs = int(secs or 0)
+    except (TypeError, ValueError):
+        secs = 0
+    return ("%dس %dد" % (secs // 3600, (secs % 3600) // 60)) if secs else "—"
+
+
 def _internet_attendance(d_from, d_to):
     from app.services.radius_client import get_radius_client, is_api_under_development
     if is_api_under_development():
         return []
     try:
         client = get_radius_client()
-        sessions = client.get_accounting_sessions(limit=500) if hasattr(client, "get_accounting_sessions") else []
     except Exception:
-        sessions = []
-    if not sessions:
         return []
+
     # خريطة اسم المستخدم → مستفيد مسجّل (بالاسم الخارجيّ أو الجوّال المُطبّع).
     ben_map = {}
     try:
@@ -129,19 +135,72 @@ def _internet_attendance(d_from, d_to):
                 ben_map.setdefault("p:" + _np, b)
     except Exception:
         ben_map = {}
-    out = []
-    for s in sessions:
+
+    def _lookup(uname):
+        b = ben_map.get("u:" + uname.lower())
+        if not b:
+            np = _norm_phone(uname)
+            b = ben_map.get("p:" + np) if np else None
+        return b
+
+    def _row(b, uname, day, start, stop, secs, online=False):
+        return {
+            "full_name": b.get("full_name") or "—",
+            "phone": b.get("phone") or uname or "—",
+            "username": uname,
+            "type_label": _TYPE_LABEL.get((b.get("user_type") or "").lower(), b.get("user_type") or "—"),
+            "spec": _spec_of(b) or "—",
+            "org": _org_of(b) or "—",
+            "day_name": _day_name(day),
+            "date": day,
+            "start": start,
+            "stop": stop,
+            "duration": _fmt_dur(secs),
+            "online": online,
+        }
+
+    out, seen = [], set()
+    today_str = str(today_local())
+
+    # 1) المتصلون الآن (حضور حاليّ — جلسات مفتوحة لا تظهر في السجل المُغلَق).
+    if d_from <= today_str <= d_to:
+        try:
+            online = client.get_online_users() or []
+        except Exception:
+            online = []
+        for s in (online or []):
+            if not isinstance(s, dict):
+                continue
+            uname = str(s.get("username") or "").strip()
+            b = _lookup(uname) if uname else None
+            if not b:
+                continue
+            sid = str(s.get("session_id") or s.get("acctsessionid") or "")
+            if sid:
+                seen.add(sid)
+            secs = 0
+            try:
+                secs = int(s.get("running_seconds") or s.get("session_time") or 0)
+            except (TypeError, ValueError):
+                secs = 0
+            start_raw = s.get("started_at") or s.get("acctstarttime") or ""
+            out.append(_row(b, uname, today_str,
+                            _hm(start_raw) if start_raw else "—", "متصل الآن", secs, online=True))
+
+    # 2) الجلسات المُغلَقة (السجل التاريخيّ).
+    try:
+        sessions = client.get_accounting_sessions(limit=500) if hasattr(client, "get_accounting_sessions") else []
+    except Exception:
+        sessions = []
+    for s in (sessions or []):
         if not isinstance(s, dict):
             continue
         uname = str(s.get("username") or "").strip()
-        if not uname:
+        b = _lookup(uname) if uname else None
+        if not b:
             continue
-        # اربط بمشترك مسجّل؛ إن لم يُربَط (تجريبيّ مايكروتيك بـMAC أو غير مسجّل) تخطَّ.
-        b = ben_map.get("u:" + uname.lower())
-        if not b:
-            _np = _norm_phone(uname)
-            b = ben_map.get("p:" + _np) if _np else None
-        if not b:
+        sid = str(s.get("session_id") or s.get("acctsessionid") or "")
+        if sid and sid in seen:
             continue
         start = s.get("started_at") or s.get("acctstarttime") or ""
         stop = s.get("stopped_at") or s.get("acctstoptime") or ""
@@ -153,20 +212,9 @@ def _internet_attendance(d_from, d_to):
             secs = int(s.get("duration_sec") or s.get("acctsessiontime") or 0)
         except (TypeError, ValueError):
             secs = 0
-        out.append({
-            "full_name": b.get("full_name") or "—",
-            "phone": b.get("phone") or uname or "—",
-            "username": uname,
-            "type_label": _TYPE_LABEL.get((b.get("user_type") or "").lower(), b.get("user_type") or "—"),
-            "spec": _spec_of(b) or "—",
-            "org": _org_of(b) or "—",
-            "day_name": _day_name(day),
-            "date": day,
-            "start": _hm(start),
-            "stop": _hm(stop) if stop else "—",
-            "duration": ("%dس %dد" % (secs // 3600, (secs % 3600) // 60)) if secs else "—",
-        })
-    out.sort(key=lambda x: (x["date"], x["start"]), reverse=True)
+        out.append(_row(b, uname, day, _hm(start), _hm(stop) if stop else "—", secs))
+
+    out.sort(key=lambda x: (1 if x.get("online") else 0, x["date"], x["start"]), reverse=True)
     return out
 
 
