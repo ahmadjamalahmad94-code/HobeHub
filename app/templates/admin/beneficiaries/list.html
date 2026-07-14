@@ -2244,32 +2244,41 @@ headers:{'Content-Type':'application/json'},
   });
 
   // ─── 6) Create portal account from beneficiary row (one-click) ───
-  document.addEventListener('click',async function(e){
+  document.addEventListener('click', function(e){
     var btn=e.target.closest && e.target.closest('.create-portal-row-btn');
     if(!btn) return;
     var bid=btn.dataset.bid;
     var name=btn.dataset.name||'';
     var phone=btn.dataset.phone||'';
     if(!bid) return;
-    if(!(await hcAsk('إنشاء حساب بوابة لـ "'+name+'" بـ اسم المستخدم = "'+(phone||'الاسم')+'" + توليد كود تفعيل صالح 72 ساعة؟', {danger:false}))) return;
-    btn.disabled=true;
-    var origHtml=btn.innerHTML;
-    btn.innerHTML='<i class="fa-solid fa-spinner fa-spin" style="color:#1E1E1E"></i>';
-    var fd=new FormData();
-    fd.append('username', phone||name);
-    if(csrfToken()) fd.append('_csrf_token', csrfToken());
-    fetch('/admin/beneficiaries/'+bid+'/create-portal-account',{method:'POST',credentials:'same-origin',
-      headers:{'X-CSRFToken':csrfToken(),'X-Requested-With':'XMLHttpRequest'},body:fd})
-      .then(r=>r.json()).then(function(d){
-        btn.disabled=false; btn.innerHTML=origHtml;
-        if(!d.ok){ showToast(d.message||'فشل','error'); return; }
-        showCode(d.code, name||phone);
-        showToast(d.message||'تم الإنشاء','success');
-        refreshPortalRows();
-      }).catch(function(){
-        btn.disabled=false; btn.innerHTML=origHtml;
-        showToast('فشل الاتصال','error');
-      });
+    var box=btn.closest('.act-more'); if(box) box.classList.remove('open');  // أغلق القائمة أوّلًا
+    hobeConfirm('إنشاء حساب بوابة لـ "'+name+'" بـ اسم المستخدم = "'+(phone||'الاسم')+'" + توليد كود تفعيل صالح 72 ساعة؟').then(function(ok){
+      if(!ok) return;
+      btn.disabled=true;
+      var origHtml=btn.innerHTML;
+      btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i>';
+      function restore(){ btn.disabled=false; btn.innerHTML=origHtml; }
+      var ctrl=('AbortController' in window)?new AbortController():null;
+      var tmo=setTimeout(function(){ if(ctrl) ctrl.abort(); }, 20000);  // مهلة كي لا يعلّق للأبد
+      var fd=new FormData();
+      fd.append('username', phone||name);
+      if(csrfToken()) fd.append('_csrf_token', csrfToken());
+      fetch('/admin/beneficiaries/'+bid+'/create-portal-account',{method:'POST',credentials:'same-origin',
+        headers:{'X-CSRFToken':csrfToken(),'X-Requested-With':'XMLHttpRequest'},body:fd,signal:ctrl?ctrl.signal:undefined})
+        .then(function(r){ return r.text().then(function(t){ try{ return JSON.parse(t); }catch(_){ throw new Error('srv'+r.status); } }); })
+        .then(function(d){
+          clearTimeout(tmo); restore();
+          if(!d.ok){ showToast(d.message||'فشل','error'); return; }
+          showCode(d.code, name||phone);
+          showToast(d.message||'تم الإنشاء','success');
+          refreshPortalRows();
+        }).catch(function(err){
+          clearTimeout(tmo); restore();
+          var m = (err&&err.name==='AbortError') ? 'انتهت المهلة — الخادم لم يستجب' :
+                  (err&&/^srv/.test(err.message||'')) ? ('خطأ خادم ('+(err.message.slice(3))+')') : 'فشل الاتصال';
+          showToast(m,'error');
+        });
+    });
   });
 })();
 </script>

@@ -13,7 +13,7 @@
   var CSS =
     '.hc-backdrop{position:fixed;inset:0;background:rgba(18,20,26,.55);backdrop-filter:blur(5px);' +
     '-webkit-backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;' +
-    'z-index:100000;padding:20px;opacity:0;transition:opacity .2s ease;font-family:inherit}' +
+    'z-index:2147483000;padding:20px;opacity:0;transition:opacity .2s ease;font-family:inherit}' +
     '.hc-backdrop.open{display:flex;opacity:1}' +
     '.hc-modal{background:#fff;border-radius:20px;max-width:400px;width:100%;padding:26px 24px 20px;' +
     'text-align:center;box-shadow:0 30px 70px -18px rgba(0,0,0,.5);border:1px solid rgba(0,0,0,.05);' +
