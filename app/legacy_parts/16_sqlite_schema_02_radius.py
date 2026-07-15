@@ -53,6 +53,10 @@ def _setup_sqlite_radius_schema(cur):
         cur.execute("ALTER TABLE radius_api_settings ADD COLUMN workday_end_time TEXT DEFAULT '16:00'")
     except Exception:
         pass
+    try:
+        cur.execute("ALTER TABLE radius_api_settings ADD COLUMN timezone TEXT DEFAULT 'Asia/Gaza'")
+    except Exception:
+        pass
     # ── إعدادات اتصال قابلة للتبديل (Path 4) — nullable = ورِّث من env ──
     for _col, _def in (
         ("service_password_encrypted", "TEXT"),

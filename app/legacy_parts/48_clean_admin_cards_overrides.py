@@ -80,10 +80,23 @@ def _clean_admin_cards_settings_page():
         except Exception:
             flash("يرجى إدخال وقت بداية ونهاية صالح بصيغة HH:MM.", "error")
             return redirect(url_for("admin_cards_settings_page"))
+        # المنطقة الزمنيّة — تحقّق من صلاحيتها قبل الحفظ
+        tz_name = clean_csv_value(request.form.get("timezone")) or "Asia/Gaza"
+        try:
+            from zoneinfo import ZoneInfo as _ZI
+            _ZI(tz_name)
+        except Exception:
+            flash("منطقة زمنيّة غير صالحة.", "error")
+            return redirect(url_for("admin_cards_settings_page"))
         execute_sql(
-            "UPDATE radius_api_settings SET router_login_url=%s, workday_start_time=%s, workday_end_time=%s, updated_at=CURRENT_TIMESTAMP WHERE id=1",
-            [router_login_url, workday_start_time, workday_end_time],
+            "UPDATE radius_api_settings SET router_login_url=%s, workday_start_time=%s, "
+            "workday_end_time=%s, timezone=%s, updated_at=CURRENT_TIMESTAMP WHERE id=1",
+            [router_login_url, workday_start_time, workday_end_time, tz_name],
         )
+        try:
+            refresh_app_timezone()  # حدّث ذاكرة المنطقة الزمنيّة فورًا
+        except Exception:
+            pass
 
         # ── الأساس العامّ (السياسة الافتراضية scope='default') — يُورَّث للكلّ ──
         def _int_or_none(v):
@@ -123,6 +136,29 @@ def _clean_admin_cards_settings_page():
     base_categories = query_all(
         "SELECT code, label_ar FROM card_categories WHERE is_active=TRUE ORDER BY duration_minutes ASC"
     ) or []
+
+    # المنطقة الزمنيّة الحاليّة + الوقت الآن بالنظام
+    try:
+        current_tz = app_timezone_name()
+    except Exception:
+        current_tz = "Asia/Gaza"
+    try:
+        _now = now_local()
+        server_now = _now.strftime("%Y-%m-%d %H:%M:%S")
+        server_offset = _now.strftime("%z")
+    except Exception:
+        server_now, server_offset = "", ""
+    tz_options = [
+        ("Asia/Gaza", "فلسطين — غزّة (Asia/Gaza)"),
+        ("Asia/Hebron", "فلسطين — الضفّة (Asia/Hebron)"),
+        ("Asia/Amman", "الأردن (Asia/Amman)"),
+        ("Asia/Riyadh", "السعوديّة (Asia/Riyadh)"),
+        ("Asia/Damascus", "سوريا (Asia/Damascus)"),
+        ("Asia/Beirut", "لبنان (Asia/Beirut)"),
+        ("Asia/Baghdad", "العراق (Asia/Baghdad)"),
+        ("Africa/Cairo", "مصر (Africa/Cairo)"),
+        ("UTC", "التوقيت العالميّ (UTC)"),
+    ]
     return render_template(
         "admin/cards/settings.html",
         current_url=current_url,
@@ -132,6 +168,10 @@ def _clean_admin_cards_settings_page():
         base_weekly=default_policy.get("weekly_limit"),
         base_selected_codes=(default_policy.get("allowed_category_codes") or ""),
         base_categories=base_categories,
+        current_tz=current_tz,
+        tz_options=tz_options,
+        server_now=server_now,
+        server_offset=server_offset,
     )
 
 

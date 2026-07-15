@@ -29,6 +29,9 @@
 .cs-cat:hover{border-color:var(--d-gold)}
 .cs-cat.on{background:#1E1E1E;color:#fff;border-color:#1E1E1E}
 .cs-cat.on i{color:#F4BA2A}
+.cs-clock{display:flex;flex-direction:column;gap:3px;padding:10px 14px;border-radius:10px;background:#1E1E1E;color:#fff}
+.cs-clock-time{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.5px;direction:ltr;text-align:start}
+.cs-clock-tz{font-size:11px;color:#F4BA2A;font-weight:700;direction:ltr;text-align:start}
 </style>
 {% endblock %}
 
@@ -63,6 +66,29 @@
         <div class="cs-field">
           <label for="cs-end"><i class="fa-regular fa-clock" style="color:var(--d-gold)"></i> نهاية الدوام</label>
           <input class="cs-input" id="cs-end" type="time" name="workday_end_time" value="{{ end_time }}" required>
+        </div>
+      </div>
+
+      {# ── المنطقة الزمنيّة + الساعة الآن ── #}
+      <div class="cs-base">
+        <div class="cs-base-title"><i class="fa-solid fa-earth-africa" style="color:var(--d-gold)"></i> المنطقة الزمنيّة والوقت
+          <small>يُستخدم هذا التوقيت في كامل النظام: الحضور، الجلسات، حدود الدوام.</small></div>
+        <div class="cs-grid">
+          <div class="cs-field">
+            <label>المنطقة الزمنيّة</label>
+            <select class="cs-input" name="timezone">
+              {% for code, label in tz_options %}
+              <option value="{{ code }}" {% if code == current_tz %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="cs-field">
+            <label>الساعة الآن بالنظام</label>
+            <div class="cs-clock" id="cs-clock" data-server="{{ server_now }}" data-offset="{{ server_offset }}">
+              <span class="cs-clock-time">{{ server_now or '—' }}</span>
+              <span class="cs-clock-tz">{{ current_tz }} <span id="cs-clock-off">{{ server_offset }}</span></span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -119,6 +145,24 @@
   // ضمان التزامن لحظة الإرسال أيضًا
   var form=host.closest('form');
   if(form) form.addEventListener('submit', sync);
+})();
+</script>
+
+<script>
+(function(){
+  var el=document.getElementById('cs-clock');
+  if(!el) return;
+  var s=el.getAttribute('data-server')||'';
+  var m=s.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+  if(!m) return;
+  var t=new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]);
+  var out=el.querySelector('.cs-clock-time');
+  function pad(n){return (n<10?'0':'')+n;}
+  function tick(){
+    t=new Date(t.getTime()+1000);
+    out.textContent=t.getFullYear()+'-'+pad(t.getMonth()+1)+'-'+pad(t.getDate())+' '+pad(t.getHours())+':'+pad(t.getMinutes())+':'+pad(t.getSeconds());
+  }
+  setInterval(tick,1000);
 })();
 </script>
 

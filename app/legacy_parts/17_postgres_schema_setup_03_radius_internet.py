@@ -27,6 +27,7 @@ def _setup_postgres_radius_internet_schema(cur):
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS router_login_url TEXT DEFAULT ''")
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS workday_start_time TEXT DEFAULT '08:00'")
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS workday_end_time TEXT DEFAULT '16:00'")
+    cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'Asia/Gaza'")
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS api_enabled BOOLEAN DEFAULT FALSE")
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")

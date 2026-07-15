@@ -107,10 +107,39 @@ AUTH_FAILURE_LIMIT = int(os.getenv("AUTH_FAILURE_LIMIT", "5"))
 AUTH_LOCK_MINUTES = int(os.getenv("AUTH_LOCK_MINUTES", "15"))
 MIKROTIK_HOTSPOT_URL = os.getenv("MIKROTIK_HOTSPOT_URL", "").strip().rstrip("/")
 
-APP_TZ = ZoneInfo("Asia/Gaza")
+APP_TZ = ZoneInfo("Asia/Gaza")  # الافتراضيّ الاحتياطيّ
+
+# منطقة زمنيّة قابلة للضبط من «إعدادات البطاقات» (radius_api_settings.timezone).
+# تُقرأ مرّة وتُخزَّن مؤقّتًا؛ تُحدَّث عند الحفظ عبر refresh_app_timezone().
+_APP_TZ_CACHE = {"tz": None, "name": None}
+
+def app_timezone():
+    """المنطقة الزمنيّة الفعّالة (المضبوطة أو Asia/Gaza احتياطيًّا). آمنة قبل
+    جاهزيّة القاعدة (تُرجِع الافتراضيّ وتعيد المحاولة لاحقًا)."""
+    if _APP_TZ_CACHE["tz"] is not None:
+        return _APP_TZ_CACHE["tz"]
+    try:
+        row = query_one("SELECT timezone FROM radius_api_settings WHERE id=1")
+        name = ((row or {}).get("timezone") or "").strip()
+        if name:
+            tz = ZoneInfo(name)
+            _APP_TZ_CACHE["tz"] = tz
+            _APP_TZ_CACHE["name"] = name
+            return tz
+    except Exception:
+        pass
+    return APP_TZ  # لا نُخزّن الافتراضيّ كي نعيد المحاولة بعد جاهزيّة القاعدة
+
+def app_timezone_name() -> str:
+    app_timezone()
+    return _APP_TZ_CACHE["name"] or "Asia/Gaza"
+
+def refresh_app_timezone():
+    _APP_TZ_CACHE["tz"] = None
+    _APP_TZ_CACHE["name"] = None
 
 def now_local() -> datetime:
-    return datetime.now(APP_TZ)
+    return datetime.now(app_timezone())
 
 def today_local() -> date:
     return now_local().date()

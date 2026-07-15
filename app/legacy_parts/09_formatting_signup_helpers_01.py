@@ -14,7 +14,9 @@ def as_local_dt(value):
     try:
         if getattr(value, "tzinfo", None) is None:
             value = value.replace(tzinfo=ZoneInfo("UTC"))
-        return value.astimezone(APP_TZ)
+        # المنطقة الزمنيّة المضبوطة (تتراجع إلى APP_TZ إن لزم)
+        _tz = app_timezone() if "app_timezone" in globals() else APP_TZ
+        return value.astimezone(_tz)
     except Exception:
         return None
 
