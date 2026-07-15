@@ -183,6 +183,23 @@
 .hidden-section{display:none}
 
 /* Unified hub styles live in: app/static/css/dashboard_hub.css */
+/* قائمة الإجراءات المنسدلة (⋮) */
+.act-more{position:relative;display:inline-flex}
+.act-more-btn{width:34px;height:34px;border:1px solid var(--d-border);background:#fff;cursor:pointer;border-radius:9px;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;transition:.18s ease}
+.act-more-btn:hover{border-color:var(--d-gold);background:var(--d-gold-faint,#fdf6e3)}
+.act-more-btn i{color:var(--d-text-soft);font-size:15px}
+.act-menu{position:fixed;z-index:100000;display:none;min-width:210px;background:var(--d-surface,#fff);
+  border:1px solid var(--d-border,#e5e2d8);border-radius:12px;padding:6px;box-shadow:0 18px 44px rgba(0,0,0,.24)}
+.act-more.open .act-menu{display:block}
+.act-menu form{margin:0}
+.act-menu-item{display:flex;align-items:center;gap:9px;width:100%;padding:9px 11px;border:0;background:none;
+  border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;color:var(--d-black,#18232e);
+  cursor:pointer;text-align:start;text-decoration:none;white-space:nowrap;box-sizing:border-box}
+.act-menu-item:hover{background:var(--d-surface-2,#f4f2ea)}
+.act-menu-item i{width:16px;text-align:center;font-size:13px;flex:none}
+.act-menu-item.act-delete{color:#b91c1c}
+.act-menu-item.act-delete i{color:#b91c1c}
+.act-menu-item.act-delete:hover{background:#fde2e2}
 </style>
 {% endblock %}
 
@@ -325,65 +342,42 @@
             {% endif %}
           </td>
           <td style="text-align:center;white-space:nowrap"><strong>{{ u.weekly_usage_count | default(0) }}</strong></td>
-          <td style="white-space:nowrap">
-            <div class="ua-row-actions">
-              <form method="POST" action="{{ url_for('admin_beneficiary_convert_access', beneficiary_id=u.id) }}"
-                    style="display:inline"
-                    data-beneficiary-name="{{ u.full_name }}"
-                    data-target-label="{% if u.access_mode == 'username' %}نظام البطاقات{% else %}حساب إنترنت{% endif %}"
-                    onsubmit="return confirmBeneficiaryConvert(this)">
-                {{ csrf_token_input() | safe }}
-                <input type="hidden" name="confirm_convert" value="">
-                {% if u.access_mode == 'username' %}
-                  <input type="hidden" name="target_mode" value="cards">
-                  <button class="ua-act" type="submit" title="تحويل لبطاقات"><i class="fa-solid fa-arrow-right-arrow-left"></i>بطاقات</button>
-                {% else %}
-                  <input type="hidden" name="target_mode" value="username">
-                  {% if u.can_switch %}
-                  <button class="ua-act" type="submit" title="تحويل إلى حساب إنترنت"><i class="fa-solid fa-arrow-right-arrow-left"></i>حساب إنترنت</button>
+          <td style="white-space:nowrap;text-align:center">
+            <div class="act-more">
+              <button type="button" class="act-more-btn" title="إجراءات"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+              <div class="act-menu">
+                <form method="POST" action="{{ url_for('admin_beneficiary_convert_access', beneficiary_id=u.id) }}"
+                      data-beneficiary-name="{{ u.full_name }}"
+                      data-target-label="{% if u.access_mode == 'username' %}نظام البطاقات{% else %}حساب إنترنت{% endif %}"
+                      onsubmit="return confirmBeneficiaryConvert(this)">
+                  {{ csrf_token_input() | safe }}
+                  <input type="hidden" name="confirm_convert" value="">
+                  {% if u.access_mode == 'username' %}
+                    <input type="hidden" name="target_mode" value="cards">
+                    <button class="act-menu-item" type="submit"><i class="fa-solid fa-arrow-right-arrow-left" style="color:#c8951a"></i>تحويل لنظام البطاقات</button>
                   {% else %}
-                  <button class="ua-act ua-act--disabled ua-act--icon" type="button" disabled title="{{ u.switch_reason }}" aria-label="{{ u.switch_reason }}"><i class="fa-solid fa-lock"></i></button>
+                    <input type="hidden" name="target_mode" value="username">
+                    {% if u.can_switch %}
+                    <button class="act-menu-item" type="submit"><i class="fa-solid fa-arrow-right-arrow-left" style="color:#c8951a"></i>تحويل لحساب إنترنت</button>
+                    {% else %}
+                    <button class="act-menu-item" type="button" disabled title="{{ u.switch_reason }}" style="opacity:.5;cursor:not-allowed"><i class="fa-solid fa-lock"></i>التحويل غير متاح</button>
+                    {% endif %}
                   {% endif %}
+                </form>
+                <a class="act-menu-item" href="{{ url_for('admin_user_profile_page', beneficiary_id=u.id) }}"><i class="fa-solid fa-id-card-clip" style="color:#0891b2"></i>الملف الشخصي</a>
+                <a class="act-menu-item" href="{{ url_for('admin_request_center', beneficiary_id=u.id) }}"><i class="fa-solid fa-inbox" style="color:#1c52a8"></i>كل طلبات المشترك</a>
+                {% if u.portal_account_id %}
+                <a class="act-menu-item" href="{{ url_for('admin_portal_accounts_page') }}?q={{ (u.phone or u.portal_username or u.full_name)|urlencode }}"><i class="fa-solid fa-id-card" style="color:#7c3aed"></i>إدارة حساب البوابة</a>
+                {% else %}
+                <button type="button" class="act-menu-item ua-portal-create-btn" data-bid="{{ u.id }}" data-name="{{ u.full_name }}" data-phone="{{ u.phone or u.portal_username }}"><i class="fa-solid fa-user-plus" style="color:#c8951a"></i>إنشاء حساب بوابة</button>
                 {% endif %}
-              </form>
-              <a class="ua-act ua-act--icon" href="{{ url_for('admin_user_profile_page', beneficiary_id=u.id) }}" title="الملف الشخصي" aria-label="الملف الشخصي">
-                <i class="fa-solid fa-id-card-clip"></i>
-              </a>
-              <a class="ua-act ua-act--icon" href="{{ url_for('admin_request_center', beneficiary_id=u.id) }}" title="كل طلبات المشترك" aria-label="كل طلبات المشترك">
-                <i class="fa-solid fa-inbox"></i>
-              </a>
-              {% if u.portal_account_id %}
-              <a class="ua-act ua-act--icon" href="{{ url_for('admin_portal_accounts_page') }}?q={{ (u.phone or u.portal_username or u.full_name)|urlencode }}" title="إدارة حساب البوابة" aria-label="إدارة حساب البوابة">
-                <i class="fa-solid fa-id-card"></i>
-              </a>
-              {% else %}
-              <button type="button" class="ua-act ua-act--icon ua-portal-create-btn"
-                      data-bid="{{ u.id }}"
-                      data-name="{{ u.full_name }}"
-                      data-phone="{{ u.phone or u.portal_username }}"
-                      title="إنشاء حساب بوابة" aria-label="إنشاء حساب بوابة">
-                <i class="fa-solid fa-user-plus"></i>
-              </button>
-              {% endif %}
-              <button type="button" class="ua-act ua-act--api ua-act--icon" title="حالة API الحية" aria-label="حالة API الحية"
-                      data-api-id="{{ u.id }}"
-                      data-api-name="{{ u.full_name }}">
-                <i class="fa-solid fa-broadcast-tower"></i>
-              </button>
-              <button type="button" class="ua-act ua-act--icon" title="تعديل البيانات" aria-label="تعديل البيانات"
-                      data-edit-id="{{ u.id }}"
-                      data-edit-name="{{ u.full_name }}">
-                <i class="fa-solid fa-pen-to-square"></i>
-              </button>
-              <form method="POST" action="{{ url_for('delete_beneficiary', beneficiary_id=u.id) }}"
-                    class="ua-delete-form"
-                    style="display:inline"
-                    data-beneficiary-name="{{ u.full_name }}">
-                {{ csrf_token_input() | safe }}
-                <button class="ua-act ua-act--danger ua-act--icon" type="submit" title="حذف المشترك" aria-label="حذف المشترك">
-                  <i class="fa-solid fa-trash-can"></i>
-                </button>
-              </form>
+                <button type="button" class="act-menu-item" data-api-id="{{ u.id }}" data-api-name="{{ u.full_name }}"><i class="fa-solid fa-broadcast-tower" style="color:#1d4ed8"></i>حالة API الحيّة</button>
+                <button type="button" class="act-menu-item" data-edit-id="{{ u.id }}" data-edit-name="{{ u.full_name }}"><i class="fa-solid fa-pen-to-square" style="color:#c8951a"></i>تعديل البيانات</button>
+                <form method="POST" action="{{ url_for('delete_beneficiary', beneficiary_id=u.id) }}" class="ua-delete-form" data-beneficiary-name="{{ u.full_name }}">
+                  {{ csrf_token_input() | safe }}
+                  <button class="act-menu-item act-delete" type="submit"><i class="fa-solid fa-trash-can"></i>حذف المشترك</button>
+                </form>
+              </div>
             </div>
           </td>
         </tr>
@@ -644,17 +638,17 @@ function uaRowHtml(u){
       ? '<span class="d-badge d-badge--success">مفعّل</span>'
       : '<span class="d-badge d-badge--warn">بانتظار التفعيل</span>';
   var portalBtn = u.portal_account_id
-      ? '<a class="ua-act ua-act--icon" href="/admin/portal-accounts?q='+encodeURIComponent(u.phone || u.portal_username || u.full_name || '')+'" title="إدارة حساب البوابة" aria-label="إدارة حساب البوابة"><i class="fa-solid fa-id-card"></i></a>'
-      : '<button type="button" class="ua-act ua-act--icon ua-portal-create-btn" data-bid="'+u.id+'" data-name="'+nm+'" data-phone="'+uaEscape(u.phone || u.portal_username || '')+'" title="إنشاء حساب بوابة" aria-label="إنشاء حساب بوابة"><i class="fa-solid fa-user-plus"></i></button>';
+      ? '<a class="act-menu-item" href="/admin/portal-accounts?q='+encodeURIComponent(u.phone || u.portal_username || u.full_name || '')+'"><i class="fa-solid fa-id-card" style="color:#7c3aed"></i>إدارة حساب البوابة</a>'
+      : '<button type="button" class="act-menu-item ua-portal-create-btn" data-bid="'+u.id+'" data-name="'+nm+'" data-phone="'+uaEscape(u.phone || u.portal_username || '')+'"><i class="fa-solid fa-user-plus" style="color:#c8951a"></i>إنشاء حساب بوابة</button>';
   var convertBtn;
   if(u.access_mode === 'username'){
     convertBtn = '<input type="hidden" name="target_mode" value="cards">'
-               + '<button class="ua-act" type="submit" title="تحويل لبطاقات"><i class="fa-solid fa-arrow-right-arrow-left"></i>بطاقات</button>';
+               + '<button class="act-menu-item" type="submit"><i class="fa-solid fa-arrow-right-arrow-left" style="color:#c8951a"></i>تحويل لنظام البطاقات</button>';
   } else {
     convertBtn = '<input type="hidden" name="target_mode" value="username">'
                + (u.can_switch
-                  ? '<button class="ua-act" type="submit" title="تحويل إلى حساب إنترنت"><i class="fa-solid fa-arrow-right-arrow-left"></i>حساب إنترنت</button>'
-                  : '<button class="ua-act ua-act--disabled ua-act--icon" type="button" disabled title="'+uaEscape(u.switch_reason||'')+'" aria-label="'+uaEscape(u.switch_reason||'')+'"><i class="fa-solid fa-lock"></i></button>');
+                  ? '<button class="act-menu-item" type="submit"><i class="fa-solid fa-arrow-right-arrow-left" style="color:#c8951a"></i>تحويل لحساب إنترنت</button>'
+                  : '<button class="act-menu-item" type="button" disabled title="'+uaEscape(u.switch_reason||'')+'" style="opacity:.5;cursor:not-allowed"><i class="fa-solid fa-lock"></i>التحويل غير متاح</button>');
   }
   var csrfHidden = '<input type="hidden" name="_csrf_token" value="'+uaEscape(uaCsrf())+'">';
   var targetLabel = (u.access_mode === 'username') ? 'نظام البطاقات' : 'حساب إنترنت';
@@ -668,24 +662,23 @@ function uaRowHtml(u){
     +   '<td><span class="d-badge d-badge--neutral">'+uaEscape(u.user_type_label || uaUserTypeLabel(u.user_type))+'</span></td>'
     +   '<td>'+statusBadge+'</td>'
     +   '<td style="text-align:center;white-space:nowrap"><strong>'+(u.weekly_usage_count || 0)+'</strong></td>'
-    +   '<td style="white-space:nowrap"><div class="ua-row-actions">'
-    +     '<form method="POST" action="/admin/beneficiary/'+u.id+'/convert-access" style="display:inline" '
-    +       'data-beneficiary-name="'+nm+'" data-target-label="'+targetLabel+'" '
-    +       'onsubmit="return confirmBeneficiaryConvert(this)">'
-    +       csrfHidden
-    +       '<input type="hidden" name="confirm_convert" value="">'
-    +       convertBtn
-    +     '</form>'
-    +     '<a class="ua-act ua-act--icon" href="/admin/users/'+u.id+'" title="الملف الشخصي" aria-label="الملف الشخصي"><i class="fa-solid fa-id-card-clip"></i></a>'
-    +     '<a class="ua-act ua-act--icon" href="/admin/requests?beneficiary_id='+u.id+'" title="كل طلبات المشترك" aria-label="كل طلبات المشترك"><i class="fa-solid fa-inbox"></i></a>'
-    +     portalBtn
-    +     '<button type="button" class="ua-act ua-act--api ua-act--icon" title="حالة الربط الحية" aria-label="حالة الربط الحية" data-api-id="'+u.id+'" data-api-name="'+nm+'"><i class="fa-solid fa-broadcast-tower"></i></button>'
-    +     '<button type="button" class="ua-act ua-act--icon" title="تعديل البيانات" aria-label="تعديل البيانات" data-edit-id="'+u.id+'" data-edit-name="'+nm+'"><i class="fa-solid fa-pen-to-square"></i></button>'
-    +     '<form method="POST" action="/beneficiaries/delete/'+u.id+'" class="ua-delete-form" style="display:inline" '
-    +       'data-beneficiary-name="'+nm+'">'
-    +       csrfHidden
-    +       '<button class="ua-act ua-act--danger ua-act--icon" type="submit" title="حذف المشترك" aria-label="حذف المشترك"><i class="fa-solid fa-trash-can"></i></button>'
-    +     '</form>'
+    +   '<td style="white-space:nowrap;text-align:center"><div class="act-more">'
+    +     '<button type="button" class="act-more-btn" title="إجراءات"><i class="fa-solid fa-ellipsis-vertical"></i></button>'
+    +     '<div class="act-menu">'
+    +       '<form method="POST" action="/admin/beneficiary/'+u.id+'/convert-access" '
+    +         'data-beneficiary-name="'+nm+'" data-target-label="'+targetLabel+'" '
+    +         'onsubmit="return confirmBeneficiaryConvert(this)">'
+    +         csrfHidden + '<input type="hidden" name="confirm_convert" value="">' + convertBtn
+    +       '</form>'
+    +       '<a class="act-menu-item" href="/admin/users/'+u.id+'/profile"><i class="fa-solid fa-id-card-clip" style="color:#0891b2"></i>الملف الشخصي</a>'
+    +       '<a class="act-menu-item" href="/admin/requests?beneficiary_id='+u.id+'"><i class="fa-solid fa-inbox" style="color:#1c52a8"></i>كل طلبات المشترك</a>'
+    +       portalBtn
+    +       '<button type="button" class="act-menu-item" data-api-id="'+u.id+'" data-api-name="'+nm+'"><i class="fa-solid fa-broadcast-tower" style="color:#1d4ed8"></i>حالة الربط الحيّة</button>'
+    +       '<button type="button" class="act-menu-item" data-edit-id="'+u.id+'" data-edit-name="'+nm+'"><i class="fa-solid fa-pen-to-square" style="color:#c8951a"></i>تعديل البيانات</button>'
+    +       '<form method="POST" action="/beneficiaries/delete/'+u.id+'" class="ua-delete-form" data-beneficiary-name="'+nm+'">'
+    +         csrfHidden + '<button class="act-menu-item act-delete" type="submit"><i class="fa-solid fa-trash-can"></i>حذف المشترك</button>'
+    +       '</form>'
+    +     '</div>'
     +   '</div></td>'
     + '</tr>';
 }
@@ -1296,5 +1289,38 @@ function confirmBeneficiaryDelete(form) {
   const msg = `سيتم حذف "${name}" نهائيًا من النظام مع كل بياناته المرتبطة.\n\nهل أنت متأكد؟ هذا الإجراء لا يمكن التراجع عنه.`;
   return window.confirm(msg);
 }
+</script>
+
+<script>
+/* قائمة الإجراءات المنسدلة (⋮) — تموضع ثابت واعٍ بالحواف */
+(function(){
+  function closeActMenus(){ document.querySelectorAll('.act-more.open').forEach(function(o){ o.classList.remove('open'); }); }
+  document.addEventListener('click', function(e){
+    var moreBtn = e.target.closest && e.target.closest('.act-more-btn');
+    if(moreBtn){
+      e.stopPropagation();
+      var box = moreBtn.closest('.act-more');
+      var wasOpen = box.classList.contains('open');
+      closeActMenus();
+      if(!wasOpen){
+        box.classList.add('open');
+        var menu = box.querySelector('.act-menu');
+        var r = moreBtn.getBoundingClientRect();
+        menu.style.top = (r.bottom + 6) + 'px';
+        var mw = menu.offsetWidth;
+        if(r.right - mw < 6){ menu.style.right='auto'; menu.style.left=Math.max(6,r.left)+'px'; }
+        else { menu.style.left='auto'; menu.style.right=Math.max(6, window.innerWidth - r.right)+'px'; }
+        var mh = menu.offsetHeight;
+        if(r.bottom + 6 + mh > window.innerHeight && r.top - 6 - mh > 0){ menu.style.top=(r.top - 6 - mh)+'px'; }
+      }
+      return;
+    }
+    // النقر على بند لا يُغلق فورًا إن كان يفتح نافذة تأكيد (form) — نتركه للمعالِج
+    var item = e.target.closest && e.target.closest('.act-menu-item');
+    if(item){ var b=item.closest('.act-more'); if(b) setTimeout(function(){ b.classList.remove('open'); },0); return; }
+    closeActMenus();
+  });
+  window.addEventListener('scroll', closeActMenus, true);
+})();
 </script>
 {% endblock %}
