@@ -43,6 +43,16 @@ def admin_notifications_count():
     return jsonify({"ok": True, "count": notification_count_for_session(session)})
 
 
+@app.route("/admin/notifications/list", methods=["GET"])
+@admin_login_required
+def admin_notifications_list():
+    return jsonify({
+        "ok": True,
+        "count": notification_count_for_session(session),
+        "items": notification_preview_for_session(session, limit=10),
+    })
+
+
 @app.route("/admin/notifications/seen", methods=["POST"])
 @admin_login_required
 def admin_notifications_seen():
@@ -98,6 +108,17 @@ def subscriber_notifications_center():
 @user_login_required
 def subscriber_notifications_count():
     return jsonify({"ok": True, "count": notification_count_for_session(session)})
+
+
+@app.route("/user/notifications/list", methods=["GET"])
+@app.route("/card/notifications/list", methods=["GET"])
+@user_login_required
+def subscriber_notifications_list():
+    return jsonify({
+        "ok": True,
+        "count": notification_count_for_session(session),
+        "items": notification_preview_for_session(session, limit=10),
+    })
 
 
 @app.route("/user/notifications/seen", methods=["POST"])

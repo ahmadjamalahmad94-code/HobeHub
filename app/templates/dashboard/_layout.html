@@ -332,9 +332,20 @@ if(window.matchMedia('(max-width:860px)').matches){document.getElementById('d-sh
 /* إشعارات فوريّة: استطلاع دوريّ للعدّاد + صوت تنبيه عند وصول جديد (إدارة ومشترك) */
 (function(){
   var isAdmin = location.pathname.indexOf('/admin')===0;
-  var countUrl = (isAdmin?'/admin':'/card') + '/notifications/count';
+  var listUrl = (isAdmin?'/admin':'/card') + '/notifications/list';
   var bellBtn = document.querySelector('.d-bell');
+  var listEl = document.querySelector('.d-notification-list');
   var last = null, audioCtx = null;
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function renderList(items){
+    if(!listEl) return;
+    if(!items || !items.length){ listEl.innerHTML='<div class="d-notification-empty">لا توجد إشعارات جديدة.</div>'; return; }
+    listEl.innerHTML = items.map(function(it){
+      return '<a class="d-notification-item" href="'+esc(it.href||'#')+'" role="menuitem">'+
+             '<span><strong>'+esc(it.title||'')+'</strong><small>'+esc(it.meta||'')+'</small></span>'+
+             (it.badge?('<em>'+esc(it.badge)+'</em>'):'')+'</a>';
+    }).join('');
+  }
   function ensureAudio(){
     try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
       if(audioCtx.state==='suspended') audioCtx.resume(); }catch(e){}
@@ -369,12 +380,12 @@ if(window.matchMedia('(max-width:860px)').matches){document.getElementById('d-sh
     } else if(b){ b.remove(); bellBtn.classList.remove('has-new'); }
   }
   function poll(){
-    fetch(countUrl,{credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}})
+    fetch(listUrl,{credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}})
       .then(function(r){return r.json();}).then(function(d){
         if(!d || d.ok===false) return;
         var n=parseInt(d.count||0,10)||0;
         if(last!==null && n>last){ beep(); if(navigator.vibrate) try{navigator.vibrate(120);}catch(e){} }
-        setBadge(n); last=n;
+        setBadge(n); renderList(d.items||[]); last=n;   // تحديث القائمة فورًا بلا إعادة تحميل
       }).catch(function(){});
   }
   poll();
