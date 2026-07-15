@@ -257,9 +257,15 @@ def user_cards_pending_list():
     my_actions = []
     pending_count = 0
     for a in raw_pending:
-        try:
-            payload = json.loads(a.get("payload_json") or "{}")
-        except (TypeError, ValueError, json.JSONDecodeError):
+        raw_payload = a.get("payload_json")
+        if isinstance(raw_payload, dict):
+            payload = raw_payload  # Postgres JSONB يعود قاموسًا جاهزًا
+        elif isinstance(raw_payload, str):
+            try:
+                payload = json.loads(raw_payload or "{}")
+            except (TypeError, ValueError, json.JSONDecodeError):
+                payload = {}
+        else:
             payload = {}
         code = payload.get("category_code") or ""
         cat = get_category_by_code(code)
