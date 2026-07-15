@@ -25,7 +25,7 @@ def user_cards_connect(card_id):
             card_password=card.get("card_password") or "",
         )
     except ValueError:
-        flash("رابط MikroTik غير مضبوط. أضف MIKROTIK_HOTSPOT_URL في إعدادات البيئة.", "error")
+        flash("رابط الراوتر غير مضبوط. اضبط «رابط صفحة الراوتر» في إعدادات البطاقات.", "error")
         return redirect(url_for("user_cards_history"))
 
     response = make_response(

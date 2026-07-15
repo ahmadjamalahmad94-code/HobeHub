@@ -14,7 +14,28 @@ class HotspotConnectUrls:
 
 
 def hotspot_base_url() -> str:
-    return (os.getenv("MIKROTIK_HOTSPOT_URL") or MIKROTIK_HOTSPOT_URL or "").strip().rstrip("/")
+    """رابط بوابة المايكروتك الأساس. الأولويّة لمتغيّر البيئة، ثمّ الرابط المحفوظ
+    في «إعدادات البطاقات» (radius_api_settings.router_login_url) — فيكفي ضبطه من
+    الواجهة دون متغيّر بيئة. يُضاف //:http إن غاب المخطّط، وتُزال لاحقة /login."""
+    base = (os.getenv("MIKROTIK_HOTSPOT_URL") or MIKROTIK_HOTSPOT_URL or "").strip()
+    if not base:
+        try:
+            from app import legacy
+            row = legacy.query_one(
+                "SELECT router_login_url FROM radius_api_settings WHERE id=1"
+            )
+            base = str((row or {}).get("router_login_url") or "").strip()
+        except Exception:
+            base = ""
+    base = base.rstrip("/")
+    if not base:
+        return ""
+    if "://" not in base:
+        base = "http://" + base  # كي يتنقّل المتصفّح إليه
+    # الأساس لا يتضمّن /login (تُضاف عبر hotspot_url) — أزِلها إن أدرجها المستخدم
+    if base.lower().endswith("/login"):
+        base = base[: -len("/login")]
+    return base.rstrip("/")
 
 
 def hotspot_url(path: str, params: dict[str, str] | None = None) -> str:
