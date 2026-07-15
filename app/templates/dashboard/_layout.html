@@ -31,6 +31,8 @@
   .d-clock{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:11px;
     background:#1E1E1E;color:#fff;text-decoration:none;font-family:inherit;transition:.18s ease;white-space:nowrap}
   .d-clock:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.22)}
+  .d-clock--static{cursor:default}
+  .d-clock--static:hover{transform:none;box-shadow:none}
   .d-clock i{color:#F4BA2A;font-size:13px}
   .d-clock-time{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.5px;direction:ltr}
   .d-clock-tz{font-size:10.5px;font-weight:700;color:#F4BA2A}
@@ -153,12 +155,20 @@ if(window.matchMedia('(max-width:860px)').matches){document.getElementById('d-sh
       <div class="d-topbar-actions">
         {% block topbar_actions %}
         {% if system_now %}
+        {% if request.path.startswith('/admin') %}
         <a class="d-clock" id="d-clock" href="/admin/cards/settings" title="توقيت النظام — اضبطه من إعدادات البطاقات"
            data-server="{{ system_now }}">
           <i class="fa-regular fa-clock"></i>
           <span class="d-clock-time">{{ system_now[11:19] }}</span>
           <span class="d-clock-tz">{{ system_tz.split('/')[-1] }}</span>
         </a>
+        {% else %}
+        <div class="d-clock d-clock--static" id="d-clock" data-server="{{ system_now }}" title="توقيت النظام">
+          <i class="fa-regular fa-clock"></i>
+          <span class="d-clock-time">{{ system_now[11:19] }}</span>
+          <span class="d-clock-tz">{{ system_tz.split('/')[-1] }}</span>
+        </div>
+        {% endif %}
         {% endif %}
         <div class="d-search">
           <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
