@@ -404,6 +404,7 @@ button{font-family:inherit;cursor:pointer}
 .d-badge--danger{background:var(--d-danger-soft);color:var(--d-danger);border-color:rgba(192,57,43,.22)}
 .d-badge--warn{background:var(--d-warn-soft);color:var(--d-warn);border-color:rgba(180,83,9,.25)}
 .d-badge--neutral{background:#F4F3EF;color:var(--d-text-soft);border-color:var(--d-border)}
+.d-badge--gold{background:var(--d-gold-faint);color:#8a6410;border-color:var(--d-gold-soft)}
 .d-badge--dark{background:var(--d-black);color:#fff;border-color:transparent}
 
 /* ── Hero band ───────────────────────────────── */

@@ -43,8 +43,10 @@ def _load_username_subscribers(q="", user_type_filter="", limit=None):
                b.university_internet_method, b.freelancer_internet_method,
                pa.id AS portal_account_id,
                pa.username AS portal_username,
-               ra.external_username AS radius_username,
-               ra.plain_password    AS radius_password
+               ra.external_username    AS radius_username,
+               ra.plain_password       AS radius_password,
+               ra.current_profile_name AS radius_offer_name,
+               ra.current_profile_id   AS radius_offer_id
         FROM beneficiaries b
         LEFT JOIN beneficiary_portal_accounts pa ON pa.beneficiary_id = b.id
              AND COALESCE(pa.portal_membership_active, FALSE)=TRUE
@@ -97,6 +99,8 @@ def _load_username_subscribers(q="", user_type_filter="", limit=None):
             "portal_account_id": r.get("portal_account_id"),
             "portal_username": radius_user,
             "portal_password": radius_pwd,
+            "offer_name": (r.get("radius_offer_name") or "").strip(),
+            "offer_id": (r.get("radius_offer_id") or ""),
             "weekly_usage_count": int(r.get("weekly_usage_count") or 0),
             "can_switch": bool(can),
             "switch_reason": reason or "",

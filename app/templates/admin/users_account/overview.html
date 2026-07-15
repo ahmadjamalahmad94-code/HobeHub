@@ -309,6 +309,7 @@
           <th>اسم مستخدم حساب الإنترنت</th>
           <th title="كلمة مرور حساب الإنترنت — تطابق كلمة المرور في واجهة المصادقة، وهي مستقلة عن كلمة مرور البوابة.">كلمة مرور حساب الإنترنت</th>
           <th>النوع</th>
+          <th title="العرض/الباقة المرتبطة بالمشترك في الرديوس">العرض</th>
           <th>حالة الحساب</th>
           <th>الاستخدام</th>
           <th style="white-space:nowrap">إجراءات</th>
@@ -334,6 +335,13 @@
             </div>
           </td>
           <td><span class="d-badge d-badge--neutral">{{ u.user_type_label }}</span></td>
+          <td>
+            {% if u.offer_name %}
+              <span class="d-badge d-badge--gold" title="{{ u.offer_name }}">{{ u.offer_name }}</span>
+            {% else %}
+              <span style="color:var(--d-text-muted)">—</span>
+            {% endif %}
+          </td>
           <td>
             {% if u.has_portal_account %}
               <span class="d-badge d-badge--success">مفعّل</span>
@@ -382,7 +390,7 @@
           </td>
         </tr>
         {% else %}
-        <tr class="no-paginate"><td colspan="9" style="text-align:center;color:var(--d-text-muted);padding:24px">لا يوجد مشتركو حساب إنترنت مطابقون للفلتر.</td></tr>
+        <tr class="no-paginate"><td colspan="10" style="text-align:center;color:var(--d-text-muted);padding:24px">لا يوجد مشتركو حساب إنترنت مطابقون للفلتر.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -660,6 +668,7 @@ function uaRowHtml(u){
     +   '<td style="font-family:monospace">'+ph+'</td>'
     +   '<td style="white-space:nowrap"><div class="ua-pwd" data-bid="'+u.id+'">'+pwdBlock+'</div></td>'
     +   '<td><span class="d-badge d-badge--neutral">'+uaEscape(u.user_type_label || uaUserTypeLabel(u.user_type))+'</span></td>'
+    +   '<td>'+(u.offer_name ? '<span class="d-badge d-badge--gold" title="'+uaEscape(u.offer_name)+'">'+uaEscape(u.offer_name)+'</span>' : '<span style="color:var(--d-text-muted)">—</span>')+'</td>'
     +   '<td>'+statusBadge+'</td>'
     +   '<td style="text-align:center;white-space:nowrap"><strong>'+(u.weekly_usage_count || 0)+'</strong></td>'
     +   '<td style="white-space:nowrap;text-align:center"><div class="act-more">'
@@ -683,7 +692,7 @@ function uaRowHtml(u){
     + '</tr>';
 }
 function uaEmptyRowHtml(){
-  return '<tr class="no-paginate"><td colspan="9" style="text-align:center;color:var(--d-text-muted);padding:24px">لا يوجد مشتركو حساب إنترنت مطابقون للفلتر.</td></tr>';
+  return '<tr class="no-paginate"><td colspan="10" style="text-align:center;color:var(--d-text-muted);padding:24px">لا يوجد مشتركو حساب إنترنت مطابقون للفلتر.</td></tr>';
 }
 function uaReinitPagination(){
   var table = document.getElementById('ua-table');
