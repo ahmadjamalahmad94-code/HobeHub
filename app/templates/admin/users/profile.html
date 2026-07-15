@@ -188,6 +188,9 @@
         {% endif %}
       {% endif %}
       <button type="button" class="up-act-btn" id="set-verify-btn"><i class="fa-solid fa-shield-halved"></i>تعديل التوثيق</button>
+      {% if profile_access_mode == 'cards' %}
+      <button type="button" class="up-act-btn" data-sp-open="{{ bio.id }}" data-sp-name="{{ bio.full_name or '' }}"><i class="fa-solid fa-user-shield"></i>سياسة البطاقات الخاصّة</button>
+      {% endif %}
       {% if portal %}
       {# قائمة تصفير الحساب (داخل البوابة فقط — لمنع التصفير العفوي) #}
       <div class="up-reset-wrap" style="position:relative;display:inline-block">
@@ -1880,4 +1883,5 @@
   }
 })();
 </script>
+{% include "admin/_subscriber_policy_modal.html" %}
 {% endblock %}

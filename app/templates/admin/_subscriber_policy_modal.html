@@ -1,0 +1,238 @@
+{# مكوّن موحّد: نافذة «سياسة بطاقات خاصّة بالمشترك» (scope='user').
+   الاستخدام: أدرِج هذا الملف مرّة في الصفحة، ثم استدعِ من أيّ زرّ:
+     onclick="openSubscriberPolicy(BID, 'الاسم')"
+   يجلب السياسة الحالية والفئات ديناميكيًّا، ويحفظ/يُصفّر عبر
+   /admin/users/<bid>/card-policy. لا يعتمد على سياق الصفحة. #}
+<style>
+.sp-backdrop{position:fixed;inset:0;background:rgba(18,20,26,.6);backdrop-filter:blur(4px);
+  display:none;align-items:flex-start;justify-content:center;z-index:2147482000;padding:24px 16px;overflow:auto}
+.sp-backdrop.open{display:flex}
+.sp-modal{background:var(--d-surface,#fff);border-radius:18px;max-width:560px;width:100%;
+  box-shadow:0 30px 70px -18px rgba(0,0,0,.5);border:1px solid var(--d-border,#e5e2d8);
+  direction:rtl;margin:auto;overflow:hidden}
+.sp-head{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--d-border,#eee);
+  background:linear-gradient(135deg,var(--d-gold-faint,#fdf6e3),transparent)}
+.sp-head h3{margin:0;font-size:15.5px;font-weight:800;color:var(--d-black,#18232e);flex:1}
+.sp-head .sp-x{border:0;background:none;font-size:20px;cursor:pointer;color:var(--d-text-muted);line-height:1}
+.sp-name{font-size:11.5px;font-weight:700;color:#c8951a;background:rgba(244,186,42,.14);padding:3px 10px;border-radius:999px}
+.sp-body{padding:16px 18px;display:flex;flex-direction:column;gap:16px}
+.sp-note{font-size:11.5px;line-height:1.6;color:var(--d-text-soft);background:var(--d-surface-2,#f7f5ef);
+  border:1px solid var(--d-border,#eee);border-radius:10px;padding:9px 11px}
+.sp-sec-title{font-size:12px;font-weight:800;color:var(--d-text);margin-bottom:7px;display:flex;align-items:center;gap:6px}
+.sp-sec-title small{font-weight:600;color:var(--d-text-muted)}
+.sp-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sp-field label{display:block;font-size:11.5px;font-weight:700;color:var(--d-text);margin-bottom:4px}
+.sp-input{width:100%;padding:9px 11px;border-radius:10px;border:1.5px solid var(--d-border-strong,#d9d5c7);
+  background:#FAFAF8;font-size:13px;font-family:inherit;box-sizing:border-box;transition:.18s ease}
+.sp-input:focus{outline:0;border-color:var(--d-gold);background:#fff;box-shadow:0 0 0 3px rgba(244,186,42,.18)}
+.sp-presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+.sp-preset{padding:5px 11px;border-radius:999px;border:1.5px solid var(--d-border);background:#fff;
+  font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--d-text-soft)}
+.sp-preset:hover{border-color:var(--d-gold)}
+.sp-days{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.sp-chip{padding:7px 4px;border-radius:9px;background:#FAFAF8;border:1.5px solid var(--d-border);
+  font-size:11px;font-weight:700;color:var(--d-text-soft);cursor:pointer;font-family:inherit;text-align:center;transition:.18s ease}
+.sp-chip:hover{border-color:var(--d-gold)}
+.sp-chip.on{background:linear-gradient(135deg,#F4BA2A,#FFD96A);color:#1E1E1E;border-color:transparent}
+.sp-cats{display:flex;flex-wrap:wrap;gap:6px}
+.sp-cat{padding:6px 12px;border-radius:999px;background:#FAFAF8;border:1.5px solid var(--d-border);
+  font-size:11.5px;font-weight:700;color:var(--d-text-soft);cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;transition:.18s ease}
+.sp-cat:hover{border-color:var(--d-gold)}
+.sp-cat.on{background:#1E1E1E;color:#fff;border-color:#1E1E1E}
+.sp-cat.on i{color:#F4BA2A}
+.sp-adv-toggle{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;font-weight:800;
+  color:var(--d-text-soft);padding:8px 0;user-select:none}
+.sp-adv-toggle i{transition:.2s ease}
+.sp-adv-toggle.open i{transform:rotate(180deg)}
+.sp-adv{display:none;flex-direction:column;gap:12px;padding-top:4px}
+.sp-adv.open{display:flex}
+.sp-foot{display:flex;gap:9px;flex-wrap:wrap;padding:14px 18px;border-top:1px solid var(--d-border,#eee);background:var(--d-surface-2,#faf9f5)}
+.sp-btn{padding:9px 16px;border-radius:10px;border:0;font-family:inherit;font-weight:800;font-size:12.5px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.15s ease}
+.sp-save{background:linear-gradient(135deg,#F4BA2A,#FFD96A);color:#1E1E1E;flex:1;justify-content:center}
+.sp-save:hover{transform:translateY(-1px)}.sp-save:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.sp-reset{background:#fff;border:1.5px solid #e2b4b4;color:#b91c1c}
+.sp-reset:hover{background:#fde2e2}
+.sp-cancel{background:#f0f1f3;color:#4b5563}
+.sp-msg{font-size:12px;font-weight:700;padding:0 18px;min-height:0;transition:.2s ease}
+.sp-msg.show{padding:8px 18px}
+.sp-msg.ok{color:#166534}.sp-msg.err{color:#b91c1c}
+@media (prefers-color-scheme:dark){.sp-modal{background:#1f242c}.sp-input,.sp-chip,.sp-cat,.sp-preset{background:#262c35;color:#cbd2da}}
+</style>
+
+<div class="sp-backdrop" id="sp-backdrop">
+  <div class="sp-modal" role="dialog" aria-modal="true">
+    <div class="sp-head">
+      <i class="fa-solid fa-user-shield" style="color:#c8951a"></i>
+      <h3>سياسة بطاقات خاصّة <span class="sp-name" id="sp-name"></span></h3>
+      <button type="button" class="sp-x" id="sp-close">&times;</button>
+    </div>
+    <div class="sp-msg" id="sp-msg"></div>
+    <div class="sp-body">
+      <div class="sp-note" id="sp-eff-note">…</div>
+      <input type="hidden" id="sp-bid" value="">
+      <input type="hidden" id="sp-days-val" value="">
+      <input type="hidden" id="sp-cats-val" value="">
+
+      <div>
+        <div class="sp-sec-title"><i class="fa-solid fa-hashtag" style="color:var(--d-gold)"></i>كم بطاقة يحقّ له؟</div>
+        <div class="sp-grid2">
+          <div class="sp-field"><label>في اليوم <small style="color:var(--d-text-muted)">(فارغ = بلا حد)</small></label>
+            <input class="sp-input" id="sp-daily" type="number" min="0" placeholder="—"></div>
+          <div class="sp-field"><label>في الأسبوع <small style="color:var(--d-text-muted)">(اختياري)</small></label>
+            <input class="sp-input" id="sp-weekly" type="number" min="0" placeholder="—"></div>
+        </div>
+        <div class="sp-presets">
+          <button type="button" class="sp-preset" data-d="" data-w="">بدون حد</button>
+          <button type="button" class="sp-preset" data-d="1" data-w="">1 / يوم</button>
+          <button type="button" class="sp-preset" data-d="3" data-w="">3 / يوم</button>
+          <button type="button" class="sp-preset" data-d="5" data-w="">5 / يوم</button>
+          <button type="button" class="sp-preset" data-d="" data-w="7">7 / أسبوع</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sp-sec-title"><i class="fa-solid fa-calendar-day" style="color:var(--d-gold)"></i>الأيّام المسموحة <small>(فارغ = كل الأيّام)</small></div>
+        <div class="sp-days" id="sp-days"></div>
+      </div>
+
+      <div>
+        <div class="sp-sec-title"><i class="fa-solid fa-ticket" style="color:var(--d-gold)"></i>الفئات المسموحة <small>(فارغ = كل الفئات)</small></div>
+        <div class="sp-cats" id="sp-cats"></div>
+      </div>
+
+      <div>
+        <div class="sp-adv-toggle" id="sp-adv-toggle"><i class="fa-solid fa-chevron-down"></i> إعدادات متقدّمة (اختياري)</div>
+        <div class="sp-adv" id="sp-adv">
+          <div class="sp-grid2">
+            <div class="sp-field"><label>صالحة من</label><input class="sp-input" id="sp-vfrom" type="date"></div>
+            <div class="sp-field"><label>صالحة حتى</label><input class="sp-input" id="sp-vuntil" type="date"></div>
+            <div class="sp-field"><label>بداية ساعات الدوام</label><input class="sp-input" id="sp-tfrom" type="time"></div>
+            <div class="sp-field"><label>نهاية ساعات الدوام</label><input class="sp-input" id="sp-tuntil" type="time"></div>
+          </div>
+          <div class="sp-field"><label>الأولوية <small style="color:var(--d-text-muted)">(الأصغر يفوز)</small></label>
+            <input class="sp-input" id="sp-priority" type="number" value="50"></div>
+          <div class="sp-field"><label>ملاحظة</label><input class="sp-input" id="sp-notes" placeholder="سبب الاستثناء (اختياري)"></div>
+        </div>
+      </div>
+    </div>
+    <div class="sp-foot">
+      <button type="button" class="sp-btn sp-save" id="sp-save"><i class="fa-solid fa-floppy-disk"></i> حفظ السياسة الخاصّة</button>
+      <button type="button" class="sp-btn sp-reset" id="sp-reset"><i class="fa-solid fa-rotate-left"></i> إلغاء التخصيص</button>
+      <button type="button" class="sp-btn sp-cancel" id="sp-cancel">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  if(window.__spPolicyInit) return; window.__spPolicyInit = true;
+  var bd=document.getElementById('sp-backdrop');
+  var $=function(id){return document.getElementById(id);};
+  var msg=$('sp-msg');
+  function showMsg(t,cls){ msg.textContent=t; msg.className='sp-msg show '+cls; }
+  function clearMsg(){ msg.textContent=''; msg.className='sp-msg'; }
+  function close(){ bd.classList.remove('open'); }
+  var DAY_LABELS={sat:'السبت',sun:'الأحد',mon:'الإثنين',tue:'الثلاثاء',wed:'الأربعاء',thu:'الخميس',fri:'الجمعة'};
+  var SCOPE_LABEL={user:'خاصّة بهذا المشترك',group:'موروثة من مجموعته',default:'موروثة من الافتراضية'};
+
+  function jget(url){ return fetch(url,{credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}}).then(function(r){return r.json();}); }
+  function jpost(url,body){ return fetch(url,{method:'POST',credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'},body:body}).then(function(r){return r.json();}); }
+
+  function buildDays(selected){
+    var host=$('sp-days'); host.innerHTML='';
+    ['sat','sun','mon','tue','wed','thu','fri'].forEach(function(code){
+      var b=document.createElement('button'); b.type='button'; b.className='sp-chip'; b.dataset.code=code;
+      b.textContent=DAY_LABELS[code];
+      if(selected.indexOf(code)!==-1) b.classList.add('on');
+      host.appendChild(b);
+    });
+  }
+  function buildCats(cats, selected){
+    var host=$('sp-cats'); host.innerHTML='';
+    (cats||[]).forEach(function(c){
+      var b=document.createElement('button'); b.type='button'; b.className='sp-cat'; b.dataset.code=c.code;
+      b.innerHTML='<i class="fa-solid fa-ticket"></i>'+c.label_ar;
+      if(selected.indexOf(c.code)!==-1) b.classList.add('on');
+      host.appendChild(b);
+    });
+  }
+  function csv(v){ return (v||'').split(',').map(function(x){return x.trim();}).filter(Boolean); }
+
+  window.openSubscriberPolicy=function(bid, name){
+    clearMsg(); $('sp-bid').value=bid; $('sp-name').textContent=name||('#'+bid);
+    $('sp-daily').value=''; $('sp-weekly').value=''; $('sp-vfrom').value=''; $('sp-vuntil').value='';
+    $('sp-tfrom').value=''; $('sp-tuntil').value=''; $('sp-priority').value='50'; $('sp-notes').value='';
+    $('sp-days').innerHTML=''; $('sp-cats').innerHTML='';
+    $('sp-eff-note').textContent='جارٍ التحميل…';
+    bd.classList.add('open');
+    jget('/admin/users/'+bid+'/card-policy').then(function(d){
+      if(!d.ok){ showMsg(d.message||'تعذّر التحميل','err'); return; }
+      var ov=d.override||{};
+      var selDays=csv(ov.allowed_days), selCats=csv(ov.allowed_category_codes);
+      buildDays(selDays); buildCats(d.categories, selCats);
+      if(ov.daily_limit!=null) $('sp-daily').value=ov.daily_limit;
+      if(ov.weekly_limit!=null) $('sp-weekly').value=ov.weekly_limit;
+      $('sp-vfrom').value=(ov.valid_from||'').slice(0,10);
+      $('sp-vuntil').value=(ov.valid_until||'').slice(0,10);
+      $('sp-tfrom').value=(ov.valid_time_from||'').slice(0,5);
+      $('sp-tuntil').value=(ov.valid_time_until||'').slice(0,5);
+      if(ov.priority!=null) $('sp-priority').value=ov.priority;
+      $('sp-notes').value=ov.notes||'';
+      var sc=d.effective_scope||'default';
+      var hasOwn=!!d.override;
+      $('sp-eff-note').innerHTML = hasOwn
+        ? '<b style="color:#166534">لهذا المشترك سياسة خاصّة مُطبّقة الآن.</b> عدّلها أدناه، أو «إلغاء التخصيص» ليرث الافتراضية.'
+        : ('المشترك يرث الآن <b>'+(SCOPE_LABEL[sc]||'الافتراضية')+'</b>. أيّ تعديل هنا يُنشئ له سياسة خاصّة تتجاوزها.');
+    }).catch(function(){ showMsg('فشل الاتصال','err'); });
+  };
+
+  // toggle chips (delegation)
+  bd.addEventListener('click', function(e){
+    var chip=e.target.closest && (e.target.closest('.sp-chip')||e.target.closest('.sp-cat'));
+    if(chip){ chip.classList.toggle('on'); return; }
+    var pre=e.target.closest && e.target.closest('.sp-preset');
+    if(pre){ $('sp-daily').value=pre.dataset.d||''; $('sp-weekly').value=pre.dataset.w||''; return; }
+    if(e.target===bd) close();
+  });
+  $('sp-adv-toggle').addEventListener('click', function(){ this.classList.toggle('open'); $('sp-adv').classList.toggle('open'); });
+  $('sp-close').addEventListener('click', close);
+  $('sp-cancel').addEventListener('click', close);
+
+  $('sp-save').addEventListener('click', function(){
+    var bid=$('sp-bid').value;
+    var days=Array.from(document.querySelectorAll('#sp-days .sp-chip.on')).map(function(c){return c.dataset.code;}).join(',');
+    var cats=Array.from(document.querySelectorAll('#sp-cats .sp-cat.on')).map(function(c){return c.dataset.code;}).join(',');
+    var fd=new FormData();
+    fd.append('daily_limit',$('sp-daily').value); fd.append('weekly_limit',$('sp-weekly').value);
+    fd.append('allowed_days',days); fd.append('allowed_category_codes',cats);
+    fd.append('valid_from',$('sp-vfrom').value); fd.append('valid_until',$('sp-vuntil').value);
+    fd.append('valid_time_from',$('sp-tfrom').value); fd.append('valid_time_until',$('sp-tuntil').value);
+    fd.append('priority',$('sp-priority').value||'50'); fd.append('notes',$('sp-notes').value);
+    var btn=this; btn.disabled=true; clearMsg();
+    jpost('/admin/users/'+bid+'/card-policy', fd).then(function(d){
+      btn.disabled=false;
+      showMsg(d.message||(d.ok?'تم الحفظ':'فشل الحفظ'), d.ok?'ok':'err');
+      if(d.ok) setTimeout(close, 900);
+    }).catch(function(){ btn.disabled=false; showMsg('فشل الاتصال','err'); });
+  });
+
+  $('sp-reset').addEventListener('click', function(){
+    var bid=$('sp-bid').value;
+    if(!window.confirm('إلغاء السياسة الخاصّة بهذا المشترك؟ سيرث السياسة الافتراضية.')) return;
+    var btn=this; btn.disabled=true; clearMsg();
+    jpost('/admin/users/'+bid+'/card-policy/reset', new FormData()).then(function(d){
+      btn.disabled=false;
+      showMsg(d.message||(d.ok?'تم':'فشل'), d.ok?'ok':'err');
+      if(d.ok) setTimeout(close, 900);
+    }).catch(function(){ btn.disabled=false; showMsg('فشل الاتصال','err'); });
+  });
+
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && bd.classList.contains('open')) close(); });
+
+  // فتح موحّد عبر أيّ عنصر: <button data-sp-open="BID" data-sp-name="الاسم">
+  document.addEventListener('click', function(e){
+    var t=e.target.closest && e.target.closest('[data-sp-open]');
+    if(t){ e.preventDefault(); window.openSubscriberPolicy(t.getAttribute('data-sp-open'), t.getAttribute('data-sp-name')||''); }
+  });
+})();
+</script>
