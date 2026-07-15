@@ -82,7 +82,7 @@
   <div class="d-table-wrap"><table class="d-table" data-paginated="1" data-page-size="25" data-page-sizes="25,50,100" data-persist-key="att-cards">
     <thead><tr>
       <th>الاسم</th><th>الجوال</th><th>النوع</th><th>التخصص</th><th>الجامعة/الشركة</th>
-      <th>اليوم</th><th>التاريخ</th><th>الوقت</th><th>نوع البطاقة</th><th>السبب</th>
+      <th>اليوم</th><th>التاريخ</th><th>أوّل بطاقة</th><th>عدد البطاقات</th><th>الأنواع</th>
     </tr></thead>
     <tbody>
       {% for r in cards_rows %}
@@ -94,9 +94,9 @@
         <td class="att-trunc">{{ r.org }}</td>
         <td class="att-day">{{ r.day_name }}</td>
         <td dir="ltr" style="font-family:monospace">{{ r.date }}</td>
-        <td dir="ltr" style="font-family:monospace">{{ r.time }}</td>
-        <td>{{ r.card_type }}</td>
-        <td class="att-trunc">{{ r.reason }}</td>
+        <td dir="ltr" style="font-family:monospace">{{ r.first_time }}</td>
+        <td style="font-weight:800;color:var(--d-gold-deep,#c8951a)">{{ r.count }}</td>
+        <td class="att-trunc">{{ r.card_types }}</td>
       </tr>
       {% endfor %}
     </tbody>

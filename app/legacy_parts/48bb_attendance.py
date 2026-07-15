@@ -85,20 +85,42 @@ def _cards_attendance(d_from, d_to):
         """,
         [d_from, d_to],
     )
-    out = []
+    # حضور لا عدد بطاقات: صفّ واحد لكل (شخص، يوم) مهما أخذ من بطاقات.
+    # العدد يظهر كعمود «عدد البطاقات» + الأنواع مجموعة، بلا تكرار الاسم.
+    agg = {}
+    order = []
     for r in rows:
-        out.append({
-            "full_name": r.get("full_name") or "—",
-            "phone": r.get("phone") or "—",
-            "type_label": _TYPE_LABEL.get((r.get("user_type") or "").lower(), r.get("user_type") or "—"),
-            "spec": _spec_of(r) or "—",
-            "org": _org_of(r) or "—",
-            "day_name": _day_name(r.get("usage_date")),
-            "date": str(r.get("usage_date") or "")[:10],
-            "time": _hm(r.get("usage_time")),
-            "card_type": r.get("card_type") or "—",
-            "reason": r.get("usage_reason") or "—",
-        })
+        date = str(r.get("usage_date") or "")[:10]
+        key = (_norm_phone(r.get("phone")) or (r.get("full_name") or "").strip(), date)
+        g = agg.get(key)
+        if not g:
+            g = {
+                "full_name": r.get("full_name") or "—",
+                "phone": r.get("phone") or "—",
+                "type_label": _TYPE_LABEL.get((r.get("user_type") or "").lower(), r.get("user_type") or "—"),
+                "spec": _spec_of(r) or "—",
+                "org": _org_of(r) or "—",
+                "day_name": _day_name(r.get("usage_date")),
+                "date": date,
+                "first_time": _hm(r.get("usage_time")),
+                "count": 0,
+                "_types": [],
+            }
+            agg[key] = g
+            order.append(key)
+        g["count"] += 1
+        t = _hm(r.get("usage_time"))
+        if t and t != "—" and (g["first_time"] == "—" or t < g["first_time"]):
+            g["first_time"] = t
+        ct = (r.get("card_type") or "").strip()
+        if ct and ct not in g["_types"]:
+            g["_types"].append(ct)
+    out = []
+    for key in order:
+        g = agg[key]
+        g["card_types"] = "، ".join(g.pop("_types")) or "—"
+        out.append(g)
+    out.sort(key=lambda x: (x["date"], x["first_time"]), reverse=True)
     return out
 
 
@@ -445,9 +467,9 @@ def admin_attendance_page():
         rows = _cards_attendance(d_from, d_to)
         return _csv_response(
             f"attendance-cards-{d_from}_{d_to}.csv",
-            ["الاسم", "الجوال", "النوع", "التخصص", "الجامعة/الشركة", "اليوم", "التاريخ", "الوقت", "نوع البطاقة", "السبب"],
+            ["الاسم", "الجوال", "النوع", "التخصص", "الجامعة/الشركة", "اليوم", "التاريخ", "أوّل بطاقة", "عدد البطاقات", "الأنواع"],
             ([r["full_name"], r["phone"], r["type_label"], r["spec"], r["org"],
-              r["day_name"], r["date"], r["time"], r["card_type"], r["reason"]] for r in rows),
+              r["day_name"], r["date"], r["first_time"], r["count"], r["card_types"]] for r in rows),
         )
     if export == "internet":
         rows = _internet_attendance(d_from, d_to)
