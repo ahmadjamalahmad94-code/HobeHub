@@ -253,6 +253,10 @@
                 <a class="rc-act" href="{{ item.specialized_href }}" title="صفحة التنفيذ الفنية"><i class="fa-solid fa-screwdriver-wrench"></i>تنفيذ فني</a>
               {% else %}
                 {% if item.status == 'pending' %}
+                  {% if item.payload.get('needs_approval') %}
+                    <button class="rc-act rc-act--ok" type="button" data-csrf="{{ csrf_token() }}" onclick="rcApprove({{ item.id }},this)"><i class="fa-solid fa-check"></i>موافقة وإصدار</button>
+                    <button class="rc-act rc-act--ko" type="button" data-csrf="{{ csrf_token() }}" onclick="rcReject({{ item.id }},this)"><i class="fa-solid fa-xmark"></i>رفض</button>
+                  {% else %}
                   <form class="rc-fulfill-form" method="POST" action="{{ url_for('admin_cards_pending_fulfill', action_id=item.id) }}">
                     {{ csrf_token_input() | safe }}
                     <input class="d-field" name="card_username" placeholder="اسم البطاقة" required autocomplete="off">
@@ -263,10 +267,13 @@
                     {{ csrf_token_input() | safe }}
                     <button class="rc-act rc-act--ko" type="submit" onclick="return confirm('إلغاء طلب البطاقة؟')"><i class="fa-solid fa-xmark"></i>إلغاء</button>
                   </form>
+                  {% endif %}
                 {% else %}
                   <a class="rc-act" href="{{ item.href }}"><i class="fa-solid fa-eye"></i>عرض</a>
                 {% endif %}
+                {% if not item.payload.get('needs_approval') %}
                 <a class="rc-act" href="{{ item.specialized_href }}" title="صفحة التنفيذ الفنية"><i class="fa-solid fa-screwdriver-wrench"></i>تنفيذ فني</a>
+                {% endif %}
               {% endif %}
             </div>
           </td>
@@ -294,6 +301,26 @@
     clearBtnId: 'rc-clear-btn'
   });
 })();
+// موافقة/رفض طلبات البطاقات الطويلة من مركز الطلبات مباشرة
+function _rcPost(url, btn, fd){
+  var row=btn.closest('tr'); btn.disabled=true; var orig=btn.innerHTML;
+  btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i>';
+  fetch(url,{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
+    if(d.ok){ if(row){ row.style.opacity='0.4'; row.style.pointerEvents='none';
+      setTimeout(function(){ if(row.parentNode) row.parentNode.removeChild(row); },2200); } }
+    else { alert(d.message||'خطأ'); btn.disabled=false; btn.innerHTML=orig; }
+  }).catch(function(){ alert('فشل الاتصال'); btn.disabled=false; btn.innerHTML=orig; });
+}
+function rcApprove(id, btn){
+  if(!confirm('الموافقة وإصدار البطاقة للمشترك فورًا؟')) return;
+  var fd=new FormData(); fd.append('csrf_token', btn.dataset.csrf);
+  _rcPost('/admin/cards/pending/'+id+'/approve', btn, fd);
+}
+function rcReject(id, btn){
+  var reason=prompt('سبب الرفض (اختياري):',''); if(reason===null) return;
+  var fd=new FormData(); fd.append('csrf_token', btn.dataset.csrf); fd.append('reason', reason||'');
+  _rcPost('/admin/cards/pending/'+id+'/reject', btn, fd);
+}
 </script>
 
 {% endblock %}
