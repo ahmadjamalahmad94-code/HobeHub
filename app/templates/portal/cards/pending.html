@@ -10,18 +10,32 @@
 {% endblock %}
 
 {% block content %}
+<style>
+.pcard-status{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:800}
+.pcard-status::before{content:"";width:7px;height:7px;border-radius:50%}
+.pcard-status.st-pending{background:rgba(244,186,42,.16);color:#a5730a}
+.pcard-status.st-pending::before{background:#F4BA2A}
+.pcard-status.st-approved{background:rgba(22,163,74,.14);color:#166534}
+.pcard-status.st-approved::before{background:#16a34a}
+.pcard-status.st-rejected{background:rgba(220,38,38,.12);color:#b91c1c}
+.pcard-status.st-rejected::before{background:#dc2626}
+.pcard-row td:first-child{border-inline-start:4px solid transparent}
+.pcard-row.st-pending td:first-child{border-inline-start-color:#F4BA2A}
+.pcard-row.st-approved td:first-child{border-inline-start-color:#16a34a}
+.pcard-row.st-rejected td:first-child{border-inline-start-color:#dc2626}
+</style>
 
 <div class="d-notice">
   <i class="fa-solid fa-hourglass-half"></i>
   <div>
-    <strong>هذه طلبات بطاقات قدّمتها وتنتظر التسليم من الإدارة.</strong>
-    عند تجهيزها سترى بطاقتك في الصفحة الرئيسية.
+    <strong>سجلّ كل طلباتك: قيد المراجعة، المقبولة، والمرفوضة.</strong>
+    البطاقات المقبولة تجدها جاهزة في «سجل بطاقاتي».
   </div>
 </div>
 
 <section class="d-card">
   <div class="d-card-head">
-    <h3 class="d-card-title"><i class="fa-solid fa-list-check"></i>الطلبات المعلّقة</h3>
+    <h3 class="d-card-title"><i class="fa-solid fa-list-check"></i>سجلّ طلباتي</h3>
     <a class="d-card-action" href="/card">العودة للرئيسية</a>
   </div>
   <div class="d-card-body--flush d-table-wrap">
@@ -36,14 +50,14 @@
       </thead>
       <tbody>
         {% for a in pending_actions %}
-        <tr>
+        <tr class="pcard-row {{ a.status_class or 'st-pending' }}">
           <td>#{{ a.id }}</td>
           <td>{{ a.category_label or a.payload.get('category_code', '—') }}</td>
-          <td>{{ a.requested_at }}</td>
-          <td><span class="d-badge d-badge--warn">{{ a.status_label or 'قيد الانتظار' }}</span></td>
+          <td dir="ltr" style="font-family:monospace">{{ a.requested_at }}</td>
+          <td><span class="pcard-status {{ a.status_class or 'st-pending' }}">{{ a.status_label or 'قيد المراجعة' }}</span></td>
         </tr>
         {% else %}
-        <tr class="no-paginate"><td colspan="4" style="text-align:center;color:var(--d-text-muted);padding:32px">لا توجد طلبات معلّقة.</td></tr>
+        <tr class="no-paginate"><td colspan="4" style="text-align:center;color:var(--d-text-muted);padding:32px">لا توجد طلبات بعد.</td></tr>
         {% endfor %}
       </tbody>
     </table>

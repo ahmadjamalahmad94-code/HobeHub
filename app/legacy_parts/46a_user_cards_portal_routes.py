@@ -237,18 +237,45 @@ def user_cards_pending_list():
     beneficiary = get_current_portal_beneficiary() or {}
     beneficiary_id = int(session.get("beneficiary_id") or 0)
 
-    raw_pending = _pending_card_action_rows(beneficiary_id, limit=50)
+    # سجل كامل لكل حركات المستفيد (قيد المراجعة/موافقة/رفض) مع تباين لونيّ
+    raw_pending = query_all(
+        """
+        SELECT id, payload_json, requested_at, executed_at, status, error_message
+        FROM radius_pending_actions
+        WHERE beneficiary_id=%s AND action_type='generate_user_cards'
+        ORDER BY id DESC LIMIT 100
+        """,
+        [beneficiary_id],
+    ) or []
+    _STATUS_MAP = {
+        "pending": ("قيد المراجعة", "st-pending"),
+        "in_progress": ("قيد التنفيذ", "st-pending"),
+        "done": ("تمت الموافقة", "st-approved"),
+        "cancelled": ("مرفوض", "st-rejected"),
+        "failed": ("مرفوض", "st-rejected"),
+    }
     my_actions = []
+    pending_count = 0
     for a in raw_pending:
-        code = (a.get("payload") or {}).get("category_code") or ""
+        try:
+            payload = json.loads(a.get("payload_json") or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            payload = {}
+        code = payload.get("category_code") or ""
         cat = get_category_by_code(code)
+        st = a.get("status") or "pending"
+        if st in ("pending", "in_progress"):
+            pending_count += 1
+        label, cls = _STATUS_MAP.get(st, (st, "st-pending"))
         my_actions.append({
             "id": a["id"],
-            "payload": a.get("payload") or {},
+            "payload": payload,
             "category_label": (cat or {}).get("label_ar") or code,
             "requested_at": a.get("requested_at"),
-            "status": a.get("status"),
-            "status_label": "قيد المراجعة" if a.status == "pending" else a.status,
+            "executed_at": a.get("executed_at"),
+            "status": st,
+            "status_label": label,
+            "status_class": cls,
         })
 
     quota = check_quota(beneficiary_id)
@@ -259,7 +286,7 @@ def user_cards_pending_list():
         categories=get_available_categories_for_beneficiary(beneficiary_id),
         today_cards=[],
         my_pending_actions=my_actions,
-        my_pending_count=len(my_actions),
+        my_pending_count=pending_count,
         pending_actions=my_actions,
         router_url=get_router_login_url(),
     )

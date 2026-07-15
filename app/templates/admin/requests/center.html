@@ -253,26 +253,10 @@
                 <a class="rc-act" href="{{ item.specialized_href }}" title="صفحة التنفيذ الفنية"><i class="fa-solid fa-screwdriver-wrench"></i>تنفيذ فني</a>
               {% else %}
                 {% if item.status == 'pending' %}
-                  {% if item.payload.get('needs_approval') %}
-                    <button class="rc-act rc-act--ok" type="button" data-csrf="{{ csrf_token() }}" onclick="rcApprove({{ item.id }},this)"><i class="fa-solid fa-check"></i>موافقة وإصدار</button>
-                    <button class="rc-act rc-act--ko" type="button" data-csrf="{{ csrf_token() }}" onclick="rcReject({{ item.id }},this)"><i class="fa-solid fa-xmark"></i>رفض</button>
-                  {% else %}
-                  <form class="rc-fulfill-form" method="POST" action="{{ url_for('admin_cards_pending_fulfill', action_id=item.id) }}">
-                    {{ csrf_token_input() | safe }}
-                    <input class="d-field" name="card_username" placeholder="اسم البطاقة" required autocomplete="off">
-                    <input class="d-field" name="card_password" placeholder="كلمة المرور" required autocomplete="off">
-                    <button class="rc-act rc-act--ok" type="submit" onclick="return confirm('تأكيد تسليم البطاقة لهذا الطلب؟')"><i class="fa-solid fa-hand-holding"></i>تسليم</button>
-                  </form>
-                  <form method="POST" action="{{ url_for('admin_cards_pending_cancel', action_id=item.id) }}">
-                    {{ csrf_token_input() | safe }}
-                    <button class="rc-act rc-act--ko" type="submit" onclick="return confirm('إلغاء طلب البطاقة؟')"><i class="fa-solid fa-xmark"></i>إلغاء</button>
-                  </form>
-                  {% endif %}
+                  <button class="rc-act rc-act--ok" type="button" data-csrf="{{ csrf_token() }}" onclick="rcApprove({{ item.id }},this)"><i class="fa-solid fa-check"></i>قبول</button>
+                  <button class="rc-act rc-act--ko" type="button" data-csrf="{{ csrf_token() }}" onclick="rcReject({{ item.id }},this)"><i class="fa-solid fa-xmark"></i>رفض</button>
                 {% else %}
                   <a class="rc-act" href="{{ item.href }}"><i class="fa-solid fa-eye"></i>عرض</a>
-                {% endif %}
-                {% if not item.payload.get('needs_approval') %}
-                <a class="rc-act" href="{{ item.specialized_href }}" title="صفحة التنفيذ الفنية"><i class="fa-solid fa-screwdriver-wrench"></i>تنفيذ فني</a>
                 {% endif %}
               {% endif %}
             </div>

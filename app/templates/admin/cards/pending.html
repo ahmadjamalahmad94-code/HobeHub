@@ -75,13 +75,12 @@
           <td>
             <div style="display:flex;flex-direction:column;gap:8px">
               {% if a.payload.get('needs_approval') %}
-              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-                <span class="d-badge d-badge--warn" style="font-size:10.5px">بطاقة طويلة — تحتاج موافقة</span>
-              </div>
+              <span class="d-badge d-badge--warn" style="font-size:10.5px;align-self:flex-start">بطاقة طويلة — تحتاج موافقة</span>
+              {% endif %}
               <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                 <button type="button" class="d-pill-btn d-pill-btn--gold" style="padding:8px 14px;font-size:12px"
                         data-csrf="{{ csrf_token() }}" onclick="approveCard({{ a.id }},this)">
-                  <i class="fa-solid fa-check"></i>موافقة وإصدار
+                  <i class="fa-solid fa-check"></i>قبول
                 </button>
                 <button type="button" class="d-pill-btn d-pill-btn--ghost" style="padding:8px 14px;font-size:12px"
                         data-csrf="{{ csrf_token() }}" onclick="rejectCard({{ a.id }},this)">
@@ -89,39 +88,6 @@
                 </button>
               </div>
               <div class="auto-msg" id="appr-msg-{{ a.id }}"></div>
-              {% else %}
-              <!-- تسليم تلقائي من المخزون -->
-              <div style="display:flex;align-items:center;gap:8px">
-                <button type="button" class="auto-btn"
-                        data-action-id="{{ a.id }}"
-                        data-csrf="{{ csrf_token() }}"
-                        onclick="autoFulfill(this)">
-                  <i class="fa-solid fa-bolt"></i>تسليم تلقائي
-                </button>
-                <span class="fulfill-or">أو</span>
-                <button type="button" class="d-pill-btn d-pill-btn--ghost"
-                        style="padding:8px 14px;font-size:12px"
-                        onclick="this.closest('div').nextElementSibling.nextElementSibling.style.display='flex';this.closest('div').style.display='none'">
-                  <i class="fa-solid fa-pencil"></i>يدوي
-                </button>
-              </div>
-              <div class="auto-msg" id="auto-msg-{{ a.id }}"></div>
-              <!-- تسليم يدوي (مخفي افتراضيًا) -->
-              <form method="POST" action="{{ url_for('admin_cards_pending_fulfill', action_id=a.id) }}"
-                    style="display:none;gap:6px;flex-wrap:wrap;align-items:center">
-                {{ csrf_token_input() | safe }}
-                <input class="d-field" name="card_username" placeholder="اسم البطاقة" required style="max-width:130px;padding:8px 10px">
-                <input class="d-field" name="card_password" placeholder="كلمة المرور" required style="max-width:130px;padding:8px 10px">
-                <button class="d-pill-btn d-pill-btn--gold" type="submit" style="padding:8px 14px" onclick="return confirm('تأكيد تسليم البطاقة؟')">
-                  <i class="fa-solid fa-check"></i>تسليم
-                </button>
-                <button class="d-pill-btn d-pill-btn--ghost" type="submit"
-                        formaction="{{ url_for('admin_cards_pending_cancel', action_id=a.id) }}"
-                        style="padding:8px 14px" onclick="return confirm('إلغاء طلب البطاقة؟')">
-                  <i class="fa-solid fa-xmark"></i>إلغاء
-                </button>
-              </form>
-              {% endif %}
             </div>
           </td>
         </tr>

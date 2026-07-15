@@ -327,5 +327,59 @@ if(window.matchMedia('(max-width:860px)').matches){document.getElementById('d-sh
   },1000);
 })();
 </script>
+
+<script>
+/* إشعارات فوريّة: استطلاع دوريّ للعدّاد + صوت تنبيه عند وصول جديد (إدارة ومشترك) */
+(function(){
+  var isAdmin = location.pathname.indexOf('/admin')===0;
+  var countUrl = (isAdmin?'/admin':'/card') + '/notifications/count';
+  var bellBtn = document.querySelector('.d-bell');
+  var last = null, audioCtx = null;
+  function ensureAudio(){
+    try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      if(audioCtx.state==='suspended') audioCtx.resume(); }catch(e){}
+  }
+  document.addEventListener('click', ensureAudio, {once:true});
+  function beep(){
+    ensureAudio(); if(!audioCtx) return;
+    try{
+      var o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.type='sine'; o.frequency.value=880; o.connect(g); g.connect(audioCtx.destination);
+      var n=audioCtx.currentTime;
+      g.gain.setValueAtTime(0.0001,n);
+      g.gain.exponentialRampToValueAtTime(0.28,n+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,n+0.5);
+      o.start(n); o.stop(n+0.55);
+      // نبرة ثانية خفيفة
+      var o2=audioCtx.createOscillator(), g2=audioCtx.createGain();
+      o2.type='sine'; o2.frequency.value=1180; o2.connect(g2); g2.connect(audioCtx.destination);
+      g2.gain.setValueAtTime(0.0001,n+0.14);
+      g2.gain.exponentialRampToValueAtTime(0.2,n+0.16);
+      g2.gain.exponentialRampToValueAtTime(0.0001,n+0.55);
+      o2.start(n+0.14); o2.stop(n+0.6);
+    }catch(e){}
+  }
+  function setBadge(n){
+    if(!bellBtn) return;
+    var b=bellBtn.querySelector('.d-bell-count');
+    if(n>0){
+      if(!b){ b=document.createElement('span'); b.className='d-bell-count'; bellBtn.appendChild(b); }
+      b.textContent = n<100? n : '99+';
+      bellBtn.classList.add('has-new');
+    } else if(b){ b.remove(); bellBtn.classList.remove('has-new'); }
+  }
+  function poll(){
+    fetch(countUrl,{credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}})
+      .then(function(r){return r.json();}).then(function(d){
+        if(!d || d.ok===false) return;
+        var n=parseInt(d.count||0,10)||0;
+        if(last!==null && n>last){ beep(); if(navigator.vibrate) try{navigator.vibrate(120);}catch(e){} }
+        setBadge(n); last=n;
+      }).catch(function(){});
+  }
+  poll();
+  setInterval(poll, 12000);
+})();
+</script>
 </body>
 </html>
