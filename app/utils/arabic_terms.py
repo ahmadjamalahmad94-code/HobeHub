@@ -476,6 +476,39 @@ def _shorten_datetimes(text: str) -> str:
     return text
 
 
+# تحويل المدد الأطول من ساعة إلى صيغة الساعات في النصّ المرئيّ («180 دقيقة» →
+# «3 ساعات»، «90 دقيقة» → «ساعة ونصف»). المدد ≤ 60 تبقى بالدقائق.
+_DURATION_MIN_RE = re.compile(r"(?<![0-9])([0-9]{2,5})\s*دقيقة")
+
+
+def _fmt_minutes_ar(n: int) -> str:
+    if n < 60:
+        return f"{n} دقيقة"
+    hours, mins = divmod(n, 60)
+    if hours == 1:
+        hpart = "ساعة"
+    elif hours == 2:
+        hpart = "ساعتين"
+    elif 3 <= hours <= 10:
+        hpart = f"{hours} ساعات"
+    else:
+        hpart = f"{hours} ساعة"
+    if mins == 0:
+        return hpart
+    if mins == 30:
+        return hpart + " ونصف"
+    return f"{hpart} و{mins} دقيقة"
+
+
+def _humanize_durations(text: str) -> str:
+    if not text or "دقيقة" not in text:
+        return text
+    def _repl(m):
+        n = int(m.group(1))
+        return m.group(0) if n <= 60 else _fmt_minutes_ar(n)
+    return _DURATION_MIN_RE.sub(_repl, text)
+
+
 def arabize_html_fragment(html: str) -> str:
     if not ARABIZE_UI_ENABLED or not html:
         return html
@@ -509,5 +542,5 @@ def arabize_html_fragment(html: str) -> str:
         elif stack:
             out.append(part)
         else:
-            out.append(_shorten_datetimes(arabize_text(part)))
+            out.append(_humanize_durations(_shorten_datetimes(arabize_text(part))))
     return "".join(out)
