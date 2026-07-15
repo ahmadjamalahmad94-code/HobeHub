@@ -33,6 +33,11 @@
     '.hc-ok{background:linear-gradient(135deg,#c8951a,#F4BA2A);color:#1e1e1e}' +
     '.hc-ok:hover{filter:brightness(1.04);transform:translateY(-1px)}' +
     '.hc-danger .hc-ok{background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff}' +
+    '.hc-input{width:100%;box-sizing:border-box;padding:11px 13px;border-radius:12px;' +
+    'border:1.5px solid rgba(0,0,0,.14);background:#faf9f6;font-family:inherit;font-size:14px;' +
+    'margin:0 0 18px;transition:.15s ease;direction:rtl}' +
+    '.hc-input:focus{outline:0;border-color:#F4BA2A;background:#fff;box-shadow:0 0 0 3px rgba(244,186,42,.2)}' +
+    '@media (prefers-color-scheme:dark){.hc-input{background:#2c333c;color:#e8ecf1;border-color:rgba(255,255,255,.12)}}' +
     '@media (prefers-color-scheme:dark){' +
     '.hc-modal{background:#1f242c;border-color:rgba(255,255,255,.08)}' +
     '.hc-title{color:#f1f3f5}.hc-msg{color:#aab2bd}' +
@@ -43,12 +48,14 @@
     '<div class="hc-modal">' +
     '<div class="hc-ic"><i class="fa-solid fa-circle-question"></i></div>' +
     '<h3 class="hc-title"></h3><p class="hc-msg"></p>' +
+    '<input type="text" class="hc-input" style="display:none">' +
     '<div class="hc-acts">' +
     '<button type="button" class="hc-btn hc-cancel"></button>' +
     '<button type="button" class="hc-btn hc-ok"></button>' +
     '</div></div></div>';
 
-  var bd, elTitle, elMsg, elOk, elCancel, elIc, resolver = null, prevFocus = null;
+  var bd, elTitle, elMsg, elOk, elCancel, elIc, elInput,
+      resolver = null, prevFocus = null, promptMode = false;
 
   function build() {
     if (bd || document.getElementById('hobe-confirm')) { bd = bd || document.getElementById('hobe-confirm'); return; }
@@ -58,6 +65,7 @@
     bd = wrap.firstChild; document.body.appendChild(bd);
     elTitle = bd.querySelector('.hc-title'); elMsg = bd.querySelector('.hc-msg');
     elOk = bd.querySelector('.hc-ok'); elCancel = bd.querySelector('.hc-cancel'); elIc = bd.querySelector('.hc-ic');
+    elInput = bd.querySelector('.hc-input');
     elOk.addEventListener('click', function () { finish(true); });
     elCancel.addEventListener('click', function () { finish(false); });
     bd.addEventListener('click', function (e) { if (e.target === bd) finish(false); });
@@ -68,12 +76,15 @@
     });
   }
 
-  function finish(val) {
+  function finish(ok) {
     if (!bd) return;
     bd.classList.remove('open');
-    var r = resolver; resolver = null;
+    var r = resolver, pm = promptMode, val = (elInput ? elInput.value : '');
+    resolver = null; promptMode = false;
     if (prevFocus && prevFocus.focus) { try { prevFocus.focus(); } catch (e) {} }
-    if (r) r(val);
+    if (!r) return;
+    if (pm) r(ok ? val : null);   // نافذة الإدخال: نصّ أو null عند الإلغاء
+    else r(ok);
   }
 
   window.hobeConfirm = function (message, opts) {
@@ -82,7 +93,9 @@
       build();
       if (!bd) { resolve(true); return; }               // fallback آمن
       if (resolver) finish(false);                        // نافذة سابقة مفتوحة
-      resolver = resolve;
+      resolver = resolve; promptMode = false;
+      if (elInput) elInput.style.display = 'none';   // نافذة تأكيد لا إدخال
+      elMsg.style.display = '';
       var danger = !!opts.danger;
       bd.classList.toggle('hc-danger', danger);
       elTitle.textContent = opts.title || (danger ? 'تأكيد إجراء حسّاس' : 'تأكيد الإجراء');
@@ -93,6 +106,30 @@
       prevFocus = document.activeElement;
       bd.classList.add('open');
       setTimeout(function () { try { elOk.focus(); } catch (e) {} }, 60);
+    });
+  };
+
+  // نافذة إدخال حديثة (بديل prompt): تُرجع النصّ أو null عند الإلغاء
+  window.hobePrompt = function (message, opts) {
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      build();
+      if (!bd || !elInput) { resolve(null); return; }
+      if (resolver) finish(false);
+      resolver = resolve; promptMode = true;
+      bd.classList.remove('hc-danger');
+      elTitle.textContent = opts.title || 'إدخال';
+      elMsg.textContent = message || '';
+      elMsg.style.display = message ? '' : 'none';
+      elIc.innerHTML = '<i class="fa-solid fa-' + (opts.icon || 'pen-to-square') + '"></i>';
+      elInput.style.display = '';
+      elInput.value = opts.value || '';
+      elInput.placeholder = opts.placeholder || '';
+      elOk.textContent = opts.confirmText || 'تأكيد';
+      elCancel.textContent = opts.cancelText || 'إلغاء';
+      prevFocus = document.activeElement;
+      bd.classList.add('open');
+      setTimeout(function () { try { elInput.focus(); } catch (e) {} }, 60);
     });
   };
 

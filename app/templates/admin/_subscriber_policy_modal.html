@@ -240,14 +240,19 @@
   });
 
   $('sp-reset').addEventListener('click', function(){
-    var bid=$('sp-bid').value;
-    if(!window.confirm('إلغاء السياسة الخاصّة بهذا المشترك؟ سيرث السياسة الافتراضية.')) return;
-    var btn=this; btn.disabled=true; clearMsg();
-    jpost('/admin/users/'+bid+'/card-policy/reset', new FormData()).then(function(d){
-      btn.disabled=false;
-      showMsg(d.message||(d.ok?'تم':'فشل'), d.ok?'ok':'err');
-      if(d.ok) setTimeout(close, 900);
-    }).catch(function(){ btn.disabled=false; showMsg('فشل الاتصال','err'); });
+    var btn=this, bid=$('sp-bid').value;
+    var ask = window.hobeConfirm
+      ? window.hobeConfirm('إلغاء السياسة الخاصّة بهذا المشترك؟ سيرث السياسة الافتراضية.', {danger:true, title:'إلغاء التخصيص', confirmText:'إلغاء التخصيص'})
+      : Promise.resolve(window.confirm('إلغاء السياسة الخاصّة بهذا المشترك؟'));
+    ask.then(function(ok){
+      if(!ok) return;
+      btn.disabled=true; clearMsg();
+      jpost('/admin/users/'+bid+'/card-policy/reset', new FormData()).then(function(d){
+        btn.disabled=false;
+        showMsg(d.message||(d.ok?'تم':'فشل'), d.ok?'ok':'err');
+        if(d.ok) setTimeout(close, 900);
+      }).catch(function(){ btn.disabled=false; showMsg('فشل الاتصال','err'); });
+    });
   });
 
   document.addEventListener('keydown', function(e){ if(e.key==='Escape' && bd.classList.contains('open')) close(); });

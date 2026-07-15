@@ -296,14 +296,18 @@ function _rcPost(url, btn, fd){
   }).catch(function(){ alert('فشل الاتصال'); btn.disabled=false; btn.innerHTML=orig; });
 }
 function rcApprove(id, btn){
-  if(!confirm('الموافقة وإصدار البطاقة للمشترك فورًا؟')) return;
-  var fd=new FormData(); fd.append('csrf_token', btn.dataset.csrf);
-  _rcPost('/admin/cards/pending/'+id+'/approve', btn, fd);
+  window.hobeConfirm('الموافقة وإصدار البطاقة للمشترك فورًا؟', {title:'قبول الطلب', confirmText:'قبول'}).then(function(ok){
+    if(!ok) return;
+    var fd=new FormData(); fd.append('csrf_token', btn.dataset.csrf);
+    _rcPost('/admin/cards/pending/'+id+'/approve', btn, fd);
+  });
 }
 function rcReject(id, btn){
-  var reason=prompt('سبب الرفض (اختياري):',''); if(reason===null) return;
-  var fd=new FormData(); fd.append('csrf_token', btn.dataset.csrf); fd.append('reason', reason||'');
-  _rcPost('/admin/cards/pending/'+id+'/reject', btn, fd);
+  window.hobePrompt('اكتب سبب الرفض (اختياري) — سيصل المشترك:', {title:'رفض الطلب', confirmText:'رفض', placeholder:'سبب الرفض (اختياري)'}).then(function(reason){
+    if(reason===null) return;
+    var fd=new FormData(); fd.append('csrf_token', btn.dataset.csrf); fd.append('reason', reason||'');
+    _rcPost('/admin/cards/pending/'+id+'/reject', btn, fd);
+  });
 }
 </script>
 
