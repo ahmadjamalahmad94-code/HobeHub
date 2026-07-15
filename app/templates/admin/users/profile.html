@@ -170,26 +170,10 @@
     </div>
     <div class="up-actions">
       <button type="button" class="up-act-btn gold" id="profile-edit-btn"><i class="fa-solid fa-pen"></i>تعديل البيانات</button>
-      {# أزرار الصلاحية + النافذة 4 ساعات — فقط لمستخدمي نظام البطاقات #}
-      {% if profile_access_mode == 'cards' %}
-        {% if (bio.user_type or '')|lower == 'tawjihi' %}
-        {# توثيق التوجيهي — يقلب tawjihi_verified #}
-        <button type="button" class="up-act-btn" id="toggle-tawjihi-verified-btn"
-                data-verified="{{ '1' if bio.tawjihi_verified else '0' }}">
-          {% if bio.tawjihi_verified %}
-            <i class="fa-solid fa-shield-halved" style="color:#34d399"></i>إلغاء توثيق التوجيهي
-          {% else %}
-            <i class="fa-regular fa-shield"></i>توثيق التوجيهي
-          {% endif %}
-        </button>
-        {% else %}
-        <button type="button" class="up-act-btn" id="set-tier-btn"><i class="fa-solid fa-medal"></i>تغيير صلاحية البطاقات</button>
-        <button type="button" class="up-act-btn" id="four-hour-window-btn"><i class="fa-regular fa-clock"></i>نافذة بطاقة 4 ساعات</button>
-        {% endif %}
-      {% endif %}
-      <button type="button" class="up-act-btn" id="set-verify-btn"><i class="fa-solid fa-shield-halved"></i>تعديل التوثيق</button>
+      {# صلاحيات البطاقات موحّدة في «سياسة البطاقات الخاصّة» + نافذة 4 ساعات #}
       {% if profile_access_mode == 'cards' %}
       <button type="button" class="up-act-btn" data-sp-open="{{ bio.id }}" data-sp-name="{{ bio.full_name or '' }}"><i class="fa-solid fa-user-shield"></i>سياسة البطاقات الخاصّة</button>
+      <button type="button" class="up-act-btn" id="four-hour-window-btn"><i class="fa-regular fa-clock"></i>نافذة بطاقة 4 ساعات</button>
       {% endif %}
       {% if portal %}
       {# قائمة تصفير الحساب (داخل البوابة فقط — لمنع التصفير العفوي) #}
@@ -1043,7 +1027,8 @@
       }).catch(function(){ ptShowMsg('error','فشل الاتصال'); ptSave.disabled=false; });
     });
   })();
-  document.getElementById('set-verify-btn').addEventListener('click', function(){ document.getElementById('verify-modal').classList.add('is-open'); });
+  var _svBtn = document.getElementById('set-verify-btn');
+  if(_svBtn) _svBtn.addEventListener('click', function(){ document.getElementById('verify-modal').classList.add('is-open'); });
 
   // ── Issue activation code (two-step modal) ──
   var lastPaIdForSms = null;

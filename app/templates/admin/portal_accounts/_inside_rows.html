@@ -65,24 +65,6 @@
           <i class="fa-solid fa-right-left"></i>تحويل إلى {{ 'حساب اشتراك' if _is_cards else 'نظام البطاقات' }}
         </button>
         {% endif %}
-
-        {# زر التوثيق — لا يظهر لمستخدمي حساب الاشتراك (لا فائدة منه لهم) — فقط لنظام البطاقات #}
-        {% if r.access_mode == 'cards' %}
-          {% if (r.user_type or '')|lower == 'tawjihi' %}
-          <button type="button" class="act-menu-item tawjihi-toggle-pa-btn"
-                  data-bid="{{ r.beneficiary_id }}"
-                  data-name="{{ r.full_name or '' }}"
-                  data-verified="{{ '1' if r.tawjihi_verified else '0' }}">
-            <i class="fa-solid fa-shield-halved"></i>{{ 'إلغاء توثيق التوجيهي' if r.tawjihi_verified else 'توثيق التوجيهي' }}
-          </button>
-          {% else %}
-          <button type="button" class="act-menu-item tier-pa-btn"
-                  data-bid="{{ r.beneficiary_id }}"
-                  data-name="{{ r.full_name or '' }}">
-            <i class="fa-solid fa-shield-halved"></i>إدارة التوثيق المتدرّج
-          </button>
-          {% endif %}
-        {% endif %}
         <a class="act-menu-item" href="/admin/users/{{ r.beneficiary_id }}/profile">
           <i class="fa-solid fa-id-card-clip"></i>الصفحة الشخصية
         </a>
