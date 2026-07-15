@@ -72,7 +72,13 @@ def _load_username_subscribers(q="", user_type_filter="", limit=None):
     sql += " ORDER BY b.id DESC"
 
     users = []
+    seen_ids = set()
     for r in query_all(sql, params):
+        # منع التكرار: قد يملك المستفيد أكثر من صفّ radius_accounts فيتضاعف
+        # بسبب LEFT JOIN — نُبقي أوّل ظهور فقط (صفّ واحد لكل مستفيد).
+        if r["id"] in seen_ids:
+            continue
+        seen_ids.add(r["id"])
         ut = (r.get("user_type") or "").strip().lower()
         access_mode = _beneficiary_access_mode(r)
         if access_mode != 'username':

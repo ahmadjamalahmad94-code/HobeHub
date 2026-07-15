@@ -200,6 +200,7 @@ def admin_beneficiary_bulk_action():
             ids.append(int(v))
         except (TypeError, ValueError):
             continue
+    ids = sorted(set(ids))  # منع تكرار المعرّفات (تحديد جماعيّ)
     if not ids:
         return jsonify({"ok": False, "message": "لم يتم اختيار أي مستفيد."}), 400
 

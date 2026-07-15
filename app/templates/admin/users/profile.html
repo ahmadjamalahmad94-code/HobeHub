@@ -1728,8 +1728,10 @@
       document.getElementById('fh-clear').addEventListener('click', function(){
         if(!confirm('إلغاء النافذة؟ ستصبح بطاقة 4 ساعات متاحة دائماً للمشترك.')) return;
         var fd = new FormData(); fd.append('window_from',''); fd.append('window_until','');
+        var _tk=(document.querySelector('input[name="_csrf_token"]')||{}).value||'';
+        fd.append('_csrf_token', _tk);
         fetch('/admin/beneficiaries/'+BID+'/set-four-hour-window',
-              {method:'POST', credentials:'same-origin', body:fd})
+              {method:'POST', credentials:'same-origin', headers:{'X-CSRFToken':_tk,'X-Requested-With':'XMLHttpRequest'}, body:fd})
           .then(function(r){ return r.json(); })
           .then(function(j){
             if(j.ok){ showMsg('ok', j.message || 'تم.'); setTimeout(function(){ close(); location.reload(); }, 700); }
@@ -1743,8 +1745,10 @@
         var until = document.getElementById('fh-until').value.trim();
         if(!from || !until){ showMsg('err', 'حدد الوقتين معاً.'); return; }
         var fd = new FormData(); fd.append('window_from', from); fd.append('window_until', until);
+        var _tk=(document.querySelector('input[name="_csrf_token"]')||{}).value||'';
+        fd.append('_csrf_token', _tk);
         fetch('/admin/beneficiaries/'+BID+'/set-four-hour-window',
-              {method:'POST', credentials:'same-origin', body:fd})
+              {method:'POST', credentials:'same-origin', headers:{'X-CSRFToken':_tk,'X-Requested-With':'XMLHttpRequest'}, body:fd})
           .then(function(r){ return r.json(); })
           .then(function(j){
             if(j.ok){ showMsg('ok', j.message || 'تم.'); setTimeout(function(){ close(); location.reload(); }, 700); }
