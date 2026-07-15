@@ -12,35 +12,8 @@
 {% endblock %}
 
 {% block sidebar_nav %}
-{% if portal_kind == 'cards' %}
-<div class="d-nav-group">
-  <div class="d-nav-group-label"><i class="fa-solid fa-ticket"></i><span>البطاقات</span></div>
-  <a class="d-nav-item" href="/card" data-label="بطاقاتي"><i class="fa-solid fa-ticket"></i><span>بطاقاتي</span></a>
-  <a class="d-nav-item" href="/card/pending" data-label="طلباتي"><i class="fa-solid fa-hourglass-half"></i><span>طلباتي</span>{% if my_pending_count and my_pending_count > 0 %}<span class="d-nav-badge">{{ my_pending_count }}</span>{% endif %}</a>
-  <a class="d-nav-item" href="/card/history" data-label="السجل"><i class="fa-solid fa-clock-rotate-left"></i><span>السجل</span></a>
-  <a class="d-nav-item is-active" href="/card/notifications" data-label="إشعاراتي"><i class="fa-solid fa-bell"></i><span>إشعاراتي</span>{% if notification_count and notification_count > 0 %}<span class="d-nav-badge">{{ notification_count }}</span>{% endif %}</a>
-</div>
-<div class="d-nav-group">
-  <div class="d-nav-group-label"><i class="fa-solid fa-user"></i><span>حسابي</span></div>
-  <a class="d-nav-item" href="{{ url_for('user_profile_page') }}" data-label="ملفي"><i class="fa-solid fa-id-card"></i><span>ملفي الشخصي</span></a>
-  <a class="d-nav-item" href="/card/logout" data-label="خروج"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>تسجيل خروج</span></a>
-</div>
-{% else %}
-<div class="d-nav-group">
-  <div class="d-nav-group-label"><i class="fa-solid fa-house"></i><span>الرئيسية</span></div>
-  <a class="d-nav-item" href="/user/account" data-label="حسابي"><i class="fa-solid fa-id-badge"></i><span>حسابي</span></a>
-</div>
-<div class="d-nav-group">
-  <div class="d-nav-group-label"><i class="fa-solid fa-list-check"></i><span>متابعة</span></div>
-  <a class="d-nav-item" href="/user/account/requests" data-label="طلباتي"><i class="fa-solid fa-clock-rotate-left"></i><span>طلباتي</span>{% if pending_count and pending_count > 0 %}<span class="d-nav-badge">{{ pending_count }}</span>{% endif %}</a>
-  <a class="d-nav-item is-active" href="/user/notifications" data-label="إشعاراتي"><i class="fa-solid fa-bell"></i><span>إشعاراتي</span>{% if notification_count and notification_count > 0 %}<span class="d-nav-badge">{{ notification_count }}</span>{% endif %}</a>
-</div>
-<div class="d-nav-group">
-  <div class="d-nav-group-label"><i class="fa-solid fa-user"></i><span>حسابي</span></div>
-  <a class="d-nav-item" href="{{ url_for('user_profile_page') }}" data-label="ملفي"><i class="fa-solid fa-id-card"></i><span>ملفي الشخصي</span></a>
-  <a class="d-nav-item" href="{{ url_for('user_logout') }}" data-label="خروج"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>تسجيل خروج</span></a>
-</div>
-{% endif %}
+{% if portal_kind == 'cards' %}{% include "portal/_cards_sidebar.html" %}
+{% else %}{% include "portal/_account_sidebar.html" %}{% endif %}
 {% endblock %}
 
 {% block head_extra %}

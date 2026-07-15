@@ -1,0 +1,42 @@
+{# الشريط الجانبيّ الموحّد لبوابة حساب الإنترنت — مصدر واحد لكل صفحات /user #}
+{% set p = request.path %}
+<div class="d-nav-group">
+  <div class="d-nav-group-label"><i class="fa-solid fa-house"></i><span>الرئيسية</span></div>
+  <a class="d-nav-item {% if p in ('/user/account', '/users/account') %}is-active{% endif %}"
+     href="/user/account" data-label="حسابي">
+    <i class="fa-solid fa-id-badge"></i><span>حسابي</span>
+  </a>
+</div>
+<div class="d-nav-group">
+  <div class="d-nav-group-label"><i class="fa-solid fa-bolt"></i><span>إجراءات</span></div>
+  <a class="d-nav-item {% if p in ('/user/account/unblock-site', '/users/unblock-site') %}is-active{% endif %}"
+     href="/user/account/unblock-site" data-label="فتح موقع">
+    <i class="fa-solid fa-globe"></i><span>فتح موقع</span>
+  </a>
+  <a class="d-nav-item {% if p in ('/user/account/speed-upgrade', '/users/speed-upgrade') %}is-active{% endif %}"
+     href="/user/account/speed-upgrade" data-label="رفع السرعة">
+    <i class="fa-solid fa-gauge-high"></i><span>رفع السرعة</span>
+  </a>
+</div>
+<div class="d-nav-group">
+  <div class="d-nav-group-label"><i class="fa-solid fa-list-check"></i><span>متابعة</span></div>
+  <a class="d-nav-item {% if p in ('/user/account/requests', '/users/requests') %}is-active{% endif %}"
+     href="/user/account/requests" data-label="طلباتي">
+    <i class="fa-solid fa-clock-rotate-left"></i><span>طلباتي</span>
+    {% if pending_count and pending_count > 0 %}<span class="d-nav-badge">{{ pending_count }}</span>{% endif %}
+  </a>
+  <a class="d-nav-item {% if p == '/user/notifications' %}is-active{% endif %}"
+     href="/user/notifications" data-label="إشعاراتي">
+    <i class="fa-solid fa-bell"></i><span>إشعاراتي</span>
+    {% if notification_count and notification_count > 0 %}<span class="d-nav-badge">{{ notification_count }}</span>{% endif %}
+  </a>
+</div>
+<div class="d-nav-group">
+  <div class="d-nav-group-label"><i class="fa-solid fa-user"></i><span>حسابي</span></div>
+  <a class="d-nav-item" href="{{ url_for('user_profile_page') }}" data-label="ملفي">
+    <i class="fa-solid fa-id-card"></i><span>ملفي الشخصي</span>
+  </a>
+  <a class="d-nav-item" href="{{ url_for('user_logout') }}" data-label="خروج">
+    <i class="fa-solid fa-arrow-right-from-bracket"></i><span>تسجيل خروج</span>
+  </a>
+</div>

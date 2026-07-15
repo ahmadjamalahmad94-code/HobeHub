@@ -1,0 +1,35 @@
+{# الشريط الجانبيّ الموحّد لبوابة البطاقات — مصدر واحد لكل صفحات /card #}
+{% set p = request.path %}
+<div class="d-nav-group">
+  <div class="d-nav-group-label"><i class="fa-solid fa-house"></i><span>الرئيسية</span></div>
+  <a class="d-nav-item {% if p in ('/card', '/cards', '/user/cards', '/user/dashboard') %}is-active{% endif %}"
+     href="/card" data-label="بطاقاتي">
+    <i class="fa-solid fa-ticket"></i><span>بطاقاتي</span>
+  </a>
+</div>
+<div class="d-nav-group">
+  <div class="d-nav-group-label"><i class="fa-solid fa-list-check"></i><span>الطلبات</span></div>
+  <a class="d-nav-item {% if p in ('/card/pending', '/cards/pending', '/user/cards/pending') %}is-active{% endif %}"
+     href="/card/pending" data-label="طلباتي المعلّقة">
+    <i class="fa-solid fa-hourglass-half"></i><span>المعلّقة</span>
+    {% if my_pending_count and my_pending_count > 0 %}<span class="d-nav-badge">{{ my_pending_count }}</span>{% endif %}
+  </a>
+  <a class="d-nav-item {% if p in ('/card/history', '/cards/history', '/user/cards/history') %}is-active{% endif %}"
+     href="/card/history" data-label="السجل">
+    <i class="fa-solid fa-clock-rotate-left"></i><span>السجل الكامل</span>
+  </a>
+  <a class="d-nav-item {% if p == '/card/notifications' %}is-active{% endif %}"
+     href="/card/notifications" data-label="إشعاراتي">
+    <i class="fa-solid fa-bell"></i><span>إشعاراتي</span>
+    {% if notification_count and notification_count > 0 %}<span class="d-nav-badge">{{ notification_count }}</span>{% endif %}
+  </a>
+</div>
+<div class="d-nav-group">
+  <div class="d-nav-group-label"><i class="fa-solid fa-user"></i><span>حسابي</span></div>
+  <a class="d-nav-item" href="{{ url_for('user_profile_page') }}" data-label="ملفي">
+    <i class="fa-solid fa-id-card"></i><span>ملفي الشخصي</span>
+  </a>
+  <a class="d-nav-item" href="/card/logout" data-label="خروج">
+    <i class="fa-solid fa-arrow-right-from-bracket"></i><span>تسجيل خروج</span>
+  </a>
+</div>
