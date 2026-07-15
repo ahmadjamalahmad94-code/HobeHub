@@ -177,22 +177,24 @@
     bd.classList.add('open');
     jget('/admin/users/'+bid+'/card-policy').then(function(d){
       if(!d.ok){ showMsg(d.message||'تعذّر التحميل','err'); return; }
-      var ov=d.override||{};
-      var selDays=csv(ov.allowed_days), selCats=csv(ov.allowed_category_codes);
-      buildDays(selDays); buildCats(d.categories, selCats);
-      if(ov.daily_limit!=null) $('sp-daily').value=ov.daily_limit;
-      if(ov.weekly_limit!=null) $('sp-weekly').value=ov.weekly_limit;
-      $('sp-vfrom').value=(ov.valid_from||'').slice(0,10);
-      $('sp-vuntil').value=(ov.valid_until||'').slice(0,10);
-      $('sp-tfrom').value=(ov.valid_time_from||'').slice(0,5);
-      $('sp-tuntil').value=(ov.valid_time_until||'').slice(0,5);
-      if(ov.priority!=null) $('sp-priority').value=ov.priority;
-      $('sp-notes').value=ov.notes||'';
-      var sc=d.effective_scope||'default';
       var hasOwn=!!d.override;
+      // المصدر: سياسته الخاصّة إن وُجدت، وإلّا القيم الموروثة (الفعليّة) للاطّلاع/التأكيد
+      var src=d.override||d.effective||{};
+      var selDays=csv(src.allowed_days), selCats=csv(src.allowed_category_codes);
+      buildDays(selDays); buildCats(d.categories, selCats);
+      if(src.daily_limit!=null) $('sp-daily').value=src.daily_limit;
+      if(src.weekly_limit!=null) $('sp-weekly').value=src.weekly_limit;
+      $('sp-vfrom').value=(src.valid_from||'').slice(0,10);
+      $('sp-vuntil').value=(src.valid_until||'').slice(0,10);
+      $('sp-tfrom').value=(src.valid_time_from||'').slice(0,5);
+      $('sp-tuntil').value=(src.valid_time_until||'').slice(0,5);
+      // الأولوية والملاحظة من سياسته الخاصّة فقط (لا من الموروثة)
+      if(hasOwn && d.override.priority!=null) $('sp-priority').value=d.override.priority;
+      $('sp-notes').value=(hasOwn?(d.override.notes||''):'');
+      var sc=d.effective_scope||'default';
       $('sp-eff-note').innerHTML = hasOwn
         ? '<b style="color:#166534">لهذا المشترك سياسة خاصّة مُطبّقة الآن.</b> عدّلها أدناه، أو «إلغاء التخصيص» ليرث الافتراضية.'
-        : ('المشترك يرث الآن <b>'+(SCOPE_LABEL[sc]||'الافتراضية')+'</b>. أيّ تعديل هنا يُنشئ له سياسة خاصّة تتجاوزها.');
+        : ('المشترك يرث الآن <b>'+(SCOPE_LABEL[sc]||'الافتراضية')+'</b> — والحقول أدناه تعرض قيمها الموروثة. أيّ تعديل يُنشئ له سياسة خاصّة تتجاوزها.');
     }).catch(function(){ showMsg('فشل الاتصال','err'); });
   };
 
