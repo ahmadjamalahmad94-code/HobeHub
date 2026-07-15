@@ -93,6 +93,14 @@ def create_card_approval_request(beneficiary_id, category_code, *, usage_reason=
     return action_id
 
 
+def _appr_respond(ok, message, status=200):
+    """يردّ JSON لطلبات AJAX، أو flash+تحويل لطلبات النموذج العاديّة (صفحة التفاصيل)."""
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": ok, "message": message}), (200 if ok else status)
+    flash(message, "success" if ok else "error")
+    return redirect(request.referrer or url_for("admin_request_center", type="card"))
+
+
 def _approval_payload(action):
     raw = action.get("payload_json")
     if isinstance(raw, dict):
@@ -129,14 +137,14 @@ def admin_card_approval_approve(action_id):
 
     action = query_one("SELECT * FROM radius_pending_actions WHERE id=%s LIMIT 1", [action_id])
     if not action:
-        return jsonify({"ok": False, "message": "الطلب غير موجود."}), 404
+        return _appr_respond(False, "الطلب غير موجود.", 404)
     if action.get("status") != "pending":
-        return jsonify({"ok": False, "message": f"الطلب بحالة «{action.get('status')}» ولا يمكن الموافقة عليه."}), 409
+        return _appr_respond(False, f"الطلب بحالة «{action.get('status')}» ولا يمكن الموافقة عليه.", 409)
 
     bid = int(action.get("beneficiary_id") or 0)
     code = (_approval_payload(action).get("category_code") or "").strip()
     if not (bid and code):
-        return jsonify({"ok": False, "message": "بيانات الطلب ناقصة."}), 400
+        return _appr_respond(False, "بيانات الطلب ناقصة.", 400)
 
     disp = request_card_via_radius(
         bid, code,
@@ -144,7 +152,7 @@ def admin_card_approval_approve(action_id):
         skip_quota=True, notes="موافقة الإدارة على بطاقة طويلة",
     )
     if not getattr(disp, "ok", False) or not getattr(disp, "issued_card_id", 0):
-        return jsonify({"ok": False, "message": getattr(disp, "message", "تعذّر توليد البطاقة.")}), 400
+        return _appr_respond(False, getattr(disp, "message", "تعذّر توليد البطاقة."), 400)
 
     execute_sql(
         "UPDATE radius_pending_actions SET status='done', executed_by_username=%s, "
@@ -164,7 +172,7 @@ def admin_card_approval_approve(action_id):
     except Exception:
         pass
     log_action("approve_long_card", "radius_pending_actions", action_id, f"user={bid} code={code}")
-    return jsonify({"ok": True, "message": "تمت الموافقة وأُصدرت البطاقة للمشترك."})
+    return _appr_respond(True, "تمت الموافقة وأُصدرت البطاقة للمشترك.")
 
 
 # ─── POST /admin/cards/pending/<id>/reject — رفض: إشعار بلا احتساب بطاقة
@@ -176,9 +184,9 @@ def admin_card_approval_reject(action_id):
         [action_id],
     )
     if not action:
-        return jsonify({"ok": False, "message": "الطلب غير موجود."}), 404
+        return _appr_respond(False, "الطلب غير موجود.", 404)
     if action.get("status") != "pending":
-        return jsonify({"ok": False, "message": f"الطلب بحالة «{action.get('status')}»."}), 409
+        return _appr_respond(False, f"الطلب بحالة «{action.get('status')}».", 409)
 
     cat_label = _category_label_for(_approval_payload(action).get("category_code"))
     reason = clean_csv_value(request.form.get("reason")) or "لم تتم الموافقة"
@@ -202,4 +210,4 @@ def admin_card_approval_reject(action_id):
         except Exception:
             pass
     log_action("reject_long_card", "radius_pending_actions", action_id, f"user={bid} reason={reason}")
-    return jsonify({"ok": True, "message": "تم رفض الطلب وإشعار المشترك."})
+    return _appr_respond(True, "تم رفض الطلب وإشعار المشترك.")
