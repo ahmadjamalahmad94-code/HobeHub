@@ -311,6 +311,25 @@ def check_quota(
         decision.reason = f"فئة البطاقة ({category_code}) غير مسموحة بسياستك."
         return decision
 
+    # قيد وقت الدوام (يغلب دائمًا): لا تُصدَر بطاقة أطول من الوقت المتبقّي حتى
+    # نهاية الدوام العامّ. لو انتهى الدوام → لا بطاقة.
+    if category_code:
+        remaining_min = _remaining_workday_minutes(now_dt)
+        if remaining_min is not None:
+            if remaining_min <= 0:
+                decision.allowed = False
+                decision.reason = "انتهى وقت الدوام — لا يمكن إصدار بطاقة الآن."
+                return decision
+            _cat = get_category_by_code(category_code)
+            _dur = int((_cat or {}).get("duration_minutes") or 0)
+            if _dur > remaining_min:
+                decision.allowed = False
+                decision.reason = (
+                    f"مدّة البطاقة أطول من المتبقّي للدوام ({remaining_min} دقيقة) — "
+                    "اختر بطاقة أقصر."
+                )
+                return decision
+
     # قاعدة نوع المشترك (تغلب على السياسة): توجيهي → نصف ساعة فقط
     from app.services.access_rules import (
         is_card_category_allowed_for_user_type,
@@ -353,12 +372,30 @@ def get_active_categories() -> list[dict]:
     )
 
 
+def _remaining_workday_minutes(now=None):
+    """الدقائق المتبقّية حتى نهاية الدوام العامّ (من إعدادات البطاقات).
+    None إن تعذّر تحديد نهاية الدوام؛ 0 إن انتهى الدوام."""
+    try:
+        sched = legacy.get_hotspot_workday_settings() or {}
+        end = str(sched.get("end_time") or "").strip()
+        if not end or ":" not in end:
+            return None
+        eh, em = [int(x) for x in end.split(":", 1)]
+        now_dt = now or legacy.now_local()
+        end_dt = now_dt.replace(hour=eh, minute=em, second=0, microsecond=0)
+        return max(0, int((end_dt - now_dt).total_seconds() // 60))
+    except Exception:  # noqa: BLE001 — لا نكسر العرض إن غابت الإعدادات
+        return None
+
+
 def get_available_categories_for_beneficiary(beneficiary_id: int) -> list[dict]:
     from app.services.access_rules import allowed_card_codes_for_user_type
 
     categories = get_active_categories()
     policy = get_effective_policy(int(beneficiary_id or 0))
     allowed_categories = _csv_split((policy or {}).get("allowed_category_codes") or "")
+    # قيد وقت الدوام: لا نعرض بطاقة أطول من المتبقّي حتى نهاية الدوام.
+    remaining_min = _remaining_workday_minutes()
 
     # طبّق قاعدة نوع المشترك (مثلاً توجيهي → half_hour فقط)
     bid = int(beneficiary_id or 0)
@@ -375,6 +412,9 @@ def get_available_categories_for_beneficiary(beneficiary_id: int) -> list[dict]:
         if not _is_category_allowed(code, allowed_categories):
             continue
         if type_locked_codes is not None and code not in type_locked_codes:
+            continue
+        # قيد وقت الدوام: أسقِط الفئات الأطول من الوقت المتبقّي (وكلّها إن انتهى).
+        if remaining_min is not None and int(category.get("duration_minutes") or 0) > remaining_min:
             continue
         result.append(category)
     return result

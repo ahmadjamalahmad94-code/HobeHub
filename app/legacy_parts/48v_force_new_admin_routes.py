@@ -147,6 +147,8 @@ for url, canonical_endpoint, methods in _FORCED_ROUTES:
 _PHASE1_CANONICAL_GET_REDIRECTS = {
     "/admin/home": "/admin/dashboard",
     "/admin/cards/overview": "/admin/cards",
+    "/admin/cards/policies": "/admin/cards/settings",
+    "/admin/quota-groups": "/admin/cards/settings",
     "/admin/users-account/": "/admin/users-account",
     "/admin/users-account/overview": "/admin/users-account",
     "/admin/radius/users-online": "/admin/radius/online",
