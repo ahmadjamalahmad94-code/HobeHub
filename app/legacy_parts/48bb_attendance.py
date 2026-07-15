@@ -49,8 +49,23 @@ def _day_name(date_str):
 
 
 def _hm(value):
-    """يستخرج HH:MM من طابع زمنيّ نصّيّ."""
-    s = str(value or "")
+    """HH:MM بتوقيت غزة (Asia/Gaza) — يوحّد عرض الوقت مع بقيّة الموقع.
+
+    الطوابع المخزّنة/القادمة من RADIUS بتوقيت UTC؛ نحوّلها محلّيًّا عبر
+    ``as_local_dt`` المركزيّة نفسها التي يستخدمها ``format_dt_short`` في كامل
+    اللوحة (naive → UTC → APP_TZ). تدهور ناعم: قصّ نصّيّ إن تعذّر التحويل."""
+    if not value:
+        return ""
+    v = value
+    if isinstance(v, str) and v.endswith("Z"):
+        v = v[:-1] + "+00:00"  # كي يقبله fromisoformat على 3.10/3.11
+    try:
+        loc = as_local_dt(v)
+        if loc is not None:
+            return loc.strftime("%H:%M")
+    except Exception:
+        pass
+    s = str(value)
     if "T" in s:
         s = s.split("T", 1)[1]
     elif " " in s:
