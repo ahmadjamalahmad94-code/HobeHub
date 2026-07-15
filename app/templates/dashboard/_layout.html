@@ -27,6 +27,14 @@
   #flash-stack .flash-toast .flash-x:hover{opacity:1;background:rgba(0,0,0,.08)}
   @keyframes flashIn{from{opacity:0;transform:translateY(-12px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
   @keyframes flashOut{to{opacity:0;transform:translateY(-12px) scale(.96)}}
+  /* ── ساعة الهيدر (توقيت النظام) ── */
+  .d-clock{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:11px;
+    background:#1E1E1E;color:#fff;text-decoration:none;font-family:inherit;transition:.18s ease;white-space:nowrap}
+  .d-clock:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.22)}
+  .d-clock i{color:#F4BA2A;font-size:13px}
+  .d-clock-time{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.5px;direction:ltr}
+  .d-clock-tz{font-size:10.5px;font-weight:700;color:#F4BA2A}
+  @media (max-width:640px){.d-clock-tz{display:none}.d-clock{padding:7px 10px}}
   </style>
   {% block head_extra %}{% endblock %}
 </head>
@@ -144,6 +152,14 @@ if(window.matchMedia('(max-width:860px)').matches){document.getElementById('d-sh
       </div>
       <div class="d-topbar-actions">
         {% block topbar_actions %}
+        {% if system_now %}
+        <a class="d-clock" id="d-clock" href="/admin/cards/settings" title="توقيت النظام — اضبطه من إعدادات البطاقات"
+           data-server="{{ system_now }}">
+          <i class="fa-regular fa-clock"></i>
+          <span class="d-clock-time">{{ system_now[11:19] }}</span>
+          <span class="d-clock-tz">{{ system_tz.split('/')[-1] }}</span>
+        </a>
+        {% endif %}
         <div class="d-search">
           <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
           <input type="search" placeholder="بحث سريع…" aria-label="بحث">
@@ -295,5 +311,21 @@ if(window.matchMedia('(max-width:860px)').matches){document.getElementById('d-sh
 </script>
 
 {% block scripts %}{% endblock %}
+<script>
+(function(){
+  var el=document.getElementById('d-clock');
+  if(!el) return;
+  var out=el.querySelector('.d-clock-time');
+  var s=el.getAttribute('data-server')||'';
+  var m=s.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+  if(!m||!out) return;
+  var t=new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]);
+  function pad(n){return (n<10?'0':'')+n;}
+  setInterval(function(){
+    t=new Date(t.getTime()+1000);
+    out.textContent=pad(t.getHours())+':'+pad(t.getMinutes())+':'+pad(t.getSeconds());
+  },1000);
+})();
+</script>
 </body>
 </html>

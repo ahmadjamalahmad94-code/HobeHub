@@ -124,6 +124,17 @@ def _instance_branding():
 @app.context_processor
 def inject_helpers():
     brand_name, brand_tagline = _instance_branding()
+    # وقت النظام بالمنطقة المضبوطة — لعرض ساعة الهيدر الحيّة في كل الصفحات
+    try:
+        _n = now_local()
+        _sys_now = _n.strftime("%Y-%m-%d %H:%M:%S")
+        _sys_offset = _n.strftime("%z")
+    except Exception:
+        _sys_now, _sys_offset = "", ""
+    try:
+        _sys_tz = app_timezone_name()
+    except Exception:
+        _sys_tz = "Asia/Gaza"
     return {
         "csrf_token": get_csrf_token,
         "csrf_token_input": csrf_token_input,
@@ -134,6 +145,9 @@ def inject_helpers():
         "arabize_audit_text": arabize_audit_text,
         "brand_name": brand_name,
         "brand_tagline": brand_tagline,
+        "system_now": _sys_now,
+        "system_tz": _sys_tz,
+        "system_offset": _sys_offset,
     }
 
 
