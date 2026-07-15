@@ -482,18 +482,20 @@
     var on = Array.from(document.querySelectorAll('.day-chip.is-on')).map(function(c){ return c.dataset.day; });
     daysInput.value = on.join(',');
   }
-  document.querySelectorAll('.day-chip').forEach(function(c){
-    c.addEventListener('click', function(){ toggleDayChip(c); });
-  });
-
   // Category chips
   function toggleCatChip(chip){ chip.classList.toggle('is-on'); syncCats(); }
   function syncCats(){
     var on = Array.from(document.querySelectorAll('.cat-chip.is-on')).map(function(c){ return c.dataset.code; });
     catsInput.value = on.join(',');
   }
-  document.querySelectorAll('.cat-chip').forEach(function(c){
-    c.addEventListener('click', function(){ toggleCatChip(c); });
+
+  // تفويض النقر (delegation) لرقائق الأيّام والفئات — يعمل دائمًا مهما أُعيد
+  // بناء الرقائق، فلا يضيع أيّ نقر ولا يبقى الحقل المخفيّ غير مُتزامن.
+  document.addEventListener('click', function(e){
+    var day = e.target.closest && e.target.closest('.day-chip');
+    if(day){ toggleDayChip(day); return; }
+    var cat = e.target.closest && e.target.closest('.cat-chip');
+    if(cat){ toggleCatChip(cat); return; }
   });
 
   // Limit presets
@@ -630,6 +632,12 @@
   // Form submit (add OR edit)
   form.addEventListener('submit', function(e){
     e.preventDefault();
+    // إعادة احتساب حاسمة من الرقائق المضيئة قبل الإرسال — كي لا تُرسَل قيمة
+    // قديمة عالقة في الحقل المخفيّ (كان سبب «رجوع كل الفئات» عند التعديل).
+    catsInput.value = Array.from(document.querySelectorAll('.cat-chip.is-on'))
+      .map(function(c){ return c.dataset.code; }).join(',');
+    daysInput.value = Array.from(document.querySelectorAll('.day-chip.is-on'))
+      .map(function(c){ return c.dataset.day; }).join(',');
     saveBtn.disabled = true; clearMsg();
     var pid = polId.value;
     var url = pid ? '/admin/cards/policies/'+pid+'/edit' : '/admin/cards/policies/add-ajax';
