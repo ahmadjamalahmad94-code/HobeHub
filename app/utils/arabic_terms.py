@@ -460,6 +460,22 @@ def arabize_audit_text(value) -> str:
     return _LATIN_TOKEN_RE.sub("رمز داخلي", text)
 
 
+# تقصير التواريخ الطويلة في النصّ المرئيّ فقط (لا السكربتات/السمات): يحوّل
+# «2026-07-15 15:29:58.965768» → «2026-07-15 15:29»، و«15:29:58.123» → «15:29».
+_LONG_DT_RE = re.compile(
+    r"(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}):\d{2}(?:\.\d+)?(?:\s*(?:[+-]\d{2}:?\d{2}|Z))?"
+)
+_LONG_TIME_RE = re.compile(r"(?<!\d)(\d{2}:\d{2}):\d{2}\.\d+")
+
+
+def _shorten_datetimes(text: str) -> str:
+    if not text or ":" not in text:
+        return text
+    text = _LONG_DT_RE.sub(r"\1", text)
+    text = _LONG_TIME_RE.sub(r"\1", text)
+    return text
+
+
 def arabize_html_fragment(html: str) -> str:
     if not ARABIZE_UI_ENABLED or not html:
         return html
@@ -493,5 +509,5 @@ def arabize_html_fragment(html: str) -> str:
         elif stack:
             out.append(part)
         else:
-            out.append(arabize_text(part))
+            out.append(_shorten_datetimes(arabize_text(part)))
     return "".join(out)
