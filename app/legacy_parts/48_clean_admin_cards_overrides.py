@@ -190,7 +190,9 @@ app.view_functions["user_internet_request_page"] = user_login_required(_manual_c
 app.view_functions["advradius_app_test_route"] = login_required(permission_required("manage_radius_settings")(_clean_advradius_app_test_route))
 app.view_functions["admin_cards_import_page"] = admin_login_required(_clean_admin_cards_import_page)
 app.view_functions["admin_cards_inventory_page"] = admin_login_required(_clean_admin_cards_inventory_page)
-app.view_functions["admin_cards_settings_page"] = admin_login_required(_clean_admin_cards_settings_page)
+app.view_functions["admin_cards_settings_page"] = admin_login_required(
+    permission_required("manage_card_policies")(_clean_admin_cards_settings_page)
+)
 
 
 app.view_functions["user_internet_access_page"] = user_login_required(_manual_cards_user_access_page)
