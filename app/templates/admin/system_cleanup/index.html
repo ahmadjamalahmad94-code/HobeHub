@@ -221,7 +221,7 @@
           <div class="sc-field"><label>التنظيف</label><select name="operation"><option value="clear_notes">مسح الملاحظات</option><option value="clear_phones">مسح أرقام الجوال</option><option value="reset_weekly_usage">تصفير عداد الأسبوع</option></select></div>
         </div>
         <div class="sc-actions">
-          <button class="sc-btn sc-btn--ghost" type="submit" onclick="return confirm('تأكيد تنظيف الحقول المختارة؟')"><i class="fa-solid fa-broom"></i> تنفيذ التنظيف</button>
+          <button class="sc-btn sc-btn--ghost" type="submit" data-confirm="تأكيد تنظيف الحقول المختارة؟"><i class="fa-solid fa-broom"></i> تنفيذ التنظيف</button>
         </div>
       </form>
     </div>
@@ -267,7 +267,7 @@
           </div>
         </div>
         <div class="sc-actions">
-          <button class="sc-btn sc-btn--ghost" type="submit" onclick="return confirm('تأكيد تنظيف الحقول المختارة؟')"><i class="fa-solid fa-broom"></i> تنفيذ التنظيف</button>
+          <button class="sc-btn sc-btn--ghost" type="submit" data-confirm="تأكيد تنظيف الحقول المختارة؟"><i class="fa-solid fa-broom"></i> تنفيذ التنظيف</button>
         </div>
       </form>
     </div>
@@ -313,7 +313,7 @@
           </div>
         </div>
         <div class="sc-actions">
-          <button class="sc-btn sc-btn--ghost" type="submit" onclick="return confirm('تأكيد تنظيف الحقول المختارة؟')"><i class="fa-solid fa-broom"></i> تنفيذ التنظيف</button>
+          <button class="sc-btn sc-btn--ghost" type="submit" data-confirm="تأكيد تنظيف الحقول المختارة؟"><i class="fa-solid fa-broom"></i> تنفيذ التنظيف</button>
         </div>
       </form>
     </div>
@@ -332,7 +332,7 @@
     <div class="sc-maint-grid">
 
       {# تصفير عداد الأسبوع #}
-      <form method="POST" action="{{ url_for('admin_control_maintenance') }}" class="sc-maint-card" onsubmit="return confirm('تصفير عدّاد الاستخدام الأسبوعي لكل المستفيدين؟')">
+      <form method="POST" action="{{ url_for('admin_control_maintenance') }}" class="sc-maint-card" data-confirm="تصفير عدّاد الاستخدام الأسبوعي لكل المستفيدين؟" data-confirm-danger>
         {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
         <input type="hidden" name="operation" value="reset_all_weekly_usage">
         <div class="sc-maint-head">
@@ -346,7 +346,7 @@
       </form>
 
       {# حذف الإشعارات القديمة #}
-      <form method="POST" action="{{ url_for('admin_control_maintenance') }}" class="sc-maint-card warn" onsubmit="return confirm('حذف الإشعارات القديمة؟')">
+      <form method="POST" action="{{ url_for('admin_control_maintenance') }}" class="sc-maint-card warn" data-confirm="حذف الإشعارات القديمة؟" data-confirm-danger>
         {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
         <input type="hidden" name="operation" value="clear_old_notifications">
         <div class="sc-maint-head">
@@ -361,7 +361,7 @@
       </form>
 
       {# حذف الطلبات المنجزة القديمة #}
-      <form method="POST" action="{{ url_for('admin_control_maintenance') }}" class="sc-maint-card warn" onsubmit="return confirm('حذف الطلبات المنجزة القديمة؟')">
+      <form method="POST" action="{{ url_for('admin_control_maintenance') }}" class="sc-maint-card warn" data-confirm="حذف الطلبات المنجزة القديمة؟" data-confirm-danger>
         {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
         <input type="hidden" name="operation" value="clear_old_executed_actions">
         <div class="sc-maint-head">
@@ -376,7 +376,7 @@
       </form>
 
       {# حذف البطاقات الصادرة القديمة #}
-      <form method="POST" action="{{ url_for('admin_control_maintenance') }}" class="sc-maint-card warn" onsubmit="return confirm('حذف البطاقات الصادرة القديمة؟')">
+      <form method="POST" action="{{ url_for('admin_control_maintenance') }}" class="sc-maint-card warn" data-confirm="حذف البطاقات الصادرة القديمة؟" data-confirm-danger>
         {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
         <input type="hidden" name="operation" value="clear_old_issued_cards">
         <div class="sc-maint-head">
@@ -391,7 +391,7 @@
       </form>
 
       {# حذف سجلات التدقيق القديمة #}
-      <form method="POST" action="{{ url_for('admin_control_maintenance') }}" class="sc-maint-card warn" onsubmit="return confirm('حذف سجلات التدقيق القديمة؟')">
+      <form method="POST" action="{{ url_for('admin_control_maintenance') }}" class="sc-maint-card warn" data-confirm="حذف سجلات التدقيق القديمة؟" data-confirm-danger>
         {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
         <input type="hidden" name="operation" value="clear_old_audit">
         <div class="sc-maint-head">
@@ -406,7 +406,7 @@
       </form>
 
       {# تفريغ مخزون البطاقات المتاحة #}
-      <form method="POST" action="{{ url_for('admin_control_maintenance') }}" class="sc-maint-card danger" onsubmit="return confirm('سيتم حذف كل البطاقات المتاحة في المخزون (الصادرة محفوظة). متابعة؟')">
+      <form method="POST" action="{{ url_for('admin_control_maintenance') }}" class="sc-maint-card danger" data-confirm="سيتم حذف كل البطاقات المتاحة في المخزون (الصادرة محفوظة). متابعة؟" data-confirm-danger>
         {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
         <input type="hidden" name="operation" value="clear_manual_inventory">
         <div class="sc-maint-head">
@@ -428,7 +428,7 @@
   <h3><i class="fa-solid fa-triangle-exclamation"></i>منطقة خطرة — لا تراجع</h3>
 
   <div class="sc-maint-grid">
-    <form method="POST" action="{{ url_for('admin_control_system_reset') }}" class="sc-maint-card warn" onsubmit="return confirm('سيتم حذف كل السجلات التشغيلية (استخدام + أرشيف + تدقيق). متابعة؟')">
+    <form method="POST" action="{{ url_for('admin_control_system_reset') }}" class="sc-maint-card warn" data-confirm="سيتم حذف كل السجلات التشغيلية (استخدام + أرشيف + تدقيق). متابعة؟" data-confirm-danger>
       {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
       <input type="hidden" name="operation" value="truncate_operational">
       <div class="sc-maint-head">
@@ -441,7 +441,7 @@
       </div>
     </form>
 
-    <form method="POST" action="{{ url_for('admin_control_system_reset') }}" class="sc-maint-card danger" onsubmit="return confirm('سيتم حذف كل المستفيدين والسجلات المرتبطة بهم. هذا الإجراء نهائي!')">
+    <form method="POST" action="{{ url_for('admin_control_system_reset') }}" class="sc-maint-card danger" data-confirm="سيتم حذف كل المستفيدين والسجلات المرتبطة بهم. هذا الإجراء نهائي!" data-confirm-danger>
       {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
       <input type="hidden" name="operation" value="truncate_beneficiaries_only">
       <div class="sc-maint-head">
@@ -454,7 +454,7 @@
       </div>
     </form>
 
-    <form method="POST" action="{{ url_for('admin_control_system_reset') }}" class="sc-maint-card danger" onsubmit="return confirm('سيتم تصفير النظام بالكامل (تبقى الحسابات والصلاحيات فقط). هذا الإجراء نهائي!')">
+    <form method="POST" action="{{ url_for('admin_control_system_reset') }}" class="sc-maint-card danger" data-confirm="سيتم تصفير النظام بالكامل (تبقى الحسابات والصلاحيات فقط). هذا الإجراء نهائي!" data-confirm-danger>
       {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
       <input type="hidden" name="operation" value="truncate_everything_except_accounts">
       <div class="sc-maint-head">

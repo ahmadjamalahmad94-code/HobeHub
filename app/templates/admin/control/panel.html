@@ -35,7 +35,7 @@
     <div class="danger-card lvl-1">
       <h4><i class="fa-solid fa-rotate-left"></i> تصفير عداد الأسبوع</h4>
       <p>يعيد عداد الاستخدام الأسبوعي لكل المستفيدين إلى صفر. لا يحذف السجلات.</p>
-      <form method="POST" action="{{ url_for('reset_weekly_usage') }}" onsubmit="return confirm('سيتم تصفير العداد الأسبوعي لكل المستفيدين. متابعة؟')">
+      <form method="POST" action="{{ url_for('reset_weekly_usage') }}" data-confirm="سيتم تصفير العداد الأسبوعي لكل المستفيدين. متابعة؟" data-confirm-danger>
         {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
         <button type="submit" class="btn-act btn-act-1"><i class="fa-solid fa-rotate-left"></i>تصفير</button>
       </form>
@@ -44,7 +44,7 @@
     <div class="danger-card lvl-2">
       <h4><i class="fa-solid fa-box-archive"></i> أرشفة كل السجلات الحالية</h4>
       <p>ينقل كل السجل الحالي إلى الأرشيف (يمكن استرجاعه لاحقًا).</p>
-      <form method="POST" action="{{ url_for('archive_usage_logs') }}" onsubmit="return confirm('سيتم نقل كل السجلات للأرشيف. متابعة؟')">
+      <form method="POST" action="{{ url_for('archive_usage_logs') }}" data-confirm="سيتم نقل كل السجلات للأرشيف. متابعة؟">
         {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
         <button type="submit" class="btn-act btn-act-2"><i class="fa-solid fa-box-archive"></i>أرشفة الكل</button>
       </form>
@@ -61,7 +61,7 @@
     <div class="danger-card lvl-3">
       <h4><i class="fa-solid fa-trash-can"></i> حذف السجل الحالي بالكامل</h4>
       <p><strong>غير قابل للتراجع.</strong> يحذف نهائيًا كل السجلات الحالية. الأرشيف يبقى محفوظًا.</p>
-      <form method="POST" action="{{ url_for('clear_usage_logs') }}" onsubmit="return confirm('سيتم حذف كل السجل الحالي نهائيًا. هل أنت متأكد؟')">
+      <form method="POST" action="{{ url_for('clear_usage_logs') }}" data-confirm="سيتم حذف كل السجل الحالي نهائيًا. هل أنت متأكد؟" data-confirm-danger>
         {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
         <button type="submit" class="btn-act btn-act-3"><i class="fa-solid fa-trash-can"></i>حذف السجل</button>
       </form>

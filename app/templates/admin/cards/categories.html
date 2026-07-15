@@ -412,7 +412,7 @@
   });
 
   // Delegated row actions
-  document.addEventListener('click', function(e){
+  document.addEventListener('click', async function(e){
     var editBtn = e.target.closest && e.target.closest('.cat-edit');
     if(editBtn){ openEdit(editBtn.dataset.catId); return; }
 
@@ -429,7 +429,7 @@
 
     var delBtn = e.target.closest && e.target.closest('.cat-delete');
     if(delBtn){
-      if(!confirm('حذف فئة "'+delBtn.dataset.label+'" نهائياً؟')) return;
+      if(!(await hcAsk('حذف فئة "'+delBtn.dataset.label+'" نهائياً؟'))) return;
       safeJson('/admin/cards/categories/'+delBtn.dataset.catId+'/delete', {method:'POST'})
         .then(function(d){
           showToast(d.message, d.ok ? 'success' : 'error');

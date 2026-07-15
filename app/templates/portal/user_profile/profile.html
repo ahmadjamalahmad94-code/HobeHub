@@ -349,7 +349,7 @@
         </div>
         <a class="prof-doc-act" href="{{ url_for('portal_document_download', doc_id=d.id) }}" target="_blank"><i class="fa-solid fa-eye"></i></a>
         <form method="POST" action="{{ url_for('portal_document_delete', doc_id=d.id) }}" style="display:inline"
-              onsubmit="return confirm('حذف هذا المستند نهائيًا؟')">
+              data-confirm="حذف هذا المستند نهائيًا؟" data-confirm-danger>
           {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
           <button class="prof-doc-act prof-doc-act--del" type="submit"><i class="fa-solid fa-trash"></i></button>
         </form>

@@ -101,21 +101,21 @@
           <div class="rd-field full"><label>ملاحظات الإدارة</label><textarea name="notes">{{ admin_payload.notes or requested_payload.notes or '' }}</textarea></div>
         </div>
         <div class="rd-actions" style="margin-top:12px">
-          <button class="d-pill-btn" type="submit" onclick="return confirm('اعتماد هذا الطلب وتجهيزه للتنفيذ؟')"><i class="fa-solid fa-check"></i>اعتماد الطلب</button>
+          <button class="d-pill-btn" type="submit" data-confirm="اعتماد هذا الطلب وتجهيزه للتنفيذ؟"><i class="fa-solid fa-check"></i>اعتماد الطلب</button>
         </div>
       </form>
       <form method="POST" action="{{ url_for('admin_internet_request_reject', request_id=item.id) }}" style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--d-border)">
         {{ csrf_token_input() | safe }}
         <div class="rd-field full"><label>سبب الرفض</label><textarea name="reason" placeholder="اكتب سببًا واضحًا للرفض"></textarea></div>
         <div class="rd-actions" style="margin-top:12px">
-          <button class="d-pill-btn d-pill-btn--ghost" type="submit" onclick="return confirm('رفض هذا الطلب؟')"><i class="fa-solid fa-ban"></i>رفض الطلب</button>
+          <button class="d-pill-btn d-pill-btn--ghost" type="submit" data-confirm="رفض هذا الطلب؟"><i class="fa-solid fa-ban"></i>رفض الطلب</button>
         </div>
       </form>
       {% elif item.status in ['approved','failed'] and has_permission('execute_radius_actions') %}
       <p style="margin:0 0 12px;color:var(--d-text-muted);font-size:13px">سيتم تنفيذ الطلب عبر واجهة الربط وحفظ النتيجة في النظام.</p>
       <form method="POST" action="{{ url_for('admin_internet_request_execute', request_id=item.id) }}">
         {{ csrf_token_input() | safe }}
-        <button class="d-pill-btn" type="submit" onclick="return confirm('تنفيذ هذا الطلب عبر واجهة الربط؟')"><i class="fa-solid fa-play"></i>تنفيذ الآن</button>
+        <button class="d-pill-btn" type="submit" data-confirm="تنفيذ هذا الطلب عبر واجهة الربط؟"><i class="fa-solid fa-play"></i>تنفيذ الآن</button>
       </form>
       {% else %}
       <p style="margin:0 0 12px;color:var(--d-text-muted);font-size:13px">لا توجد إجراءات مباشرة لهذه الحالة. صفحة التنفيذ بقيت كمرجع فني عند الحاجة.</p>
@@ -125,11 +125,11 @@
       <div class="rd-inline-form">
         <form method="POST" action="{{ url_for('admin_user_request_done', action_id=item.id) }}">
           {{ csrf_token_input() | safe }}
-          <button class="d-pill-btn" type="submit" onclick="return confirm('تأكيد وضع هذا الطلب كمنفّذ؟')"><i class="fa-solid fa-check"></i>منفّذ</button>
+          <button class="d-pill-btn" type="submit" data-confirm="تأكيد وضع هذا الطلب كمنفّذ؟"><i class="fa-solid fa-check"></i>منفّذ</button>
         </form>
         <form method="POST" action="{{ url_for('admin_user_request_cancel', action_id=item.id) }}">
           {{ csrf_token_input() | safe }}
-          <button class="d-pill-btn d-pill-btn--ghost" type="submit" onclick="return confirm('إلغاء هذا الطلب؟')"><i class="fa-solid fa-xmark"></i>إلغاء</button>
+          <button class="d-pill-btn d-pill-btn--ghost" type="submit" data-confirm="إلغاء هذا الطلب؟" data-confirm-danger><i class="fa-solid fa-xmark"></i>إلغاء</button>
         </form>
       </div>
     {% elif item.source == 'card' and item.status == 'pending' %}

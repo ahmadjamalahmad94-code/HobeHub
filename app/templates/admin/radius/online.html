@@ -201,7 +201,7 @@
           <td>
             {% if s.username and s.username != '—' %}
             <form method="POST" action="{{ url_for('radius_disconnect_user_page') }}"
-                  onsubmit="return confirm('فصل جلسة {{ s.username }}؟')" style="margin:0">
+                  data-confirm="فصل جلسة {{ s.username }}؟" style="margin:0">
               {{ csrf_token_input() | safe }}
               <input type="hidden" name="username" value="{{ s.username }}">
               {% if s.session_id %}<input type="hidden" name="session_id" value="{{ s.session_id }}">{% endif %}
@@ -210,7 +210,7 @@
               </button>
             </form>
             <form method="POST" action="{{ url_for('radius_lock_mac_page') }}"
-                  onsubmit="return confirm('قفل جلسة {{ s.username }} على جهازها الحاليّ؟')" style="margin:4px 0 0">
+                  data-confirm="قفل جلسة {{ s.username }} على جهازها الحاليّ؟" style="margin:4px 0 0">
               {{ csrf_token_input() | safe }}
               <input type="hidden" name="username" value="{{ s.username }}">
               {% if s.calling_id and s.calling_id != '—' %}<input type="hidden" name="mac" value="{{ s.calling_id }}">{% endif %}

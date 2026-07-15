@@ -95,7 +95,7 @@
       if (resolver) finish(false);                        // نافذة سابقة مفتوحة
       resolver = resolve; promptMode = false;
       if (elInput) elInput.style.display = 'none';   // نافذة تأكيد لا إدخال
-      elMsg.style.display = '';
+      elMsg.style.display = ''; elCancel.style.display = '';
       var danger = !!opts.danger;
       bd.classList.toggle('hc-danger', danger);
       elTitle.textContent = opts.title || (danger ? 'تأكيد إجراء حسّاس' : 'تأكيد الإجراء');
@@ -117,6 +117,7 @@
       if (!bd || !elInput) { resolve(null); return; }
       if (resolver) finish(false);
       resolver = resolve; promptMode = true;
+      elCancel.style.display = '';
       bd.classList.remove('hc-danger');
       elTitle.textContent = opts.title || 'إدخال';
       elMsg.textContent = message || '';
@@ -133,6 +134,28 @@
     });
   };
 
+  // نافذة تنبيه حديثة (بديل alert): زرّ واحد «حسنًا»
+  window.hobeAlert = function (message, opts) {
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      build();
+      if (!bd) { resolve(true); return; }
+      if (resolver) finish(false);
+      resolver = resolve; promptMode = false;
+      if (elInput) elInput.style.display = 'none';
+      elMsg.style.display = '';
+      bd.classList.toggle('hc-danger', !!opts.danger);
+      elTitle.textContent = opts.title || 'تنبيه';
+      elMsg.textContent = message || '';
+      elIc.innerHTML = '<i class="fa-solid fa-' + (opts.danger ? 'circle-exclamation' : 'circle-info') + '"></i>';
+      elOk.textContent = opts.confirmText || 'حسنًا';
+      elCancel.style.display = 'none';           // زرّ واحد فقط
+      prevFocus = document.activeElement;
+      bd.classList.add('open');
+      setTimeout(function () { try { elOk.focus(); } catch (e) {} }, 60);
+    });
+  };
+
   // مختصر يكتشف الخطورة من نصّ الرسالة (حذف/نهائي/تصفير…)
   window.hcAsk = function (message, opts) {
     opts = opts || {};
@@ -142,21 +165,27 @@
     return window.hobeConfirm(message, opts);
   };
 
-  // اعتراض عامّ: أيّ <form data-confirm="…"> يُظهر النافذة قبل الإرسال الفعليّ.
+  // اعتراض عامّ: data-confirm على <form> أو على زرّ الإرسال يُظهر النافذة أوّلًا.
   document.addEventListener('submit', function (e) {
     var form = e.target;
-    if (!form || form.nodeName !== 'FORM' || !form.hasAttribute('data-confirm')) return;
+    if (!form || form.nodeName !== 'FORM') return;
     if (form.__hcPassed) { form.__hcPassed = false; return; }  // مرور الإرسال البرمجيّ
+    var btn = e.submitter || document.activeElement;
+    var src = (btn && btn.getAttribute && btn.hasAttribute && btn.hasAttribute('data-confirm')) ? btn
+            : (form.hasAttribute('data-confirm') ? form : null);
+    if (!src) return;
     e.preventDefault(); e.stopPropagation();
-    var msg = form.getAttribute('data-confirm');
+    var msg = src.getAttribute('data-confirm');
     window.hobeConfirm(msg, {
-      danger: form.hasAttribute('data-confirm-danger'),
-      title: form.getAttribute('data-confirm-title') || undefined,
-      confirmText: form.getAttribute('data-confirm-ok') || undefined
+      danger: src.hasAttribute('data-confirm-danger'),
+      title: src.getAttribute('data-confirm-title') || undefined,
+      confirmText: src.getAttribute('data-confirm-ok') || undefined
     }).then(function (ok) {
       if (!ok) return;
       form.__hcPassed = true;
-      if (form.requestSubmit) form.requestSubmit(); else form.submit();
+      // احفظ زرّ الإرسال (لأجل formaction) عند إعادة الإرسال
+      if (form.requestSubmit) form.requestSubmit((btn && btn.type === 'submit') ? btn : undefined);
+      else form.submit();
     });
   }, true);
 })();

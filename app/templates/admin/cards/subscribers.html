@@ -285,11 +285,11 @@
 {% block scripts %}
 {{ super() }}
 <script>
-function confirmBeneficiaryConvert(form){
+async function confirmBeneficiaryConvert(form){
   const ci = form.querySelector('input[name="confirm_convert"]');
   const name = form.dataset.beneficiaryName || 'هذا المشترك';
   const tl = form.dataset.targetLabel || 'الطريقة الجديدة';
-  if(!window.confirm(`سيتم تحويل ${name} إلى ${tl}.\n\nهذا الإجراء ينقل المشترك للقسم الآخر. هل تريد المتابعة؟`)){
+  if(!(await hobeConfirm(`سيتم تحويل ${name} إلى ${tl}.\n\nهذا الإجراء ينقل المشترك للقسم الآخر. هل تريد المتابعة؟`))){
     if(ci) ci.value = ''; return false;
   }
   if(ci) ci.value = '1'; return true;
@@ -522,12 +522,12 @@ function confirmBeneficiaryDelete(form){
   clearBtn.addEventListener('click', function(){ qInput.value=''; typeSel.value=''; doFetch(true); qInput.focus(); });
 
   // ─── Delete via AJAX ─────────────────────────────────────
-  tbody.addEventListener('submit', function(e){
+  tbody.addEventListener('submit', async function(e){
     var delForm = e.target.closest('form.cs-delete-form');
     if(!delForm) return;
     e.preventDefault();
     var name = delForm.dataset.beneficiaryName || 'هذا المشترك';
-    if(!confirm('سيتم حذف "'+name+'" نهائيًا من النظام مع كل بياناته المرتبطة.\n\nهل أنت متأكد؟ هذا الإجراء لا يمكن التراجع عنه.')) return;
+    if(!(await hcAsk('سيتم حذف "'+name+'" نهائيًا من النظام مع كل بياناته المرتبطة.\n\nهل أنت متأكد؟ هذا الإجراء لا يمكن التراجع عنه.'))) return;
     var btn = delForm.querySelector('button[type="submit"]');
     var origHtml = btn ? btn.innerHTML : '';
     if(btn){ btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
@@ -558,12 +558,12 @@ function confirmBeneficiaryDelete(form){
         }).catch(function(){});
       } else {
         if(btn){ btn.disabled = false; btn.innerHTML = origHtml; }
-        alert(j.message || 'تعذّر الحذف');
+        hobeAlert(j.message || 'تعذّر الحذف');
       }
     })
     .catch(function(){
       if(btn){ btn.disabled = false; btn.innerHTML = origHtml; }
-      alert('تعذّر الاتصال بالخادم.');
+      hobeAlert('تعذّر الاتصال بالخادم.');
     });
   });
 })();

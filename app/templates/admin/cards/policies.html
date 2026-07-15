@@ -599,7 +599,7 @@
   });
 
   // Delegated row actions
-  document.addEventListener('click', function(e){
+  document.addEventListener('click', async function(e){
     var editBtn = e.target.closest && e.target.closest('.pol-edit');
     if(editBtn){ openEdit(editBtn.dataset.polId); return; }
 
@@ -616,7 +616,7 @@
 
     var delBtn = e.target.closest && e.target.closest('.pol-delete');
     if(delBtn){
-      if(!confirm('حذف هذه السياسة نهائياً؟')) return;
+      if(!(await hcAsk('حذف هذه السياسة نهائياً؟'))) return;
       var pid = delBtn.dataset.polId;
       safeJson('/admin/cards/policies/'+pid+'/delete', {method:'POST'})
         .then(function(d){

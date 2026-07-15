@@ -96,13 +96,13 @@
           <td>
             <form method="POST" action="{{ url_for('admin_user_request_done', action_id=a.id) }}" style="display:inline">
               {{ csrf_token_input() | safe }}
-              <button class="d-pill-btn d-pill-btn--gold" type="submit" style="padding:6px 12px;font-size:12px" onclick="return confirm('تأكيد وضع هذا الطلب كمنفّذ؟')">
+              <button class="d-pill-btn d-pill-btn--gold" type="submit" style="padding:6px 12px;font-size:12px" data-confirm="تأكيد وضع هذا الطلب كمنفّذ؟">
                 <i class="fa-solid fa-check"></i>منفّذ
               </button>
             </form>
             <form method="POST" action="{{ url_for('admin_user_request_cancel', action_id=a.id) }}" style="display:inline">
               {{ csrf_token_input() | safe }}
-              <button class="d-pill-btn d-pill-btn--ghost" type="submit" style="padding:6px 12px;font-size:12px" onclick="return confirm('إلغاء هذا الطلب؟')">
+              <button class="d-pill-btn d-pill-btn--ghost" type="submit" style="padding:6px 12px;font-size:12px" data-confirm="إلغاء هذا الطلب؟" data-confirm-danger>
                 <i class="fa-solid fa-xmark"></i>إلغاء
               </button>
             </form>

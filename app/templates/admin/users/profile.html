@@ -1149,12 +1149,12 @@
   // Reset credentials only (lightweight reset)
   var resetCredsOnlyBtn = document.querySelector('.up-reset-creds-only');
   if(resetCredsOnlyBtn){
-    resetCredsOnlyBtn.addEventListener('click', function(){
+    resetCredsOnlyBtn.addEventListener('click', async function(){
       var paId = this.dataset.paId;
       var name = this.dataset.name || '';
       var menu = document.querySelector('.up-reset-menu');
       if(menu) menu.style.display = 'none';
-      if(!confirm('تصفير بيانات الدخول لـ "'+name+'" وتوليد رمز تفعيل جديد فقط؟\n(لن تُمسّ بيانات الاستخدام)')) return;
+      if(!(await hcAsk('تصفير بيانات الدخول لـ "'+name+'" وتوليد رمز تفعيل جديد فقط؟\n(لن تُمسّ بيانات الاستخدام)'))) return;
       fetch('/admin/portal-accounts/'+paId+'/reset', {method:'POST', credentials:'same-origin'})
         .then(r=>r.json()).then(function(d){
           if(!d.ok){ showToast(d.message || 'فشل', 'error'); return; }
@@ -1168,13 +1168,13 @@
   // Reset + wipe data
   var resetWipeBtn = document.querySelector('.up-reset-wipe-data');
   if(resetWipeBtn){
-    resetWipeBtn.addEventListener('click', function(){
+    resetWipeBtn.addEventListener('click', async function(){
       var paId = this.dataset.paId;
       var name = this.dataset.name || '';
       var menu = document.querySelector('.up-reset-menu');
       if(menu) menu.style.display = 'none';
       var warn = 'تصفير حساب "'+name+'" + مسح جميع بيانات الاستخدام؟\n\nسيتم:\n• إلغاء كلمة المرور + كود تفعيل جديد\n• حذف كل سجلات الاستخدام للمشترك\n• تصفير العدّاد الأسبوعي\n• حذف تسليمات البطاقات\n\nهذا الإجراء لا يمكن التراجع عنه.';
-      if(!confirm(warn)) return;
+      if(!(await hcAsk(warn))) return;
       fetch('/admin/portal-accounts/'+paId+'/wipe-and-reset', {method:'POST', credentials:'same-origin'})
         .then(r=>r.json()).then(function(d){
           if(!d.ok){ showToast(d.message || 'فشل', 'error'); return; }
@@ -1189,11 +1189,11 @@
   // ─── Create portal account (خارج البوابة فقط) ───
   var createPortalBtn = document.getElementById('create-portal-btn');
   if(createPortalBtn){
-    createPortalBtn.addEventListener('click', function(){
+    createPortalBtn.addEventListener('click', async function(){
       var bid = this.dataset.bid;
       var name = this.dataset.name || '';
       var phone = this.dataset.phone || '';
-      if(!confirm('إنشاء حساب بوابة لـ "'+name+'" واسم المستخدم "'+phone+'" + كود تفعيل صالح 72 ساعة؟')) return;
+      if(!(await hcAsk('إنشاء حساب بوابة لـ "'+name+'" واسم المستخدم "'+phone+'" + كود تفعيل صالح 72 ساعة؟'))) return;
       var btn = this; btn.disabled = true;
       var origHtml = btn.innerHTML;
       btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الإنشاء…';
@@ -1331,10 +1331,10 @@
         e.target.value = '';
       });
   });
-  document.addEventListener('click', function(e){
+  document.addEventListener('click', async function(e){
     var b = e.target.closest && e.target.closest('.att-del');
     if(!b) return;
-    if(!confirm('حذف هذا المرفق؟')) return;
+    if(!(await hcAsk('حذف هذا المرفق؟'))) return;
     safeJson('/admin/users/{{ bio.id }}/attachments/'+b.dataset.attId+'/delete', {method:'POST'})
       .then(function(d){ showToast(d.message, d.ok?'success':'error'); if(d.ok) loadAttachments(); })
       .catch(function(err){
@@ -1456,10 +1456,10 @@
         showToast(err.message || 'فشل الإضافة', 'error');
       });
   });
-  document.addEventListener('click', function(e){
+  document.addEventListener('click', async function(e){
     var b = e.target.closest && e.target.closest('.msg-del');
     if(!b) return;
-    if(!confirm('حذف هذه الملاحظة؟')) return;
+    if(!(await hcAsk('حذف هذه الملاحظة؟'))) return;
     fetch('/admin/users/{{ bio.id }}/messages/'+b.dataset.msgId+'/delete', {method:'POST', credentials:'same-origin'})
       .then(r=>r.json()).then(d=>{ showToast(d.message, d.ok?'success':'error'); if(d.ok) loadMessages(); });
   });
@@ -1632,12 +1632,12 @@
   // ════════════════════════════════════════════════════════════
   var tvBtn = document.getElementById('toggle-tawjihi-verified-btn');
   if(tvBtn){
-    tvBtn.addEventListener('click', function(){
+    tvBtn.addEventListener('click', async function(){
       var isVerified = tvBtn.dataset.verified === '1';
       var prompt = isVerified
         ? 'إلغاء توثيق التوجيهي؟ سيرجع إلى نصف ساعة فقط.'
         : 'توثيق التوجيهي؟ سيُسمح له بنصف ساعة + ساعة.';
-      if(!confirm(prompt)) return;
+      if(!(await hcAsk(prompt))) return;
       tvBtn.disabled = true;
       fetch('/admin/beneficiaries/'+BID+'/toggle-tawjihi-verified',
             {method:'POST', credentials:'same-origin', headers:{'X-Requested-With':'XMLHttpRequest'}})
@@ -1710,8 +1710,8 @@
       document.getElementById('fh-cancel').addEventListener('click', close);
       modal.addEventListener('click', function(e){ if(e.target === modal) close(); });
 
-      document.getElementById('fh-clear').addEventListener('click', function(){
-        if(!confirm('إلغاء النافذة؟ ستصبح بطاقة 4 ساعات متاحة دائماً للمشترك.')) return;
+      document.getElementById('fh-clear').addEventListener('click', async function(){
+        if(!(await hcAsk('إلغاء النافذة؟ ستصبح بطاقة 4 ساعات متاحة دائماً للمشترك.'))) return;
         var fd = new FormData(); fd.append('window_from',''); fd.append('window_until','');
         var _tk=(document.querySelector('input[name="_csrf_token"]')||{}).value||'';
         fd.append('_csrf_token', _tk);

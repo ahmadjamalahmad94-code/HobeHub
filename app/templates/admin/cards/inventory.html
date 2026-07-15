@@ -115,7 +115,7 @@
     {{ csrf_token_input() | safe }}
     <div class="d-card-body" style="padding-top:6px;padding-bottom:6px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <button class="d-pill-btn d-pill-btn--danger" type="submit" id="delete-selected-cards-btn" disabled
-              onclick="return confirm('حذف البطاقات المحددة؟ حذف بطاقة صادرة يزيل سجلّها من HobeHub فقط ولا يمسّ الريديوس.')">
+              data-confirm="حذف البطاقات المحددة؟ حذف بطاقة صادرة يزيل سجلّها من HobeHub فقط ولا يمسّ الريديوس." data-confirm-danger>
         <i class="fa-solid fa-trash-can"></i>حذف المحدد
       </button>
       <span class="inv-muted" id="selected-cards-count" style="margin:0">لم يتم تحديد بطاقات.</span>
@@ -215,14 +215,14 @@
               <button class="inv-del-btn" type="submit"
                       formaction="{{ url_for('admin_cards_inventory_delete_one', card_id=c.source_id) }}"
                       formmethod="POST"
-                      onclick="return confirm('حذف هذه البطاقة من المخزون المتاح؟')">
+                      data-confirm="حذف هذه البطاقة من المخزون المتاح؟" data-confirm-danger>
                 <i class="fa-solid fa-trash-can"></i>حذف
               </button>
               {% else %}
               <button class="inv-del-btn" type="submit"
                       formaction="{{ url_for('admin_cards_inventory_delete_issued_one', card_id=c.source_id) }}"
                       formmethod="POST"
-                      onclick="return confirm('حذف سجلّ هذه البطاقة الصادرة من HobeHub؟ (لا يحذفها من الريديوس)')">
+                      data-confirm="حذف سجلّ هذه البطاقة الصادرة من HobeHub؟ (لا يحذفها من الريديوس)" data-confirm-danger>
                 <i class="fa-solid fa-trash-can"></i>حذف
               </button>
               {% endif %}

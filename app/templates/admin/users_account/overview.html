@@ -757,11 +757,11 @@ function uaReinitPagination(){
               + '<button type="button" class="ua-pwd-eye" title="إظهار/إخفاء"><i class="fa-solid fa-eye"></i></button>'
               + '<button type="button" class="ua-pwd-edit" title="تعديل"><i class="fa-solid fa-pen"></i></button>';
           } else {
-            alert(j.error || 'تعذّر الحفظ');
+            hobeAlert(j.error || 'تعذّر الحفظ');
             box.innerHTML = savedHtml;
           }
         })
-        .catch(function(){ alert('تعذّر الاتصال'); box.innerHTML = savedHtml; });
+        .catch(function(){ hobeAlert('تعذّر الاتصال'); box.innerHTML = savedHtml; });
       }
       saveBtn.addEventListener('click', commit);
       input.addEventListener('keydown', function(ev){
@@ -1123,7 +1123,7 @@ function uaReinitPagination(){
     if(headCb){ headCb.checked = false; headCb.indeterminate = false; }
     updateBulkBar();
   }
-  function runBulkAction(action){
+  async function runBulkAction(action){
     var ids = selectedIds();
     if(!ids.length) return;
     var labels = {
@@ -1132,7 +1132,7 @@ function uaReinitPagination(){
       delete: 'حذف المحدد نهائيًا'
     };
     var label = labels[action] || 'تطبيق العملية';
-    if(!confirm('سيتم تنفيذ "' + label + '" على ' + ids.length + ' مشترك. هل تريد المتابعة؟')) return;
+    if(!(await hcAsk('سيتم تنفيذ "' + label + '" على ' + ids.length + ' مشترك. هل تريد المتابعة؟'))) return;
     var fd = new FormData();
     fd.append('action', action);
     if(uaCsrf()) fd.append('_csrf_token', uaCsrf());
@@ -1145,13 +1145,13 @@ function uaReinitPagination(){
     .then(function(j){
       if(j.ok){
         clearSelection();
-        alert(j.message || 'تم تنفيذ العملية.');
+        hobeAlert(j.message || 'تم تنفيذ العملية.');
         doFetch(true);
       } else {
-        alert(j.message || 'تعذّر تنفيذ العملية.');
+        hobeAlert(j.message || 'تعذّر تنفيذ العملية.');
       }
     })
-    .catch(function(){ alert('تعذّر الاتصال بالخادم.'); });
+    .catch(function(){ hobeAlert('تعذّر الاتصال بالخادم.'); });
   }
   function render(users, totalCount){
     if(!users || users.length === 0){
@@ -1208,11 +1208,11 @@ function uaReinitPagination(){
     if(e.target && e.target.classList.contains('ua-row-cb')) updateBulkBar();
   });
 
-  tbody.addEventListener('click', function(e){
+  tbody.addEventListener('click', async function(e){
     var portalBtn = e.target.closest('.ua-portal-create-btn');
     if(!portalBtn) return;
     var name = portalBtn.dataset.name || 'هذا المشترك';
-    if(!confirm('إنشاء حساب بوابة للمشترك "' + name + '"؟')) return;
+    if(!(await hcAsk('إنشاء حساب بوابة للمشترك "' + name + '"؟'))) return;
     var fd = new FormData();
     fd.append('beneficiary_id', portalBtn.dataset.bid || '');
     if(uaCsrf()) fd.append('_csrf_token', uaCsrf());
@@ -1223,22 +1223,22 @@ function uaReinitPagination(){
     .then(function(r){ return r.json().then(function(j){ j.__status = r.status; return j; }); })
     .then(function(j){
       if(j.ok){
-        alert(j.message || 'تم إنشاء حساب البوابة.');
+        hobeAlert(j.message || 'تم إنشاء حساب البوابة.');
         doFetch(true);
       } else {
-        alert(j.message || 'تعذّر إنشاء حساب البوابة.');
+        hobeAlert(j.message || 'تعذّر إنشاء حساب البوابة.');
       }
     })
-    .catch(function(){ alert('تعذّر الاتصال بالخادم.'); });
+    .catch(function(){ hobeAlert('تعذّر الاتصال بالخادم.'); });
   });
 
   // ─── Delete via AJAX (event delegation) ─────────────────
-  tbody.addEventListener('submit', function(e){
+  tbody.addEventListener('submit', async function(e){
     var delForm = e.target.closest('form.ua-delete-form');
     if(!delForm) return;
     e.preventDefault();
     var name = delForm.dataset.beneficiaryName || 'هذا المشترك';
-    if(!confirm('سيتم حذف "'+name+'" نهائيًا من النظام مع كل بياناته المرتبطة.\n\nهل أنت متأكد؟ هذا الإجراء لا يمكن التراجع عنه.')) return;
+    if(!(await hcAsk('سيتم حذف "'+name+'" نهائيًا من النظام مع كل بياناته المرتبطة.\n\nهل أنت متأكد؟ هذا الإجراء لا يمكن التراجع عنه.'))) return;
     var btn = delForm.querySelector('button[type="submit"]');
     var origHtml = btn ? btn.innerHTML : '';
     if(btn){ btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
@@ -1259,23 +1259,23 @@ function uaReinitPagination(){
         uaReinitPagination();
       } else {
         if(btn){ btn.disabled = false; btn.innerHTML = origHtml; }
-        alert(j.message || 'تعذّر الحذف');
+        hobeAlert(j.message || 'تعذّر الحذف');
       }
     })
     .catch(function(){
       if(btn){ btn.disabled = false; btn.innerHTML = origHtml; }
-      alert('تعذّر الاتصال بالخادم.');
+      hobeAlert('تعذّر الاتصال بالخادم.');
     });
   });
 })();
 
-function confirmBeneficiaryConvert(form) {
+async function confirmBeneficiaryConvert(form) {
   const confirmationInput = form.querySelector('input[name="confirm_convert"]');
   const beneficiaryName = form.dataset.beneficiaryName || 'هذا المشترك';
   const targetLabel = form.dataset.targetLabel || 'طريقة الوصول الجديدة';
   const message = `سيتم تحويل ${beneficiaryName} إلى ${targetLabel}.\n\nهذا الإجراء يغيّر نوع دخول المشترك. هل تريد المتابعة؟`;
 
-  if (!window.confirm(message)) {
+  if(!(await hobeConfirm(message))){
     if (confirmationInput) confirmationInput.value = '';
     return false;
   }

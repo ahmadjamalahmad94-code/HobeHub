@@ -680,10 +680,10 @@
   });
 
   // ── Delete portal account ──
-  document.addEventListener('click', function(e){
+  document.addEventListener('click', async function(e){
     var btn = e.target.closest && e.target.closest('.delete-pa-btn');
     if(!btn) return;
-    if(!confirm('إخراج "'+btn.dataset.name+'" من البوابة؟ سيبقى الحساب محفوظًا ويمكن إرجاعه لاحقًا.')) return;
+    if(!(await hcAsk('إخراج "'+btn.dataset.name+'" من البوابة؟ سيبقى الحساب محفوظًا ويمكن إرجاعه لاحقًا.'))) return;
     fetch('/admin/portal-accounts/'+btn.dataset.paId+'/delete', {method:'POST', credentials:'same-origin'})
       .then(function(r){ return r.json(); }).then(function(d){
         showToast(d.message || (d.ok?'تم':'فشل'), d.ok ? 'success' : 'error');
@@ -888,7 +888,7 @@
   });
 
   // ─── Convert access mode (cards ↔ username) ───
-  document.addEventListener('click', function(e){
+  document.addEventListener('click', async function(e){
     var btn = e.target.closest && e.target.closest('.convert-access-pa-btn');
     if(!btn) return;
     var bid     = btn.dataset.bid;
@@ -897,7 +897,7 @@
     var label   = btn.dataset.label || '';
     var current = btn.dataset.current || '';
     if(!bid || !mode) return;
-    if(!confirm('تحويل "'+name+'" من «'+current+'» إلى «'+label+'»?')) return;
+    if(!(await hcAsk('تحويل "'+name+'" من «'+current+'» إلى «'+label+'»?'))) return;
     btn.disabled = true;
     var orig = btn.innerHTML;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
@@ -1144,7 +1144,7 @@
   });
 
   // ─── Toggle Tawjihi verified ───
-  document.addEventListener('click', function(e){
+  document.addEventListener('click', async function(e){
     var btn = e.target.closest && e.target.closest('.tawjihi-toggle-pa-btn');
     if(!btn) return;
     var bid = btn.dataset.bid;
@@ -1152,7 +1152,7 @@
     var verified = btn.dataset.verified === '1';
     if(!bid) return;
     var action = verified ? 'إلغاء توثيق' : 'توثيق';
-    if(!confirm(action+' "'+name+'" (توجيهي)؟')) return;
+    if(!(await hcAsk(action+' "'+name+'" (توجيهي)؟'))) return;
     btn.disabled = true;
     var orig = btn.innerHTML;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';

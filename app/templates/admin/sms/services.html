@@ -57,8 +57,8 @@ document.querySelectorAll('.svc-toggle input').forEach(function(cb){
     .then(function(r){ return r.json(); })
     .then(function(j){
       cb.disabled = false;
-      if(!j.ok){ cb.checked = !cb.checked; alert(j.message || 'تعذّر تنفيذ التبديل.'); }
-    }).catch(function(){ cb.disabled = false; cb.checked = !cb.checked; alert('تعذّر الاتصال.'); });
+      if(!j.ok){ cb.checked = !cb.checked; hobeAlert(j.message || 'تعذّر تنفيذ التبديل.'); }
+    }).catch(function(){ cb.disabled = false; cb.checked = !cb.checked; hobeAlert('تعذّر الاتصال.'); });
   });
 });
 </script>

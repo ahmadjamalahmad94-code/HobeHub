@@ -51,7 +51,7 @@
           <td>{{ r.usage_mb }} MB</td>
           <td>
             {% if has_permission('disconnect_radius_user') %}
-            <form method="POST" action="{{ url_for('radius_disconnect_user_route') }}" onsubmit="return confirm('فصل {{ r.username }}؟')" style="display:inline">
+            <form method="POST" action="{{ url_for('radius_disconnect_user_route') }}" data-confirm="فصل {{ r.username }}؟" style="display:inline">
               {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
               <input type="hidden" name="username" value="{{ r.username }}">
               <button class="disc-btn" type="submit"><i class="fa-solid fa-power-off"></i>فصل</button>

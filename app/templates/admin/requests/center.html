@@ -241,11 +241,11 @@
                 {% if item.status == 'pending' %}
                   <form method="POST" action="{{ url_for('admin_user_request_done', action_id=item.id) }}">
                     {{ csrf_token_input() | safe }}
-                    <button class="rc-act rc-act--ok" type="submit" onclick="return confirm('تأكيد وضع هذا الطلب كمنفّذ؟')"><i class="fa-solid fa-check"></i>منفّذ</button>
+                    <button class="rc-act rc-act--ok" type="submit" data-confirm="تأكيد وضع هذا الطلب كمنفّذ؟"><i class="fa-solid fa-check"></i>منفّذ</button>
                   </form>
                   <form method="POST" action="{{ url_for('admin_user_request_cancel', action_id=item.id) }}">
                     {{ csrf_token_input() | safe }}
-                    <button class="rc-act rc-act--ko" type="submit" onclick="return confirm('إلغاء هذا الطلب؟')"><i class="fa-solid fa-xmark"></i>إلغاء</button>
+                    <button class="rc-act rc-act--ko" type="submit" data-confirm="إلغاء هذا الطلب؟" data-confirm-danger><i class="fa-solid fa-xmark"></i>إلغاء</button>
                   </form>
                 {% else %}
                   <a class="rc-act" href="{{ item.href }}"><i class="fa-solid fa-eye"></i>عرض</a>
@@ -292,8 +292,8 @@ function _rcPost(url, btn, fd){
   fetch(url,{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
     if(d.ok){ if(row){ row.style.opacity='0.4'; row.style.pointerEvents='none';
       setTimeout(function(){ if(row.parentNode) row.parentNode.removeChild(row); },2200); } }
-    else { alert(d.message||'خطأ'); btn.disabled=false; btn.innerHTML=orig; }
-  }).catch(function(){ alert('فشل الاتصال'); btn.disabled=false; btn.innerHTML=orig; });
+    else { hobeAlert(d.message||'خطأ'); btn.disabled=false; btn.innerHTML=orig; }
+  }).catch(function(){ hobeAlert('فشل الاتصال'); btn.disabled=false; btn.innerHTML=orig; });
 }
 function rcApprove(id, btn){
   window.hobeConfirm('الموافقة وإصدار البطاقة للمشترك فورًا؟', {title:'قبول الطلب', confirmText:'قبول'}).then(function(ok){

@@ -100,7 +100,7 @@
 
     {% if can_archive %}
     <form method="POST" action="{{ url_for('archive_usage_logs') }}" style="display:inline"
-          onsubmit="return confirm('سيتم نقل كل السجل الحالي إلى الأرشيف. متابعة؟')">
+          data-confirm="سيتم نقل كل السجل الحالي إلى الأرشيف. متابعة؟">
       {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
       <button class="hub-pill hub-pill--warn" type="submit" title="نقل كل السجل الحالي إلى الأرشيف">
         <i class="fa-solid fa-box-archive"></i>أرشفة كاملة
@@ -121,7 +121,7 @@
 
     {% if can_clear %}
     <form method="POST" action="{{ url_for('clear_usage_logs') }}" style="display:inline"
-          onsubmit="return confirm('سيتم حذف كل السجل الحالي نهائيًا. متابعة؟')">
+          data-confirm="سيتم حذف كل السجل الحالي نهائيًا. متابعة؟" data-confirm-danger>
       {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
       <button class="hub-pill hub-pill--danger" type="submit" title="حذف كل السجل الحالي نهائيًا">
         <i class="fa-solid fa-trash-can"></i>تنظيف كامل

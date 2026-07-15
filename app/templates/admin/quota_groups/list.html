@@ -249,10 +249,10 @@
   });
 
   // ── Delete group
-  document.addEventListener('click', function(e){
+  document.addEventListener('click', async function(e){
     var b = e.target.closest && e.target.closest('.delete-group-btn');
     if(!b) return;
-    if(!confirm('حذف "'+b.dataset.name+'" نهائياً؟ سيتم إلغاء عضوية كل أعضائها.')) return;
+    if(!(await hcAsk('حذف "'+b.dataset.name+'" نهائياً؟ سيتم إلغاء عضوية كل أعضائها.'))) return;
     safeJson('/admin/quota-groups/'+b.dataset.gid+'/delete', {method:'POST'})
       .then(function(d){
         showToast(d.message, d.ok ? 'success' : 'error');
@@ -376,10 +376,10 @@
   });
 
   // ── Remove member
-  document.addEventListener('click', function(e){
+  document.addEventListener('click', async function(e){
     var b = e.target.closest && e.target.closest('.member-remove-btn');
     if(!b || !currentGroupId) return;
-    if(!confirm('إزالة هذا العضو من المجموعة؟')) return;
+    if(!(await hcAsk('إزالة هذا العضو من المجموعة؟'))) return;
     safeJson('/admin/quota-groups/'+currentGroupId+'/members/'+b.dataset.bid+'/remove', {method:'POST'})
       .then(function(d){
         if(d.ok){

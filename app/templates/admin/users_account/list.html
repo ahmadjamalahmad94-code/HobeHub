@@ -116,13 +116,13 @@
 {% block scripts %}
 {{ super() }}
 <script>
-function confirmBeneficiaryConvert(form) {
+async function confirmBeneficiaryConvert(form) {
   const confirmationInput = form.querySelector('input[name="confirm_convert"]');
   const beneficiaryName = form.dataset.beneficiaryName || 'هذا المشترك';
   const targetLabel = form.dataset.targetLabel || 'طريقة الوصول الجديدة';
   const message = `سيتم تحويل ${beneficiaryName} إلى ${targetLabel}.\n\nهذا الإجراء يغيّر نوع دخول المشترك. هل تريد المتابعة؟`;
 
-  if (!window.confirm(message)) {
+  if(!(await hobeConfirm(message))){
     if (confirmationInput) confirmationInput.value = '';
     return false;
   }

@@ -100,11 +100,11 @@
 </section>
 
 <script>
-function autoFulfill(btn){
+async function autoFulfill(btn){
   var actionId = btn.dataset.actionId;
   var csrf = btn.dataset.csrf;
   var msgEl = document.getElementById('auto-msg-' + actionId);
-  if(!confirm('تسليم تلقائي من المخزون لهذا الطلب؟')) return;
+  if(!(await hcAsk('تسليم تلقائي من المخزون لهذا الطلب؟'))) return;
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>جارٍ التنفيذ…';
   var fd = new FormData();

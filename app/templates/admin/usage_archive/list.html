@@ -67,7 +67,7 @@
       <div style="padding:14px;border-radius:12px;background:#e7f0fd;border:1px solid rgba(28,82,168,.3)">
         <h4 style="margin:0 0 6px;font-size:14px;color:#1c52a8"><i class="fa-solid fa-rotate-left"></i> استرجاع للسجل الحالي</h4>
         <p style="margin:0 0 10px;font-size:12px;color:var(--d-text-soft)">يعيد كل سجلات الأرشيف للسجل الحالي.</p>
-        <form method="POST" action="{{ url_for('restore_archive_logs') }}" onsubmit="return confirm('سيتم استرجاع كل الأرشيف للسجل الحالي. متابعة؟')">
+        <form method="POST" action="{{ url_for('restore_archive_logs') }}" data-confirm="سيتم استرجاع كل الأرشيف للسجل الحالي. متابعة؟">
           {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
           <button type="submit" style="padding:8px 14px;border-radius:9px;background:#1c52a8;color:#fff;border:0;font-weight:700;cursor:pointer">استرجاع الكل</button>
         </form>
@@ -77,7 +77,7 @@
       <div style="padding:14px;border-radius:12px;background:#fde2e2;border:1px solid rgba(185,28,28,.3)">
         <h4 style="margin:0 0 6px;font-size:14px;color:#b91c1c"><i class="fa-solid fa-trash-can"></i> حذف الأرشيف</h4>
         <p style="margin:0 0 10px;font-size:12px;color:var(--d-text-soft)">حذف نهائي لا يمكن التراجع عنه!</p>
-        <form method="POST" action="/usage-archive/clear" onsubmit="return confirm('حذف الأرشيف نهائيًا. هل أنت متأكد تمامًا؟')">
+        <form method="POST" action="/usage-archive/clear" data-confirm="حذف الأرشيف نهائيًا. هل أنت متأكد تمامًا؟" data-confirm-danger>
           {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
           <button type="submit" style="padding:8px 14px;border-radius:9px;background:#b91c1c;color:#fff;border:0;font-weight:700;cursor:pointer">حذف الأرشيف نهائيًا</button>
         </form>
