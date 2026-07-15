@@ -84,15 +84,54 @@ def _clean_admin_cards_settings_page():
             "UPDATE radius_api_settings SET router_login_url=%s, workday_start_time=%s, workday_end_time=%s, updated_at=CURRENT_TIMESTAMP WHERE id=1",
             [router_login_url, workday_start_time, workday_end_time],
         )
-        log_action("update_hotspot_cards_settings", "radius_api_settings", 1, f"router={router_login_url}, workday={workday_start_time}-{workday_end_time}")
-        flash("تم تحديث إعدادات بطاقات هوت سبوت ومواعيد الدوام.", "success")
+
+        # ── الأساس العامّ (السياسة الافتراضية scope='default') — يُورَّث للكلّ ──
+        def _int_or_none(v):
+            v = clean_csv_value(v)
+            return int(v) if v and v.lstrip("-").isdigit() else None
+        base_daily = _int_or_none(request.form.get("base_daily_limit"))
+        base_weekly = _int_or_none(request.form.get("base_weekly_limit"))
+        base_categories = clean_csv_value(request.form.get("base_allowed_category_codes"))
+        _existing_default = query_one(
+            "SELECT id FROM card_quota_policies WHERE scope='default' ORDER BY priority ASC, id DESC LIMIT 1"
+        )
+        if _existing_default:
+            execute_sql(
+                "UPDATE card_quota_policies SET daily_limit=%s, weekly_limit=%s, "
+                "allowed_category_codes=%s, is_active=TRUE, updated_at=CURRENT_TIMESTAMP WHERE id=%s",
+                [base_daily, base_weekly, base_categories, _existing_default["id"]],
+            )
+        else:
+            execute_sql(
+                "INSERT INTO card_quota_policies (scope, daily_limit, weekly_limit, "
+                "allowed_days, allowed_category_codes, priority, is_active, notes) "
+                "VALUES ('default',%s,%s,'',%s,1000,TRUE,'القاعدة الأساسية لكل المشتركين')",
+                [base_daily, base_weekly, base_categories],
+            )
+
+        log_action("update_hotspot_cards_settings", "radius_api_settings", 1,
+                   f"router={router_login_url}, workday={workday_start_time}-{workday_end_time}, "
+                   f"base_daily={base_daily}, base_weekly={base_weekly}, base_cats={base_categories or '*'}")
+        flash("تم تحديث إعدادات البطاقات والقاعدة الأساسية للمشتركين.", "success")
         return redirect(url_for("admin_cards_settings_page"))
+
     current_url = settings_row.get("router_login_url") or get_router_login_url() or ""
+    default_policy = query_one(
+        "SELECT daily_limit, weekly_limit, allowed_category_codes FROM card_quota_policies "
+        "WHERE scope='default' ORDER BY priority ASC, id DESC LIMIT 1"
+    ) or {}
+    base_categories = query_all(
+        "SELECT code, label_ar FROM card_categories WHERE is_active=TRUE ORDER BY duration_minutes ASC"
+    ) or []
     return render_template(
         "admin/cards/settings.html",
         current_url=current_url,
         start_time=schedule["start_time"],
         end_time=schedule["end_time"],
+        base_daily=default_policy.get("daily_limit"),
+        base_weekly=default_policy.get("weekly_limit"),
+        base_selected_codes=(default_policy.get("allowed_category_codes") or ""),
+        base_categories=base_categories,
     )
 
 

@@ -135,8 +135,18 @@
   var DAY_LABELS={sat:'السبت',sun:'الأحد',mon:'الإثنين',tue:'الثلاثاء',wed:'الأربعاء',thu:'الخميس',fri:'الجمعة'};
   var SCOPE_LABEL={user:'خاصّة بهذا المشترك',group:'موروثة من مجموعته',default:'موروثة من الافتراضية'};
 
+  function csrfToken(){
+    var m=document.querySelector('meta[name="csrf-token"]');
+    return (m&&m.getAttribute('content'))||window.HOBEHUB_CSRF_TOKEN||'';
+  }
   function jget(url){ return fetch(url,{credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}}).then(function(r){return r.json();}); }
-  function jpost(url,body){ return fetch(url,{method:'POST',credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'},body:body}).then(function(r){return r.json();}); }
+  function jpost(url,body){
+    var tok=csrfToken();
+    if(body instanceof FormData && tok && !body.has('_csrf_token')) body.append('_csrf_token', tok);
+    return fetch(url,{method:'POST',credentials:'same-origin',
+      headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json','X-CSRFToken':tok},
+      body:body}).then(function(r){return r.json();});
+  }
 
   function buildDays(selected){
     var host=$('sp-days'); host.innerHTML='';

@@ -21,6 +21,14 @@
   font-family:inherit;font-weight:800;font-size:13px;color:var(--d-text-soft);text-decoration:none;
   display:inline-flex;align-items:center;gap:7px}
 .cs-back:hover{border-color:var(--d-gold)}
+.cs-base{margin-top:20px;padding-top:18px;border-top:1px dashed var(--d-border-strong)}
+.cs-base-title{font-size:13.5px;font-weight:800;color:var(--d-black);margin-bottom:12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.cs-base-title small{flex-basis:100%;font-weight:600;font-size:11.5px;color:var(--d-text-muted)}
+.cs-cats{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.cs-cat{padding:7px 13px;border-radius:999px;background:#FAFAF8;border:1.5px solid var(--d-border);font-size:12px;font-weight:700;color:var(--d-text-soft);cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;transition:.18s ease}
+.cs-cat:hover{border-color:var(--d-gold)}
+.cs-cat.on{background:#1E1E1E;color:#fff;border-color:#1E1E1E}
+.cs-cat.on i{color:#F4BA2A}
 </style>
 {% endblock %}
 
@@ -57,6 +65,37 @@
           <input class="cs-input" id="cs-end" type="time" name="workday_end_time" value="{{ end_time }}" required>
         </div>
       </div>
+
+      {# ── القاعدة الأساسية لكل المشتركين (تُورَّث للجميع) ── #}
+      <div class="cs-base">
+        <div class="cs-base-title"><i class="fa-solid fa-layer-group" style="color:var(--d-gold)"></i> القاعدة الأساسية لكل المشتركين
+          <small>تُطبَّق وتُورَّث للجميع. السياسات والاستثناءات تتجاوزها لمن يلزم.</small></div>
+        <div class="cs-grid">
+          <div class="cs-field">
+            <label>كم بطاقة في اليوم؟ <small style="color:var(--d-text-muted)">(فارغ = بلا حد)</small></label>
+            <input class="cs-input" type="number" min="0" name="base_daily_limit"
+                   value="{{ base_daily if base_daily is not none else '' }}" placeholder="—">
+          </div>
+          <div class="cs-field">
+            <label>كم بطاقة في الأسبوع؟ <small style="color:var(--d-text-muted)">(اختياري)</small></label>
+            <input class="cs-input" type="number" min="0" name="base_weekly_limit"
+                   value="{{ base_weekly if base_weekly is not none else '' }}" placeholder="—">
+          </div>
+        </div>
+        <div class="cs-field" style="margin-top:12px">
+          <label>أنواع البطاقات المسموحة أساسًا <small style="color:var(--d-text-muted)">(فارغ = كل الأنواع)</small></label>
+          <input type="hidden" id="cs-base-cats" name="base_allowed_category_codes" value="{{ base_selected_codes }}">
+          <div class="cs-cats" id="cs-cats">
+            {% set sel = (base_selected_codes or '').split(',') %}
+            {% for c in base_categories %}
+            <button type="button" class="cs-cat{% if c.code in sel %} on{% endif %}" data-code="{{ c.code }}">
+              <i class="fa-solid fa-ticket"></i>{{ c.label_ar }}
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
       <div class="cs-actions">
         <button class="cs-save" type="submit"><i class="fa-solid fa-floppy-disk"></i> حفظ الإعدادات</button>
         <a class="cs-back" href="{{ url_for('admin_cards_inventory_page') }}"><i class="fa-solid fa-arrow-right-long"></i> العودة إلى بطاقات هوت سبوت</a>
@@ -64,5 +103,23 @@
     </form>
   </div>
 </section>
+
+<script>
+(function(){
+  var host=document.getElementById('cs-cats');
+  var hidden=document.getElementById('cs-base-cats');
+  if(!host||!hidden) return;
+  function sync(){
+    hidden.value=Array.from(host.querySelectorAll('.cs-cat.on')).map(function(c){return c.dataset.code;}).join(',');
+  }
+  host.addEventListener('click', function(e){
+    var chip=e.target.closest && e.target.closest('.cs-cat');
+    if(chip){ chip.classList.toggle('on'); sync(); }
+  });
+  // ضمان التزامن لحظة الإرسال أيضًا
+  var form=host.closest('form');
+  if(form) form.addEventListener('submit', sync);
+})();
+</script>
 
 {% endblock %}
