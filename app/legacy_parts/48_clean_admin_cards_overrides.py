@@ -88,10 +88,12 @@ def _clean_admin_cards_settings_page():
         except Exception:
             flash("منطقة زمنيّة غير صالحة.", "error")
             return redirect(url_for("admin_cards_settings_page"))
+        approval_codes = clean_csv_value(request.form.get("long_card_approval_codes"))
         execute_sql(
             "UPDATE radius_api_settings SET router_login_url=%s, workday_start_time=%s, "
-            "workday_end_time=%s, timezone=%s, updated_at=CURRENT_TIMESTAMP WHERE id=1",
-            [router_login_url, workday_start_time, workday_end_time, tz_name],
+            "workday_end_time=%s, timezone=%s, long_card_approval_codes=%s, "
+            "updated_at=CURRENT_TIMESTAMP WHERE id=1",
+            [router_login_url, workday_start_time, workday_end_time, tz_name, approval_codes],
         )
         try:
             refresh_app_timezone()  # حدّث ذاكرة المنطقة الزمنيّة فورًا
@@ -168,6 +170,9 @@ def _clean_admin_cards_settings_page():
         base_weekly=default_policy.get("weekly_limit"),
         base_selected_codes=(default_policy.get("allowed_category_codes") or ""),
         base_categories=base_categories,
+        approval_selected_codes=(settings_row.get("long_card_approval_codes")
+                                 if settings_row.get("long_card_approval_codes") is not None
+                                 else "three_hours,four_hours"),
         current_tz=current_tz,
         tz_options=tz_options,
         server_now=server_now,

@@ -136,6 +136,24 @@ def _user_cards_request_v2():
     if usage_reason and usage_reason != "تلقائي":
         note += f" — السبب: {usage_reason}"
 
+    # ── بوّابة الموافقة: البطاقات الطويلة (٣/٤ ساعات) تحتاج موافقة الإدارة ──
+    # (قابل للضبط عامًّا + إعفاء مستفيدين). لا تُصدَر بطاقة الآن، ولا يُحتسب أنّه
+    # أخذ بطاقة — فقط طلب معلّق + إشعار، يُصدَّق عند موافقة الإدارة.
+    try:
+        if needs_card_approval(beneficiary_id, category_code):
+            create_card_approval_request(
+                beneficiary_id, category_code,
+                usage_reason=usage_reason,
+                actor_username=_portal_actor_username(),
+            )
+            flash(
+                "بطاقتك المطلوبة طويلة وتحتاج موافقة الإدارة. أُرسِل طلبك — ستصلك "
+                "البطاقة فور الموافقة، وستجدها في «سجل بطاقاتي».", "info",
+            )
+            return redirect(url_for("user_cards_pending_list"))
+    except Exception:
+        pass  # تدهور ناعم: لو تعذّر التحقّق نُكمل بالمسار المعتاد
+
     # ── المسار الأساسي: توليد فوري حيّ من الباقة المربوطة عبر RADIUS ──────
     result = request_card_via_radius(
         beneficiary_id, category_code,

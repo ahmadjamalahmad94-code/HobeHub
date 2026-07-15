@@ -78,6 +78,7 @@ def subscriber_card_policy_get(bid):
         "beneficiary": {"id": ben["id"], "full_name": ben.get("full_name") or ""},
         "override": _sp_jsonable(override),
         "effective": _sp_jsonable(effective),
+        "approval_exempt": (is_card_approval_exempt(bid) if "is_card_approval_exempt" in globals() else False),
         "effective_scope": (effective or {}).get("scope") if effective else None,
         "categories": [{"code": c["code"], "label_ar": c["label_ar"]} for c in cats],
         "day_names": [{"code": d[0], "label": d[1]} for d in _SP_DAY_NAMES],
@@ -108,6 +109,13 @@ def subscriber_card_policy_save(bid):
     valid_from = clean_csv_value(request.form.get("valid_from")) or None
     valid_until = clean_csv_value(request.form.get("valid_until")) or None
     notes = clean_csv_value(request.form.get("notes"))
+
+    # إعفاء من موافقة البطاقات الطويلة (يُخزَّن مستقلًّا عن السياسة)
+    try:
+        if "set_card_approval_exempt" in globals():
+            set_card_approval_exempt(bid, request.form.get("approval_exempt") in ("1", "true", "on"))
+    except Exception:
+        pass
 
     existing = query_one(
         "SELECT id FROM card_quota_policies WHERE scope='user' AND target_id=%s LIMIT 1", [bid]

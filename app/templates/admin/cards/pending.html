@@ -74,6 +74,22 @@
           <td>{{ a.requested_at }}</td>
           <td>
             <div style="display:flex;flex-direction:column;gap:8px">
+              {% if a.payload.get('needs_approval') %}
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <span class="d-badge d-badge--warn" style="font-size:10.5px">بطاقة طويلة — تحتاج موافقة</span>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <button type="button" class="d-pill-btn d-pill-btn--gold" style="padding:8px 14px;font-size:12px"
+                        data-csrf="{{ csrf_token() }}" onclick="approveCard({{ a.id }},this)">
+                  <i class="fa-solid fa-check"></i>موافقة وإصدار
+                </button>
+                <button type="button" class="d-pill-btn d-pill-btn--ghost" style="padding:8px 14px;font-size:12px"
+                        data-csrf="{{ csrf_token() }}" onclick="rejectCard({{ a.id }},this)">
+                  <i class="fa-solid fa-xmark"></i>رفض
+                </button>
+              </div>
+              <div class="auto-msg" id="appr-msg-{{ a.id }}"></div>
+              {% else %}
               <!-- تسليم تلقائي من المخزون -->
               <div style="display:flex;align-items:center;gap:8px">
                 <button type="button" class="auto-btn"
@@ -105,6 +121,7 @@
                   <i class="fa-solid fa-xmark"></i>إلغاء
                 </button>
               </form>
+              {% endif %}
             </div>
           </td>
         </tr>
@@ -149,6 +166,36 @@ function autoFulfill(btn){
       btn.disabled = false;
       btn.innerHTML = '<i class="fa-solid fa-bolt"></i>تسليم تلقائي';
     });
+}
+
+function _apprPost(url, actionId, btn, fd){
+  var msgEl=document.getElementById('appr-msg-'+actionId);
+  btn.disabled=true; var orig=btn.innerHTML;
+  btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i>…';
+  fetch(url,{method:'POST', body:fd}).then(function(r){return r.json();}).then(function(d){
+    if(d.ok){
+      if(msgEl){ msgEl.className='auto-msg ok'; msgEl.textContent=d.message; }
+      var row=btn.closest('tr'); if(row){ row.style.opacity='0.4'; row.style.pointerEvents='none';
+        setTimeout(function(){ if(row.parentNode) row.parentNode.removeChild(row); }, 2600); }
+    } else {
+      if(msgEl){ msgEl.className='auto-msg err'; msgEl.textContent=d.message||'خطأ.'; }
+      btn.disabled=false; btn.innerHTML=orig;
+    }
+  }).catch(function(){
+    if(msgEl){ msgEl.className='auto-msg err'; msgEl.textContent='فشل الاتصال.'; }
+    btn.disabled=false; btn.innerHTML=orig;
+  });
+}
+function approveCard(actionId, btn){
+  if(!confirm('الموافقة وإصدار البطاقة للمشترك فورًا؟')) return;
+  var fd=new FormData(); fd.append('csrf_token', btn.dataset.csrf);
+  _apprPost('/admin/cards/pending/'+actionId+'/approve', actionId, btn, fd);
+}
+function rejectCard(actionId, btn){
+  var reason=prompt('سبب الرفض (اختياري) — سيصل المشترك إشعار بالرفض:', '');
+  if(reason===null) return;
+  var fd=new FormData(); fd.append('csrf_token', btn.dataset.csrf); fd.append('reason', reason||'');
+  _apprPost('/admin/cards/pending/'+actionId+'/reject', actionId, btn, fd);
 }
 </script>
 

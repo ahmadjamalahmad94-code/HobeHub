@@ -57,6 +57,17 @@ def _setup_sqlite_radius_schema(cur):
         cur.execute("ALTER TABLE radius_api_settings ADD COLUMN timezone TEXT DEFAULT 'Asia/Gaza'")
     except Exception:
         pass
+    try:
+        cur.execute("ALTER TABLE radius_api_settings ADD COLUMN long_card_approval_codes TEXT DEFAULT 'three_hours,four_hours'")
+    except Exception:
+        pass
+    try:
+        cur.execute("""CREATE TABLE IF NOT EXISTS card_approval_exemptions (
+            beneficiary_id INTEGER PRIMARY KEY,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""")
+    except Exception:
+        pass
     # ── إعدادات اتصال قابلة للتبديل (Path 4) — nullable = ورِّث من env ──
     for _col, _def in (
         ("service_password_encrypted", "TEXT"),

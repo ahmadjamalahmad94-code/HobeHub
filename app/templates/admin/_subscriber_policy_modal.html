@@ -100,6 +100,11 @@
         <div class="sp-cats" id="sp-cats"></div>
       </div>
 
+      <label class="sp-note" style="display:flex;align-items:center;gap:9px;cursor:pointer">
+        <input type="checkbox" id="sp-exempt" style="width:17px;height:17px;accent-color:#c8951a;flex:none">
+        <span><b>إعفاء من موافقة البطاقات الطويلة</b> — يأخذ ٣ و٤ ساعات فورًا دون انتظار موافقة الإدارة.</span>
+      </label>
+
       <div>
         <div class="sp-adv-toggle" id="sp-adv-toggle"><i class="fa-solid fa-chevron-down"></i> إعدادات متقدّمة (اختياري)</div>
         <div class="sp-adv" id="sp-adv">
@@ -195,6 +200,7 @@
       // الأولوية والملاحظة من سياسته الخاصّة فقط (لا من الموروثة)
       if(hasOwn && d.override.priority!=null) $('sp-priority').value=d.override.priority;
       $('sp-notes').value=(hasOwn?(d.override.notes||''):'');
+      var ex=$('sp-exempt'); if(ex) ex.checked=!!d.approval_exempt;
       var sc=d.effective_scope||'default';
       $('sp-eff-note').innerHTML = hasOwn
         ? '<b style="color:#166534">لهذا المشترك سياسة خاصّة مُطبّقة الآن.</b> عدّلها أدناه، أو «إلغاء التخصيص» ليرث الافتراضية.'
@@ -224,6 +230,7 @@
     fd.append('valid_from',$('sp-vfrom').value); fd.append('valid_until',$('sp-vuntil').value);
     fd.append('valid_time_from',$('sp-tfrom').value); fd.append('valid_time_until',$('sp-tuntil').value);
     fd.append('priority',$('sp-priority').value||'50'); fd.append('notes',$('sp-notes').value);
+    fd.append('approval_exempt', ($('sp-exempt')&&$('sp-exempt').checked)?'1':'0');
     var btn=this; btn.disabled=true; clearMsg();
     jpost('/admin/users/'+bid+'/card-policy', fd).then(function(d){
       btn.disabled=false;

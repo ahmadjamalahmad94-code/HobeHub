@@ -122,6 +122,24 @@
         </div>
       </div>
 
+      {# ── موافقة الإدارة على البطاقات الطويلة ── #}
+      <div class="cs-base">
+        <div class="cs-base-title"><i class="fa-solid fa-user-check" style="color:var(--d-gold)"></i> موافقة الإدارة على البطاقات الطويلة
+          <small>الأنواع المحدّدة هنا لا تُصدَر فورًا — يُرسَل طلب للإدارة، وتُصدَر عند الموافقة. القصيرة تنزل مباشرةً. (فارغ = بلا موافقة)</small></div>
+        <div class="cs-field">
+          <label>الأنواع التي تتطلّب موافقة</label>
+          <input type="hidden" id="cs-appr-cats" name="long_card_approval_codes" value="{{ approval_selected_codes }}">
+          <div class="cs-cats" id="cs-appr">
+            {% set asel = (approval_selected_codes or '').split(',') %}
+            {% for c in base_categories %}
+            <button type="button" class="cs-cat{% if c.code in asel %} on{% endif %}" data-code="{{ c.code }}">
+              <i class="fa-solid fa-user-clock"></i>{{ c.label_ar }}
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
       <div class="cs-actions">
         <button class="cs-save" type="submit"><i class="fa-solid fa-floppy-disk"></i> حفظ الإعدادات</button>
         <a class="cs-back" href="{{ url_for('admin_cards_inventory_page') }}"><i class="fa-solid fa-arrow-right-long"></i> العودة إلى بطاقات هوت سبوت</a>
@@ -132,19 +150,21 @@
 
 <script>
 (function(){
-  var host=document.getElementById('cs-cats');
-  var hidden=document.getElementById('cs-base-cats');
-  if(!host||!hidden) return;
-  function sync(){
-    hidden.value=Array.from(host.querySelectorAll('.cs-cat.on')).map(function(c){return c.dataset.code;}).join(',');
+  function wire(hostId, hiddenId){
+    var host=document.getElementById(hostId), hidden=document.getElementById(hiddenId);
+    if(!host||!hidden) return;
+    function sync(){
+      hidden.value=Array.from(host.querySelectorAll('.cs-cat.on')).map(function(c){return c.dataset.code;}).join(',');
+    }
+    host.addEventListener('click', function(e){
+      var chip=e.target.closest && e.target.closest('.cs-cat');
+      if(chip){ chip.classList.toggle('on'); sync(); }
+    });
+    var form=host.closest('form');
+    if(form) form.addEventListener('submit', sync);
   }
-  host.addEventListener('click', function(e){
-    var chip=e.target.closest && e.target.closest('.cs-cat');
-    if(chip){ chip.classList.toggle('on'); sync(); }
-  });
-  // ضمان التزامن لحظة الإرسال أيضًا
-  var form=host.closest('form');
-  if(form) form.addEventListener('submit', sync);
+  wire('cs-cats','cs-base-cats');   // الأساس الموروث
+  wire('cs-appr','cs-appr-cats');   // أنواع تحتاج موافقة
 })();
 </script>
 
