@@ -162,11 +162,11 @@ def _issued_cards(filters, limit):
         """,
         [*params, int(limit)],
     )
-    # ⚡ تحسين الأداء: لا نطلب usage لكل بطاقة (كان يستدعي RADIUS API
-    # N مرة ويسبب بطء/فشل). نكتفي بقائمة الجلسات النشطة فقط (استدعاء واحد).
-    # المدير يقدر يعمل تحديث لصف واحد عبر زر «حالة API» إذا أراد.
+    # قراءة حيّة عبر /cards/check (المتبقّي/المستخدَم/الاتصال) للبطاقات الصادرة.
+    # مُقيَّدة بسقف (أحدث N بطاقة) كي لا تُثقل الصفحة عند كثرة البطاقات — تغطّي
+    # الصفحات الأولى المرئيّة، والباقي يعرض التقدير حتى التصفية/التحديث.
     try:
-        statuses = get_card_statuses(rows, include_usage=False, usage_limit=0)
+        statuses = get_card_statuses(rows, include_usage=True, usage_limit=60)
     except Exception:
         statuses = {}
     return [_enrich_inventory_row(row, statuses.get(int(row["id"]))) for row in rows]
@@ -271,26 +271,69 @@ def admin_cards_inventory_delete_one(card_id):
     return redirect(request.referrer or url_for("admin_cards_inventory_page"))
 
 
+@app.route("/admin/cards/inventory/delete-issued/<int:card_id>/delete", methods=["POST"])
+@admin_login_required
+def admin_cards_inventory_delete_issued_one(card_id):
+    card = query_one(
+        "SELECT id, card_username FROM beneficiary_issued_cards WHERE id=%s LIMIT 1", [card_id]
+    )
+    if not card:
+        flash("سجلّ البطاقة الصادرة غير موجود.", "error")
+        return redirect(request.referrer or url_for("admin_cards_inventory_page"))
+    execute_sql("DELETE FROM beneficiary_issued_cards WHERE id=%s", [card_id])
+    log_action("delete_issued_card_record", "beneficiary_issued_cards", card_id,
+               f"حذف سجلّ بطاقة صادرة {card.get('card_username')} (لا يمسّ الريديوس)")
+    flash("تم حذف سجلّ البطاقة الصادرة من HobeHub (لا يحذفها من الريديوس).", "success")
+    return redirect(request.referrer or url_for("admin_cards_inventory_page"))
+
+
 @app.route("/admin/cards/inventory/delete-selected", methods=["POST"])
 @admin_login_required
 def admin_cards_inventory_delete_selected():
-    ids = []
+    # القيم الآن مُفهرَسة بالحالة: "available:<id>" أو "issued:<id>" (row_key)
+    # كي نميّز جدول المخزون (manual_access_cards) عن سجلّ الصادرة
+    # (beneficiary_issued_cards) بلا تصادم معرّفات.
+    avail_ids, issued_ids = [], []
     for value in request.form.getlist("card_ids"):
+        raw = str(value or "").strip()
+        state, _, rid = raw.partition(":") if ":" in raw else ("available", "", raw)
         try:
-            ids.append(int(value))
+            rid_int = int(rid)
         except (TypeError, ValueError):
             continue
-    ids = sorted(set(ids))
-    if not ids:
-        flash("حدد بطاقة واحدة على الأقل من البطاقات المتاحة.", "error")
+        if state == "issued":
+            issued_ids.append(rid_int)
+        else:
+            avail_ids.append(rid_int)
+    avail_ids = sorted(set(avail_ids))
+    issued_ids = sorted(set(issued_ids))
+    if not avail_ids and not issued_ids:
+        flash("حدد بطاقة واحدة على الأقل.", "error")
         return redirect(request.referrer or url_for("admin_cards_inventory_page"))
-    placeholders = ",".join(["%s"] * len(ids))
-    count_row = query_one(f"SELECT COUNT(*) AS c FROM manual_access_cards WHERE id IN ({placeholders})", ids) or {}
-    deleted_count = int(count_row.get("c") or 0)
-    if deleted_count:
-        execute_sql(f"DELETE FROM manual_access_cards WHERE id IN ({placeholders})", ids)
-    log_action("delete_manual_cards_selected", "manual_access_cards", 0, f"Deleted selected inventory cards ids={ids}")
-    flash(f"تم حذف {deleted_count} بطاقة متاحة. البطاقات الصادرة لا تُحذف من هنا.", "success")
+
+    deleted_avail = deleted_issued = 0
+    if avail_ids:
+        ph = ",".join(["%s"] * len(avail_ids))
+        row = query_one(f"SELECT COUNT(*) AS c FROM manual_access_cards WHERE id IN ({ph})", avail_ids) or {}
+        deleted_avail = int(row.get("c") or 0)
+        if deleted_avail:
+            execute_sql(f"DELETE FROM manual_access_cards WHERE id IN ({ph})", avail_ids)
+    if issued_ids:
+        ph = ",".join(["%s"] * len(issued_ids))
+        row = query_one(f"SELECT COUNT(*) AS c FROM beneficiary_issued_cards WHERE id IN ({ph})", issued_ids) or {}
+        deleted_issued = int(row.get("c") or 0)
+        if deleted_issued:
+            execute_sql(f"DELETE FROM beneficiary_issued_cards WHERE id IN ({ph})", issued_ids)
+
+    log_action("delete_inventory_cards_selected", "cards_inventory", 0,
+               f"حذف محدد: متاحة={avail_ids} صادرة={issued_ids}")
+    parts = []
+    if deleted_avail:
+        parts.append(f"{deleted_avail} متاحة")
+    if deleted_issued:
+        parts.append(f"{deleted_issued} سجلّ صادرة")
+    flash(("تم حذف " + " و".join(parts) + " (سجلّات الصادرة لا تُحذف من الريديوس).") if parts
+          else "لم يُحذف شيء.", "success" if parts else "error")
     return redirect(request.referrer or url_for("admin_cards_inventory_page"))
 
 
