@@ -29,65 +29,64 @@
   </td>
   <td style="font-family:monospace;font-size:11.5px;color:var(--d-text-muted)">{{ format_dt_short(r.last_login_at) or '—' }}</td>
   <td>
-    <div style="display:flex;gap:4px;flex-wrap:wrap">
-      <button type="button" class="act-icon act-creds show-creds-btn" data-pa-id="{{ r.id }}" title="عرض كلمة المرور">
-        <i class="fa-solid fa-key"></i>
-      </button>
-      <button type="button" class="act-icon act-issue-code issue-code-btn" data-pa-id="{{ r.id }}" data-name="{{ r.full_name or '' }}" data-phone="{{ r.phone or '' }}" title="إنشاء رمز تفعيل">
-        <i class="fa-solid fa-shield-halved"></i>
-      </button>
-      <button type="button" class="act-icon act-reset reset-pa-btn" data-pa-id="{{ r.id }}" data-name="{{ r.full_name or '' }}" data-phone="{{ r.phone or '' }}" title="تصفير الحساب وإلغاء كلمة المرور">
-        <i class="fa-solid fa-rotate-left"></i>
-      </button>
-      <button type="button" class="act-icon edit-pa-btn" data-pa-id="{{ r.id }}" data-bid="{{ r.beneficiary_id }}" data-username="{{ r.username }}" data-active="{{ '1' if r.is_active else '0' }}" title="تعديل البيانات">
-        <i class="fa-solid fa-pen"></i>
-      </button>
-      <button type="button" class="act-icon act-state state-pa-btn"
-              data-pa-id="{{ r.id }}"
-              data-state="{{ _state }}"
-              data-name="{{ r.full_name or '' }}"
-              title="إدارة حالة الدخول">
-        <i class="fa-solid fa-toggle-on"></i>
-      </button>
-      {# زر تحويل سريع بين البطاقات والاشتراك — مخفي للتوجيهي (مقفل على البطاقات) #}
-      {% if (r.user_type or '')|lower != 'tawjihi' %}
-      {% set _is_cards = r.access_mode == 'cards' %}
-      <button type="button" class="act-icon act-convert convert-access-pa-btn"
-              data-bid="{{ r.beneficiary_id }}"
-              data-name="{{ r.full_name or '' }}"
-              data-mode="{{ 'username' if _is_cards else 'cards' }}"
-              data-label="{{ 'حساب اشتراك' if _is_cards else 'نظام البطاقات' }}"
-              data-current="{{ 'بطاقات' if _is_cards else 'اشتراك' }}"
-              title="تحويل إلى {{ 'حساب اشتراك' if _is_cards else 'نظام البطاقات' }}">
-        <i class="fa-solid fa-right-left"></i>
-      </button>
-      {% endif %}
-
-      {# زر التوثيق — لا يظهر لمستخدمي حساب الاشتراك (لا فائدة منه لهم) — فقط لنظام البطاقات #}
-      {% if r.access_mode == 'cards' %}
-        {% if (r.user_type or '')|lower == 'tawjihi' %}
-        <button type="button" class="act-icon act-tier tawjihi-toggle-pa-btn"
-                data-bid="{{ r.beneficiary_id }}"
-                data-name="{{ r.full_name or '' }}"
-                data-verified="{{ '1' if r.tawjihi_verified else '0' }}"
-                title="{{ 'إلغاء توثيق التوجيهي' if r.tawjihi_verified else 'توثيق التوجيهي' }}">
-          <i class="fa-solid fa-shield-halved"></i>
+    <div class="act-more">
+      <button type="button" class="act-more-btn" title="إجراءات"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+      <div class="act-menu">
+        <button type="button" class="act-menu-item show-creds-btn" data-pa-id="{{ r.id }}">
+          <i class="fa-solid fa-key"></i>عرض كلمة المرور
         </button>
-        {% else %}
-        <button type="button" class="act-icon act-tier tier-pa-btn"
+        <button type="button" class="act-menu-item issue-code-btn" data-pa-id="{{ r.id }}" data-name="{{ r.full_name or '' }}" data-phone="{{ r.phone or '' }}">
+          <i class="fa-solid fa-shield-halved"></i>إنشاء رمز تفعيل
+        </button>
+        <button type="button" class="act-menu-item reset-pa-btn" data-pa-id="{{ r.id }}" data-name="{{ r.full_name or '' }}" data-phone="{{ r.phone or '' }}">
+          <i class="fa-solid fa-rotate-left"></i>تصفير الحساب وإلغاء كلمة المرور
+        </button>
+        <button type="button" class="act-menu-item edit-pa-btn" data-pa-id="{{ r.id }}" data-bid="{{ r.beneficiary_id }}" data-username="{{ r.username }}" data-active="{{ '1' if r.is_active else '0' }}">
+          <i class="fa-solid fa-pen"></i>تعديل البيانات
+        </button>
+        <button type="button" class="act-menu-item state-pa-btn"
+                data-pa-id="{{ r.id }}"
+                data-state="{{ _state }}"
+                data-name="{{ r.full_name or '' }}">
+          <i class="fa-solid fa-toggle-on"></i>إدارة حالة الدخول
+        </button>
+        {# زر تحويل سريع بين البطاقات والاشتراك — مخفي للتوجيهي (مقفل على البطاقات) #}
+        {% if (r.user_type or '')|lower != 'tawjihi' %}
+        {% set _is_cards = r.access_mode == 'cards' %}
+        <button type="button" class="act-menu-item convert-access-pa-btn"
                 data-bid="{{ r.beneficiary_id }}"
                 data-name="{{ r.full_name or '' }}"
-                title="إدارة التوثيق المتدرّج">
-          <i class="fa-solid fa-shield-halved"></i>
+                data-mode="{{ 'username' if _is_cards else 'cards' }}"
+                data-label="{{ 'حساب اشتراك' if _is_cards else 'نظام البطاقات' }}"
+                data-current="{{ 'بطاقات' if _is_cards else 'اشتراك' }}">
+          <i class="fa-solid fa-right-left"></i>تحويل إلى {{ 'حساب اشتراك' if _is_cards else 'نظام البطاقات' }}
         </button>
         {% endif %}
-      {% endif %}
-      <a class="act-icon act-profile" href="/admin/users/{{ r.beneficiary_id }}/profile" title="الصفحة الشخصية">
-        <i class="fa-solid fa-id-card-clip"></i>
-      </a>
-      <button type="button" class="act-icon act-delete delete-pa-btn" data-pa-id="{{ r.id }}" data-name="{{ r.full_name or '' }}" title="إخراج من البوابة">
-        <i class="fa-solid fa-user-minus"></i>
-      </button>
+
+        {# زر التوثيق — لا يظهر لمستخدمي حساب الاشتراك (لا فائدة منه لهم) — فقط لنظام البطاقات #}
+        {% if r.access_mode == 'cards' %}
+          {% if (r.user_type or '')|lower == 'tawjihi' %}
+          <button type="button" class="act-menu-item tawjihi-toggle-pa-btn"
+                  data-bid="{{ r.beneficiary_id }}"
+                  data-name="{{ r.full_name or '' }}"
+                  data-verified="{{ '1' if r.tawjihi_verified else '0' }}">
+            <i class="fa-solid fa-shield-halved"></i>{{ 'إلغاء توثيق التوجيهي' if r.tawjihi_verified else 'توثيق التوجيهي' }}
+          </button>
+          {% else %}
+          <button type="button" class="act-menu-item tier-pa-btn"
+                  data-bid="{{ r.beneficiary_id }}"
+                  data-name="{{ r.full_name or '' }}">
+            <i class="fa-solid fa-shield-halved"></i>إدارة التوثيق المتدرّج
+          </button>
+          {% endif %}
+        {% endif %}
+        <a class="act-menu-item" href="/admin/users/{{ r.beneficiary_id }}/profile">
+          <i class="fa-solid fa-id-card-clip"></i>الصفحة الشخصية
+        </a>
+        <button type="button" class="act-menu-item act-delete delete-pa-btn" data-pa-id="{{ r.id }}" data-name="{{ r.full_name or '' }}">
+          <i class="fa-solid fa-user-minus"></i>إخراج من البوابة
+        </button>
+      </div>
     </div>
   </td>
 </tr>

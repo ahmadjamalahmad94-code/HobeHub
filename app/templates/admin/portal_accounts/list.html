@@ -117,6 +117,22 @@
 .pa-search input{width:100%;padding:11px 14px 11px 38px;border-radius:11px;border:1.5px solid var(--d-border-strong);background:#fff;font-family:inherit;font-size:13.5px;transition:.18s ease}
 .pa-search input:focus{outline:0;border-color:var(--d-gold);box-shadow:0 0 0 3px rgba(244,186,42,.20)}
 .pa-loading{opacity:.5;pointer-events:none;transition:opacity .15s ease}
+/* قائمة الإجراءات المنسدلة */
+.act-more{position:relative;display:inline-flex}
+.act-more-btn{width:34px;height:34px;border:1px solid var(--d-border);background:#fff;cursor:pointer;border-radius:9px;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;transition:.18s ease}
+.act-more-btn:hover{border-color:var(--d-gold);background:var(--d-gold-faint,#fdf6e3)}
+.act-more-btn i{color:var(--d-text-soft);font-size:15px}
+.act-menu{position:fixed;z-index:100000;display:none;min-width:210px;background:var(--d-surface,#fff);
+  border:1px solid var(--d-border,#e5e2d8);border-radius:12px;padding:6px;box-shadow:0 18px 44px rgba(0,0,0,.24)}
+.act-more.open .act-menu{display:block}
+.act-menu-item{display:flex;align-items:center;gap:9px;width:100%;padding:9px 11px;border:0;background:none;
+  border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;color:var(--d-black,#18232e);
+  cursor:pointer;text-align:start;text-decoration:none;white-space:nowrap}
+.act-menu-item:hover{background:var(--d-surface-2,#f4f2ea)}
+.act-menu-item i{width:16px;text-align:center;font-size:13px;flex:none;color:var(--d-gold)}
+.act-menu-item.act-delete{color:#b91c1c}
+.act-menu-item.act-delete i{color:#b91c1c}
+.act-menu-item.act-delete:hover{background:#fde2e2}
 </style>{% endblock %}
 
 {% block content %}
@@ -1154,6 +1170,45 @@
       })
       .catch(function(){ btn.disabled = false; btn.innerHTML = orig; showToast('فشل الاتصال', 'error'); });
   });
+})();
+</script>
+
+<script>
+/* قائمة الإجراءات المنسدلة (⋮) — فتح/إغلاق + تموضع ثابت واعٍ بالحواف */
+(function(){
+  function closeActMenus(){ document.querySelectorAll('.act-more.open').forEach(function(o){ o.classList.remove('open'); }); }
+  document.addEventListener('click', function(e){
+    var moreBtn = e.target.closest && e.target.closest('.act-more-btn');
+    if(moreBtn){
+      e.stopPropagation();
+      var box = moreBtn.closest('.act-more');
+      var wasOpen = box.classList.contains('open');
+      closeActMenus();
+      if(!wasOpen){
+        box.classList.add('open');
+        var menu = box.querySelector('.act-menu');
+        var r = moreBtn.getBoundingClientRect();
+        menu.style.top = (r.bottom + 6) + 'px';
+        var mw = menu.offsetWidth;
+        if(r.right - mw < 6){
+          menu.style.right = 'auto';
+          menu.style.left = Math.max(6, r.left) + 'px';
+        } else {
+          menu.style.left = 'auto';
+          menu.style.right = Math.max(6, window.innerWidth - r.right) + 'px';
+        }
+        var mh = menu.offsetHeight;
+        if(r.bottom + 6 + mh > window.innerHeight && r.top - 6 - mh > 0){
+          menu.style.top = (r.top - 6 - mh) + 'px';
+        }
+      }
+      return;
+    }
+    var item = e.target.closest && e.target.closest('.act-menu-item');
+    if(item){ var b = item.closest('.act-more'); if(b) setTimeout(function(){ b.classList.remove('open'); }, 0); return; }
+    closeActMenus();
+  });
+  window.addEventListener('scroll', closeActMenus, true);
 })();
 </script>
 
