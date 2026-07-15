@@ -38,6 +38,16 @@ def _load_username_subscribers(q="", user_type_filter="", limit=None):
     """يبني قائمة مشتركي حساب الإنترنت من نفس مصدر الجدول والعدادات."""
     from app.services.access_rules import can_switch_to
 
+    # خريطة العروض الحيّة من الرديوس (لتعبئة «العرض» للمشتركين بلا لقطة محلّية)
+    offer_map = {}
+    try:
+        from app.services.radius_dashboard import get_radius_account_offers
+        _res = get_radius_account_offers()
+        if _res.get("available") and isinstance(_res.get("data"), dict):
+            offer_map = _res["data"]
+    except Exception:
+        offer_map = {}
+
     sql = """
         SELECT b.id, b.full_name, b.phone, b.user_type, b.weekly_usage_count,
                b.university_internet_method, b.freelancer_internet_method,
@@ -88,6 +98,11 @@ def _load_username_subscribers(q="", user_type_filter="", limit=None):
         can, reason = can_switch_to(ut, 'cards')
         radius_user = r.get("radius_username") or r.get("portal_username") or r.get("phone") or ""
         radius_pwd = r.get("radius_password") or ""
+        # «العرض»: اللقطة المحلّية أوّلًا، ثمّ الخريطة الحيّة من الرديوس
+        offer_name = (r.get("radius_offer_name") or "").strip()
+        if not offer_name:
+            offer_name = offer_map.get((r.get("radius_username") or "").strip().lower(), "") \
+                or offer_map.get((radius_user or "").strip().lower(), "")
         users.append({
             "id": r["id"],
             "full_name": r["full_name"],
@@ -99,7 +114,7 @@ def _load_username_subscribers(q="", user_type_filter="", limit=None):
             "portal_account_id": r.get("portal_account_id"),
             "portal_username": radius_user,
             "portal_password": radius_pwd,
-            "offer_name": (r.get("radius_offer_name") or "").strip(),
+            "offer_name": offer_name,
             "offer_id": (r.get("radius_offer_id") or ""),
             "weekly_usage_count": int(r.get("weekly_usage_count") or 0),
             "can_switch": bool(can),

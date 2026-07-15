@@ -548,14 +548,15 @@ class ApiV1RadiusClient(RadiusClient):
     # ═══════════════════════════════════════════════════════════════════
     # قراءات
     # ═══════════════════════════════════════════════════════════════════
-    def search_users(self, query: str = "", limit: int = 50) -> dict:
+    def search_users(self, query: str = "", limit: int = 50, offset: int = 0) -> dict:
         """بحث المشتركين (اسم/جوال/يوزر). يُرجع {"ok", "data": [قواميس]} كما
-        يتوقّع محرّك المطابقة. فارغ = سرد كل المشتركين ضمن السقف."""
+        يتوقّع محرّك المطابقة. فارغ = سرد كل المشتركين ضمن السقف.
+        offset للترقيم عبر صفحات النتائج (السقف الخادميّ 500 لكل صفحة)."""
         try:
             self._guard_read()
         except RadiusClientNotImplemented as exc:
             return {"ok": False, "error": str(exc), "data": []}
-        params = {"limit": int(limit or 50), "offset": 0}
+        params = {"limit": int(limit or 50), "offset": max(int(offset or 0), 0)}
         q = (query or "").strip()
         if q:
             params["search"] = q

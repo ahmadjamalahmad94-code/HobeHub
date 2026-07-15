@@ -117,6 +117,51 @@ def get_radius_profiles() -> dict:
     return _cached("radius:profiles", _fetch)
 
 
+def get_radius_account_offers() -> dict:
+    """خريطة {username(lower): اسم العرض/الباقة} من الرديوس مباشرةً — تُستعمل
+    لتعبئة عمود «العرض» للمشتركين الذين لا لقطة محلّية (current_profile_name)
+    لهم (مُرحَّلون/قدامى). قراءة فقط عبر /api/v1 (بلا أي تعديل على الرديوس).
+
+    data = {"username_lower": "اسم الباقة", ...}
+    """
+    def _fetch():
+        c = get_radius_client()
+        # 1) خريطة معرّف الباقة → اسمها
+        pid_to_name: dict[str, str] = {}
+        for p in (c.get_profiles() or []):
+            if not isinstance(p, dict):
+                continue
+            pid = p.get("id") or p.get("profile_id") or p.get("external_id")
+            name = (p.get("name") or p.get("plan_name") or "").strip()
+            if pid is not None and name:
+                pid_to_name[str(pid)] = name
+        # 2) سرد كل الحسابات (ترقيم آمن — قد تسبق الكروتُ مشتركي اليوزر)
+        offers: dict[str, str] = {}
+        page = 500
+        offset = 0
+        for _ in range(40):  # سقف 20000 حساب
+            res = c.search_users("", limit=page, offset=offset)
+            rows = (res or {}).get("data") or []
+            if not rows:
+                break
+            for a in rows:
+                if not isinstance(a, dict):
+                    continue
+                uname = (a.get("username") or a.get("user") or "").strip()
+                if not uname:
+                    continue
+                pid = a.get("plan_id")
+                name = pid_to_name.get(str(pid)) if pid is not None else ""
+                name = (name or a.get("plan_name") or a.get("group") or "").strip()
+                if name:
+                    offers[uname.lower()] = name
+            if len(rows) < page:
+                break
+            offset += page
+        return offers
+    return _cached("radius:account_offers", _fetch)
+
+
 def get_radius_balance() -> dict:
     """رصيد المدير الحالي."""
     def _fetch():

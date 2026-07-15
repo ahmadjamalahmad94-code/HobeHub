@@ -575,12 +575,13 @@ class LiveRadiusClient(RadiusClient):
         except (RadiusClientError, RadiusClientNotImplemented) as exc:
             return {"ok": False, "error": str(exc)}
 
-    def search_users(self, query: str = "", limit: int = 50) -> dict:
-        """يبحث عن مشتركين باسم/جوال/MAC."""
+    def search_users(self, query: str = "", limit: int = 50, offset: int = 0) -> dict:
+        """يبحث عن مشتركين باسم/جوال/MAC. offset مقبول للتوافق مع الترقيم
+        (بروتوكول legacy لا يدعمه فعليًّا فيُتجاهَل بأمان)."""
         try:
             _guard_read()
             self._login()
-            body = self._http_post("search_users", {"q": query, "limit": int(limit)})
+            body = self._http_post("search_users", {"q": query, "limit": int(limit), "offset": int(offset or 0)})
             if body.get("error"):
                 return {"ok": False, "error": body.get("message") or body.get("msg"), "data": []}
             data = body.get("data") or body.get("users") or body.get("__list__") or []
