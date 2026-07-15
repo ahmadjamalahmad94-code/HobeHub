@@ -126,12 +126,12 @@ button{font-family:inherit;cursor:pointer}
 .d-nav{flex:1;padding:14px 12px;display:flex;flex-direction:column;gap:18px}
 .d-nav-group{display:flex;flex-direction:column;gap:3px}
 .d-nav-group-label{
-  font-size:11px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;
-  color:rgba(255,255,255,.45);
-  padding:8px 12px 4px;
+  font-size:14px;font-weight:800;letter-spacing:0;
+  color:rgba(255,255,255,.55);
+  padding:9px 12px 5px;
   display:flex;align-items:center;gap:8px;
 }
-.d-nav-group-label i{font-size:11px;color:var(--d-gold)}
+.d-nav-group-label i{font-size:14px;color:var(--d-gold)}
 .is-collapsed .d-nav-group-label{justify-content:center;padding:8px 0 4px}
 .is-collapsed .d-nav-group-label span{display:none}
 
@@ -152,7 +152,7 @@ button{font-family:inherit;cursor:pointer}
 .d-nav-item{
   display:flex;align-items:center;gap:12px;
   padding:10px 12px;border-radius:10px;
-  font-size:13.5px;font-weight:600;
+  font-size:14px;font-weight:600;
   color:rgba(255,255,255,.72);
   transition:var(--d-transition);
   position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
