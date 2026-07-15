@@ -44,6 +44,9 @@
         <button type="button" class="act-menu-item edit-pa-btn" data-pa-id="{{ r.id }}" data-bid="{{ r.beneficiary_id }}" data-username="{{ r.username }}" data-active="{{ '1' if r.is_active else '0' }}">
           <i class="fa-solid fa-pen"></i>تعديل البيانات
         </button>
+        <button type="button" class="act-menu-item" data-sp-open="{{ r.beneficiary_id }}" data-sp-name="{{ r.full_name or '' }}">
+          <i class="fa-solid fa-user-shield" style="color:#c8951a"></i>سياسة البطاقات الخاصّة
+        </button>
         <button type="button" class="act-menu-item state-pa-btn"
                 data-pa-id="{{ r.id }}"
                 data-state="{{ _state }}"
