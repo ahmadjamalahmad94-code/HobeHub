@@ -46,6 +46,27 @@ def _user_cards_dashboard_v2():
 
     categories = get_available_categories_for_beneficiary(beneficiary_id)
 
+    # سبب واضح للمشترك عند تعذّر الطلب — لا رسالة عامّة بلا تفسير.
+    no_cards_reason = ""
+    if not getattr(quota, "allowed", False):
+        no_cards_reason = (getattr(quota, "reason", "") or "").strip() or "لا يمكنك طلب بطاقة الآن."
+    elif not categories:
+        rem = None
+        try:
+            from app.services.quota_engine import _remaining_workday_minutes
+            rem = _remaining_workday_minutes()
+        except Exception:
+            rem = None
+        if rem is not None and rem <= 0:
+            no_cards_reason = "انتهى وقت الدوام لهذا اليوم — تعود البطاقات في الدوام القادم."
+        elif rem is not None:
+            no_cards_reason = (
+                f"لم يتبقَّ سوى {rem} دقيقة حتى نهاية الدوام — لا تكفي لأيّ بطاقة متاحة لك. "
+                "لا يُصدَر نظامنا بطاقةً أطول من الوقت المتبقّي للدوام."
+            )
+        else:
+            no_cards_reason = "لا توجد فئات بطاقات متاحة لك حاليًا."
+
     today_cards = query_all(
         """
         SELECT bic.*,
@@ -74,6 +95,7 @@ def _user_cards_dashboard_v2():
         beneficiary_full_name=beneficiary.get("full_name") or session.get("beneficiary_full_name", ""),
         quota=quota,
         categories=categories,
+        no_cards_reason=no_cards_reason,
         today_cards=today_cards,
         card_statuses=card_statuses,
         format_card_seconds=format_seconds,

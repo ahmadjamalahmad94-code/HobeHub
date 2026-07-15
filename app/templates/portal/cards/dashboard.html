@@ -269,7 +269,7 @@
 <div class="kid-main-action is-disabled" style="margin-top:24px">
   <span class="ico"><i class="fa-solid fa-ban"></i></span>
   <span class="label">لا يمكنك طلب بطاقة الآن</span>
-  <span class="hint">{{ quota.reason | default('استنفدت حصتك اليومية. عُد غدًا.') }}</span>
+  <span class="hint">{{ no_cards_reason or quota.reason or 'استنفدت حصتك اليومية. عُد غدًا.' }}</span>
 </div>
 {% endif %}
 
