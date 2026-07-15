@@ -136,8 +136,12 @@
   var SCOPE_LABEL={user:'خاصّة بهذا المشترك',group:'موروثة من مجموعته',default:'موروثة من الافتراضية'};
 
   function csrfToken(){
+    // الأوثق: حقل _csrf_token المحقون في كل <form> خادميًّا (يحمل رمز الجلسة).
+    var inp=document.querySelector('input[name="_csrf_token"]');
+    if(inp && inp.value) return inp.value;
     var m=document.querySelector('meta[name="csrf-token"]');
-    return (m&&m.getAttribute('content'))||window.HOBEHUB_CSRF_TOKEN||'';
+    if(m && m.getAttribute('content')) return m.getAttribute('content');
+    return window.HOBEHUB_CSRF_TOKEN||'';
   }
   function jget(url){ return fetch(url,{credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}}).then(function(r){return r.json();}); }
   function jpost(url,body){
