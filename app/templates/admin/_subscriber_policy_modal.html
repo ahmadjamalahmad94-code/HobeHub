@@ -241,9 +241,7 @@
 
   $('sp-reset').addEventListener('click', function(){
     var btn=this, bid=$('sp-bid').value;
-    var ask = window.hobeConfirm
-      ? window.hobeConfirm('إلغاء السياسة الخاصّة بهذا المشترك؟ سيرث السياسة الافتراضية.', {danger:true, title:'إلغاء التخصيص', confirmText:'إلغاء التخصيص'})
-      : Promise.resolve(window.confirm('إلغاء السياسة الخاصّة بهذا المشترك؟'));
+    var ask = window.hobeConfirm('إلغاء السياسة الخاصّة بهذا المشترك؟ سيرث السياسة الافتراضية.', {danger:true, title:'إلغاء التخصيص', confirmText:'إلغاء التخصيص'});
     ask.then(function(ok){
       if(!ok) return;
       btn.disabled=true; clearMsg();

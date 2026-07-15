@@ -295,10 +295,6 @@ async function confirmBeneficiaryConvert(form){
   if(ci) ci.value = '1'; return true;
 }
 
-function confirmBeneficiaryDelete(form){
-  const name = form.dataset.beneficiaryName || 'هذا المشترك';
-  return window.confirm(`سيتم حذف "${name}" نهائيًا مع كل بياناته.\n\nهذا الإجراء لا يمكن التراجع عنه.`);
-}
 
 // ─── Edit modal logic ─────────────────────────────────────
 (function(){

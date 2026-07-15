@@ -110,7 +110,7 @@
     <span class="hub-pill-date warn" title="نقل السجلات الأقدم من تاريخ معيّن إلى الأرشيف">
       <i class="fa-solid fa-calendar-minus"></i>
       <form method="POST" action="{{ url_for('archive_usage_logs_before') }}"
-            onsubmit="return this.before_date.value && confirm('أرشفة السجلات الأقدم من ' + this.before_date.value + '؟')">
+            data-confirm="أرشفة السجلات الأقدم من التاريخ المحدد؟">
         {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
         <span>أرشفة قبل:</span>
         <input type="date" name="before_date" required>
@@ -131,7 +131,7 @@
     <span class="hub-pill-date" title="حذف السجلات الأقدم من تاريخ معيّن نهائياً">
       <i class="fa-solid fa-filter-circle-xmark"></i>
       <form method="POST" action="{{ url_for('clear_usage_logs_before') }}"
-            onsubmit="return this.before_date.value && confirm('حذف السجلات الأقدم من ' + this.before_date.value + ' نهائيًا؟')">
+            data-confirm="حذف السجلات الأقدم من التاريخ المحدد نهائيًا؟" data-confirm-danger>
         {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
         <span>حذف قبل:</span>
         <input type="date" name="before_date" required>

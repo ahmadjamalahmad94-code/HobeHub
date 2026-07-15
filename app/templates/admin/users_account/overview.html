@@ -1284,11 +1284,6 @@ async function confirmBeneficiaryConvert(form) {
   return true;
 }
 
-function confirmBeneficiaryDelete(form) {
-  const name = form.dataset.beneficiaryName || 'هذا المشترك';
-  const msg = `سيتم حذف "${name}" نهائيًا من النظام مع كل بياناته المرتبطة.\n\nهل أنت متأكد؟ هذا الإجراء لا يمكن التراجع عنه.`;
-  return window.confirm(msg);
-}
 </script>
 
 <script>
