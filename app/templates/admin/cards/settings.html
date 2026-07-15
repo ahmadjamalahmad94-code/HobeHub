@@ -1,0 +1,68 @@
+{% extends "admin/cards/_cards_layout.html" %}
+{% block title %}إعدادات بطاقات هوت سبوت{% endblock %}
+{% block page_title %}إعدادات بطاقات هوت سبوت{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+.cs-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:640px){.cs-grid{grid-template-columns:1fr}}
+.cs-field{display:flex;flex-direction:column;gap:6px}
+.cs-field label{font-size:12.5px;font-weight:800;color:var(--d-text)}
+.cs-input{width:100%;padding:11px 13px;border-radius:11px;border:1.5px solid var(--d-border-strong);
+  background:#FAFAF8;font-size:13.5px;font-family:inherit;transition:.18s ease}
+.cs-input:focus{outline:0;border-color:var(--d-gold);background:#fff;box-shadow:0 0 0 3px rgba(244,186,42,.20)}
+.cs-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.cs-save{padding:10px 20px;border-radius:11px;border:0;font-family:inherit;font-weight:800;font-size:13px;
+  cursor:pointer;background:linear-gradient(135deg,#F4BA2A 0%,#FFD96A 100%);color:#1E1E1E;
+  display:inline-flex;align-items:center;gap:7px}
+.cs-save:hover{transform:translateY(-1px)}
+.cs-back{padding:10px 20px;border-radius:11px;border:1px solid var(--d-border-strong);background:#fff;
+  font-family:inherit;font-weight:800;font-size:13px;color:var(--d-text-soft);text-decoration:none;
+  display:inline-flex;align-items:center;gap:7px}
+.cs-back:hover{border-color:var(--d-gold)}
+</style>
+{% endblock %}
+
+{% block cards_content %}
+
+<div class="d-notice d-notice--info">
+  <i class="fa-solid fa-sliders"></i>
+  <div>
+    <strong>حدّد رابط صفحة الراوتر وبداية/نهاية الدوام.</strong>
+    تُستخدم هذه الأوقات مباشرةً لتحديد المدّة المناسبة المعروضة للمشترك عند طلب بطاقة
+    (مع حدود الطلب اليوميّة والأسبوعيّة الحاليّة).
+  </div>
+</div>
+
+<section class="d-card">
+  <div class="d-card-head">
+    <h3 class="d-card-title"><i class="fa-solid fa-gear"></i>إعدادات الدوام ورابط الراوتر</h3>
+  </div>
+  <div class="d-card-body">
+    <form method="POST">
+      {{ csrf_token_input() | safe }}
+      <div class="cs-grid">
+        <div class="cs-field" style="grid-column:1/-1">
+          <label for="cs-router"><i class="fa-solid fa-link" style="color:var(--d-gold)"></i> رابط صفحة الراوتر</label>
+          <input class="cs-input" id="cs-router" name="router_login_url" dir="ltr"
+                 value="{{ current_url }}" placeholder="http://10.0.0.1/login" required>
+        </div>
+        <div class="cs-field">
+          <label for="cs-start"><i class="fa-regular fa-clock" style="color:var(--d-gold)"></i> بداية الدوام</label>
+          <input class="cs-input" id="cs-start" type="time" name="workday_start_time" value="{{ start_time }}" required>
+        </div>
+        <div class="cs-field">
+          <label for="cs-end"><i class="fa-regular fa-clock" style="color:var(--d-gold)"></i> نهاية الدوام</label>
+          <input class="cs-input" id="cs-end" type="time" name="workday_end_time" value="{{ end_time }}" required>
+        </div>
+      </div>
+      <div class="cs-actions">
+        <button class="cs-save" type="submit"><i class="fa-solid fa-floppy-disk"></i> حفظ الإعدادات</button>
+        <a class="cs-back" href="{{ url_for('admin_cards_inventory_page') }}"><i class="fa-solid fa-arrow-right-long"></i> العودة إلى بطاقات هوت سبوت</a>
+      </div>
+    </form>
+  </div>
+</section>
+
+{% endblock %}

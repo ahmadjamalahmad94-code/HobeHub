@@ -87,27 +87,13 @@ def _clean_admin_cards_settings_page():
         log_action("update_hotspot_cards_settings", "radius_api_settings", 1, f"router={router_login_url}, workday={workday_start_time}-{workday_end_time}")
         flash("تم تحديث إعدادات بطاقات هوت سبوت ومواعيد الدوام.", "success")
         return redirect(url_for("admin_cards_settings_page"))
-    current_url = safe(settings_row.get("router_login_url") or get_router_login_url())
-    content = f"""
-    <div class="hero">
-      <div><h1>إعدادات بطاقات هوت سبوت</h1><p>حدّد رابط الراوتر وبداية ونهاية الدوام، وسيتم استخدام هذه الأوقات مباشرة لتحديد المدة المناسبة للمشترك.</p></div>
-    </div>
-    <div class="portal-panel">
-      <form method="POST">
-        <div class="grid grid-2">
-          <div><label>رابط صفحة الراوتر</label><input name="router_login_url" value="{current_url}" required></div>
-          <div><label>بداية الدوام</label><input type="time" name="workday_start_time" value="{schedule['start_time']}" required></div>
-          <div><label>نهاية الدوام</label><input type="time" name="workday_end_time" value="{schedule['end_time']}" required></div>
-          <div class="info-note">البطاقات المعروضة للمشترك ستتحدد حسب الوقت المتبقي حتى نهاية الدوام، مع حدود الطلب اليومية والأسبوعية الحالية.</div>
-        </div>
-        <div class="actions" style="margin-top:16px">
-          <button class="btn btn-primary" type="submit">حفظ الإعدادات</button>
-          <a class="btn btn-soft" href="{url_for('admin_cards_inventory_page')}">العودة إلى بطاقات هوت سبوت</a>
-        </div>
-      </form>
-    </div>
-    """
-    return render_page("إعدادات بطاقات هوت سبوت", content)
+    current_url = settings_row.get("router_login_url") or get_router_login_url() or ""
+    return render_template(
+        "admin/cards/settings.html",
+        current_url=current_url,
+        start_time=schedule["start_time"],
+        end_time=schedule["end_time"],
+    )
 
 
 portal_access_type_copy = _clean_portal_access_type_copy
