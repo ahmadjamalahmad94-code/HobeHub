@@ -10,8 +10,8 @@
 <div class="d-nav-group">
   <div class="d-nav-group-label"><i class="fa-solid fa-list-check"></i><span>الطلبات</span></div>
   <a class="d-nav-item {% if p in ('/card/pending', '/cards/pending', '/user/cards/pending') %}is-active{% endif %}"
-     href="/card/pending" data-label="طلباتي المعلّقة">
-    <i class="fa-solid fa-hourglass-half"></i><span>المعلّقة</span>
+     href="/card/pending" data-label="كل الطلبات">
+    <i class="fa-solid fa-rectangle-list"></i><span>كل الطلبات</span>
     {% if my_pending_count and my_pending_count > 0 %}<span class="d-nav-badge">{{ my_pending_count }}</span>{% endif %}
   </a>
   <a class="d-nav-item {% if p in ('/card/history', '/cards/history', '/user/cards/history') %}is-active{% endif %}"
