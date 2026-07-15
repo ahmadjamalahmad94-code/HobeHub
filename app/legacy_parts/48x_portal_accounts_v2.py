@@ -220,26 +220,34 @@ def admin_beneficiary_issue_card(beneficiary_id):
     delivery_label = "ورقية" if delivery_mode == "paper" else "SMS"
     full_notes = (notes + (" — تسليم: " + delivery_label) + (" — سبب: " + reason)).strip(" —")
 
-    # التوليد الحيّ: يُنشئ بطاقة حقيقيّة داخل عرض الريديوس المربوط بالفئة.
-    # (يتطلّب ربط الفئة بعرض من «ربط العروض» + تفعيل الكتابة؛ وإلّا يُرجع خطأً
-    # واضحًا بدل تسجيل إصدار وهميّ من مخزون فارغ.)
-    try:
-        from app.services.card_dispatcher import request_card_via_radius
-        disp = request_card_via_radius(
-            beneficiary_id, category_code,
-            actor_username=session.get("username") or "admin",
-            skip_quota=True, notes=full_notes,
-        )
-    except Exception as exc:  # noqa: BLE001
-        return jsonify({"ok": False, "message": f"تعذّر توليد البطاقة: {safe(str(exc))}"}), 500
+    # قاعدة التسليم:
+    #   • ورقيّ  → البطاقة الورقيّة عند الإدارة؛ لا توليد على الريديوس/السوق،
+    #             نُسجّل الاستخدام فقط (تقارير/حضور).
+    #   • إلكترونيّ (SMS) → توليد حيّ من باقة السوق المربوطة عبر الـdispatcher.
+    is_paper = (delivery_mode == "paper")
 
-    if not getattr(disp, "ok", False):
-        return jsonify({"ok": False, "message": getattr(disp, "message", "تعذّر توليد البطاقة.")}), 400
+    card_user, card_pass = "", ""
+    disp = None
+    if not is_paper:
+        # التوليد الحيّ: يُنشئ بطاقة حقيقيّة كشراء من السوق المربوط بالفئة.
+        # (يتطلّب ربط الفئة بباقة من «ربط العروض» + تفعيل الكتابة؛ وإلّا خطأ واضح.)
+        try:
+            from app.services.card_dispatcher import request_card_via_radius
+            disp = request_card_via_radius(
+                beneficiary_id, category_code,
+                actor_username=session.get("username") or "admin",
+                skip_quota=True, notes=full_notes,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"ok": False, "message": f"تعذّر توليد البطاقة: {safe(str(exc))}"}), 500
 
-    card_user = getattr(disp, "card_username", "") or ""
-    card_pass = getattr(disp, "card_password", "") or ""
+        if not getattr(disp, "ok", False):
+            return jsonify({"ok": False, "message": getattr(disp, "message", "تعذّر توليد البطاقة.")}), 400
 
-    # سجّل في beneficiary_usage_logs (للتقارير/الحضور) + العداد الأسبوعي.
+        card_user = getattr(disp, "card_username", "") or ""
+        card_pass = getattr(disp, "card_password", "") or ""
+
+    # سجّل في beneficiary_usage_logs (للتقارير/الحضور) + العداد الأسبوعي — للنمطين.
     try:
         execute_sql(
             """
@@ -262,11 +270,15 @@ def admin_beneficiary_issue_card(beneficiary_id):
         pass
 
     log_action(
-        "admin_issue_card_live", "beneficiary", beneficiary_id,
-        f"توليد بطاقة على الريديوس ({delivery_label}): فئة={card_type_label}, سبب={reason} — {ben['full_name']}",
+        "admin_issue_card_paper" if is_paper else "admin_issue_card_live",
+        "beneficiary", beneficiary_id,
+        f"{'تسجيل تسليم ورقيّ' if is_paper else 'توليد بطاقة على الريديوس'} "
+        f"({delivery_label}): فئة={card_type_label}, سبب={reason} — {ben['full_name']}",
     )
 
-    if card_user:
+    if is_paper:
+        msg = f"✓ سُجِّل تسليم بطاقة {card_type_label} ورقيًّا لـ {ben['full_name']} (بلا توليد على الريديوس)."
+    elif card_user:
         msg = f"✓ تم توليد بطاقة {card_type_label} على الريديوس لـ {ben['full_name']}."
     else:
         # نجاح بلا بيانات حيّة = طُوِّب للتنفيذ اليدوي (الكتابة على الريديوس مقفلة).
