@@ -690,6 +690,28 @@ class ApiV1RadiusClient(RadiusClient):
         sessions = [_normalize_session(s) for s in items if isinstance(s, dict)] if isinstance(items, list) else []
         return {"ok": True, "data": sessions}
 
+    def get_card_check(self, username: Any) -> dict | None:
+        """حالة **بطاقة** (لا مشترك) عبر GET /cards/check?query=<username>.
+
+        البطاقات المُصدَرة كشراء سوق تعيش في جدول ``cards`` لا ``accounts``، لذا
+        ``/accounts/<u>/usage`` لا يُرجع لها شيئًا. هذه النقطة تُرجع حالة البطاقة
+        الحقيقيّة (المتبقّي/المستخدَم/متصل الآن/المنتهية) حتى قبل أوّل استخدام.
+        قاموس بطاقة الفحص أو None."""
+        try:
+            self._guard_read()
+        except RadiusClientNotImplemented:
+            return None
+        uname = _ident(username)
+        if not uname:
+            return None
+        ok, data, _err = self._get_data("cards/check", params={"query": uname})
+        if not ok or not isinstance(data, dict):
+            return None
+        card = data.get("card") if isinstance(data.get("card"), dict) else None
+        if not isinstance(card, dict) or not card.get("exists"):
+            return None
+        return card
+
     # ═══════════════════════════════════════════════════════════════════
     # كتابة — البطاقات
     # ═══════════════════════════════════════════════════════════════════

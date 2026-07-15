@@ -117,6 +117,23 @@ def get_card_statuses(
             ).as_dict()
             continue
 
+        # هذه بطاقات (جدول cards) لا حسابات مشتركين — نقرأ حالتها عبر
+        # /cards/check الذي يُرجع المتبقّي/المستخدَم حتى قبل أوّل استخدام،
+        # بدل /accounts/<u>/usage الذي لا يعرف البطاقات.
+        if include_usage and usage_calls < usage_limit:
+            check_fn = getattr(client, "get_card_check", None)
+            if callable(check_fn):
+                try:
+                    card_check = check_fn(username)
+                except Exception:
+                    card_check = None
+                usage_calls += 1
+                if card_check:
+                    statuses[card_id] = _status_from_card_check(
+                        card, card_check, duration_seconds,
+                    ).as_dict()
+                    continue
+
         usage_payload = None
         if include_usage and usage_calls < usage_limit:
             usage_payload = _fetch_usage_or_sessions(client, username)
@@ -209,6 +226,51 @@ def _status_from_usage(card: dict[str, Any], payload: Any, duration_seconds: int
         last_seen_at=_usage_last_seen(payload),
         bytes_in=_usage_bytes_in(payload),
         bytes_out=_usage_bytes_out(payload),
+    )
+
+
+def _status_from_card_check(
+    card: dict[str, Any], cc: dict[str, Any], duration_seconds: int
+) -> CardStatus:
+    """يبني حالة البطاقة من رد /cards/check (يعرف المتبقّي/المستخدَم/الاتصال)."""
+    summ = cc.get("accounting_summary") if isinstance(cc.get("accounting_summary"), dict) else {}
+    budget = _int(_first(cc.get("accounting_budget_seconds"), duration_seconds)) or (duration_seconds or 0)
+
+    remaining_raw = cc.get("remaining_seconds")
+    remaining = int(remaining_raw) if isinstance(remaining_raw, (int, float)) else None
+
+    used = _int(summ.get("total_session_seconds"))
+    if used <= 0 and budget and remaining is not None:
+        used = max(0, budget - remaining)
+    if remaining is None and budget:
+        remaining = max(budget - used, 0)
+
+    online = bool(cc.get("active_session")) or _int(summ.get("online_sessions")) > 0
+    cc_status = str(cc.get("status") or "").strip()
+
+    if online:
+        status = "online"
+    elif cc_status == "revoked" or bool(cc.get("revoked")):
+        status = "expired"
+    elif cc_status == "expired" or (remaining == 0 and used > 0):
+        status = "expired"
+    elif used <= 0:
+        status = "not_started"
+    else:
+        status = "used"
+
+    return CardStatus(
+        card_id=_card_id(card),
+        username=_card_username(card),
+        status=status,
+        source="radius_card_check",
+        is_online=online,
+        used_seconds=used,
+        remaining_seconds=remaining,
+        last_seen_at=_first(cc.get("last_seen_at"), summ.get("last_session_at")),
+        started_at=cc.get("started_at"),
+        bytes_in=_int(summ.get("total_download_bytes")),
+        bytes_out=_int(summ.get("total_upload_bytes")),
     )
 
 
