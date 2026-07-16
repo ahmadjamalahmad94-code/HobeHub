@@ -320,3 +320,140 @@ def login_activate():
 
     finalize_beneficiary_portal_login(portal)
     return jsonify({"ok": True, "redirect": url_for("user_dashboard"), "message": "تم تفعيل حسابك وتسجيل الدخول."})
+
+
+# ────────────────────────────────────────────────────────────────
+# POST /login/request-activation-code — خدمة ذاتيّة من بوّابة المشترك:
+#   المشترك (بلا حساب بوابة أو حسابه غير مفعّل) يطلب رمز التفعيل بنفسه؛
+#   نفعّل/ننشئ الحساب ونرسل الرمز عبر SMS للرقم المسجّل. لا نُرجع الرمز أبدًا.
+# ────────────────────────────────────────────────────────────────
+_ACTIVATION_RESEND_COOLDOWN_SEC = 120
+
+
+def _parse_naive_dt(ts):
+    """يحوّل طابعًا زمنيًّا (datetime أو نصّ) إلى datetime بلا منطقة زمنيّة."""
+    if not ts:
+        return None
+    try:
+        from datetime import datetime as _dt
+        if isinstance(ts, str):
+            ts = _dt.fromisoformat(ts.replace("Z", "").replace("T", " ").split(".")[0].strip())
+        if getattr(ts, "tzinfo", None) is not None:
+            ts = ts.replace(tzinfo=None)
+        return ts
+    except Exception:
+        return None
+
+
+def _seconds_since_db(last_ts):
+    """ثوانٍ بين آخر إرسال وساعة قاعدة البيانات نفسها (تفادي انزياح UTC/محلّي).
+    يُرجع None إذا تعذّر الحساب."""
+    last = _parse_naive_dt(last_ts)
+    if last is None:
+        return None
+    try:
+        row = query_one("SELECT CURRENT_TIMESTAMP AS db_now")
+        db_now = _parse_naive_dt((row or {}).get("db_now"))
+        if db_now is None:
+            return None
+        return (db_now - last).total_seconds()
+    except Exception:
+        return None
+
+
+@app.route("/login/request-activation-code", methods=["POST"])
+def login_request_activation_code():
+    raw = request.form.get("identifier") or request.form.get("username") or ""
+    ident = _normalize_identifier(raw)
+    if not ident:
+        return jsonify({"ok": False, "message": "أدخل رقم الجوال."}), 400
+    try:
+        from app.legacy import normalize_portal_username
+        norm_user = normalize_portal_username(ident)
+    except Exception:
+        norm_user = ident
+
+    portal = query_one(
+        """
+        SELECT pa.*, b.full_name, b.phone, b.id AS b_id
+        FROM beneficiary_portal_accounts pa
+        JOIN beneficiaries b ON b.id = pa.beneficiary_id
+        WHERE pa.username=%s OR b.phone=%s
+        LIMIT 1
+        """,
+        [norm_user, ident],
+    )
+
+    if portal:
+        access_state = (portal.get("portal_access_state") or "active").strip().lower()
+        if access_state == "disabled":
+            return jsonify({"ok": False, "message": "حسابك معطّل. يرجى مراجعة الإدارة."}), 403
+        # حساب مفعّل بكلمة مرور بالفعل — لا نسمح بتصفيره من العلن
+        if portal.get("password_hash") and not portal.get("must_set_password"):
+            return jsonify({"ok": False, "message": "حسابك مفعّل بالفعل — سجّل الدخول بكلمة المرور."}), 409
+        # مهلة إعادة الإرسال
+        elapsed = _seconds_since_db(portal.get("last_activation_sent_at"))
+        if elapsed is not None and 0 <= elapsed < _ACTIVATION_RESEND_COOLDOWN_SEC:
+            wait = int(_ACTIVATION_RESEND_COOLDOWN_SEC - elapsed)
+            return jsonify({"ok": False, "message": f"أرسلنا رمزًا مؤخرًا. انتظر {wait} ثانية ثم أعد المحاولة."}), 429
+        account_id = portal["id"]
+        bid = int(portal.get("b_id") or portal.get("beneficiary_id") or 0)
+        phone = portal.get("phone") or ident
+        execute_sql(
+            "UPDATE beneficiary_portal_accounts SET is_active=TRUE, portal_membership_active=TRUE, "
+            "portal_access_state='active', updated_at=CURRENT_TIMESTAMP WHERE id=%s",
+            [account_id],
+        )
+    else:
+        ben = query_one("SELECT id, full_name, phone FROM beneficiaries WHERE phone=%s LIMIT 1", [ident])
+        if not ben:
+            return jsonify({"ok": False, "message": "لم نجد هذا الرقم لدينا. تحقّق من الإدخال أو راجع الإدارة."}), 404
+        bid = int(ben["id"])
+        phone = ben.get("phone") or ident
+        username = norm_user or phone
+        dup = query_one("SELECT id FROM beneficiary_portal_accounts WHERE username=%s", [username])
+        if dup:
+            account_id = dup["id"]
+            execute_sql(
+                "UPDATE beneficiary_portal_accounts SET beneficiary_id=%s, is_active=TRUE, "
+                "portal_membership_active=TRUE, portal_access_state='active', updated_at=CURRENT_TIMESTAMP WHERE id=%s",
+                [bid, account_id],
+            )
+        else:
+            row = execute_sql(
+                "INSERT INTO beneficiary_portal_accounts "
+                "(beneficiary_id, username, password_hash, is_active, portal_membership_active, "
+                " portal_access_state, must_set_password) "
+                "VALUES (%s,%s,'',TRUE,TRUE,'active',TRUE) RETURNING id",
+                [bid, username], fetchone=True,
+            )
+            account_id = (row or {}).get("id")
+
+    if not account_id:
+        return jsonify({"ok": False, "message": "تعذّر تجهيز الحساب. حاول لاحقًا."}), 500
+
+    code = issue_activation_code_for_portal_account(account_id)
+
+    sms = {"ok": False, "configured": False, "message": ""}
+    try:
+        sms = send_sms(
+            phone,
+            f"رمز تفعيل حساب البوابة الخاص بك: {code} — صالح ٧٢ ساعة.",
+            service_code="portal_activation_code", beneficiary_id=bid,
+        ) or sms
+    except Exception:
+        pass
+    log_action("portal_self_request_code", "beneficiary_portal_account", account_id,
+               f"طلب ذاتيّ لرمز التفعيل (جوال {phone}) — SMS={'sent' if sms.get('ok') else 'no'}")
+
+    if sms.get("ok"):
+        return jsonify({
+            "ok": True, "state": "reset", "next": "activation_code",
+            "username": (portal.get("username") if portal else username),
+            "message": "أرسلنا رمز التفعيل عبر رسالة نصّيّة إلى رقمك. أدخله ثمّ اختر كلمة المرور.",
+        })
+    if not sms.get("configured"):
+        return jsonify({"ok": False,
+                        "message": "خدمة الرسائل غير مفعّلة حاليًا. يرجى مراجعة الإدارة للحصول على الرمز."}), 503
+    return jsonify({"ok": False,
+                    "message": sms.get("message") or "تعذّر إرسال الرمز الآن. حاول لاحقًا."}), 502

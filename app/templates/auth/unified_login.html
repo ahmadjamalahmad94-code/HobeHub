@@ -329,6 +329,10 @@
               <i class="fa-solid fa-bolt" aria-hidden="true"></i>
             </button>
           </div>
+          <p style="text-align:center;margin-top:12px;font-size:13px">
+            لم يصلك الرمز؟
+            <a href="#" id="link-resend-code" onclick="requestActivationCode(this);return false;" style="color:#c8951a;font-weight:700;text-decoration:none">أعد الإرسال عبر SMS</a>
+          </p>
         </form>
       </section>
 
@@ -345,12 +349,18 @@
           <button type="button" onclick="goBack()">تغيير</button>
         </div>
         <p class="lede" style="margin-top:10px">
-          تواصل مع الإدارة للحصول على <b>رمز التفعيل</b> ثم عُد إلى هذه الصفحة وأدخل الرمز.
+          اضغط <b>«طلب رمز التفعيل»</b> ليصلك رمزٌ عبر رسالة نصّيّة إلى رقمك المسجّل، ثمّ أدخله واختر كلمة المرور.
         </p>
+        <div class="actions" style="margin-bottom:10px">
+          <button class="btn btn--gold" type="button" id="btn-request-code" onclick="requestActivationCode(this)">
+            <span>طلب رمز التفعيل</span>
+            <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+          </button>
+        </div>
         <div class="actions two">
           <button class="btn btn--ghost" type="button" onclick="goBack()">رجوع</button>
-          <button class="btn btn--gold" type="button" onclick="showActivateFromNoAccount()">
-            <span>عندي رمز تفعيل</span>
+          <button class="btn btn--ghost" type="button" onclick="showActivateFromNoAccount()">
+            <span>عندي رمز بالفعل</span>
             <i class="fa-solid fa-key" aria-hidden="true"></i>
           </button>
         </div>
@@ -477,6 +487,29 @@
       });
     });
   }
+
+  // طلب رمز التفعيل ذاتيًّا (بلا حساب / غير مفعّل) — يُرسَل عبر SMS
+  function requestActivationCode(el){
+    if(!ST.ident){ showMsg('err','أدخل رقمك أوّلًا.'); return; }
+    hideMsg();
+    var isBtn = el && el.tagName === 'BUTTON';
+    if(isBtn) setLoading(el, true);
+    var tok=(document.querySelector('input[name="_csrf_token"]')||{}).value || window.HOBEHUB_CSRF_TOKEN || '';
+    var fd=new FormData(); fd.set('identifier', ST.ident); if(tok) fd.set('_csrf_token', tok);
+    fetch('/login/request-activation-code',{method:'POST',body:fd,credentials:'same-origin',
+      headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest','X-CSRFToken':tok}})
+      .then(function(r){ return r.json().then(function(d){d.__status=r.status;return d;}).catch(function(){return {ok:false,message:'تعذّر قراءة الردّ.'};}); })
+      .then(function(d){
+        if(isBtn) setLoading(el, false);
+        if(!d.ok){ showMsg('err', d.message||'تعذّر إرسال الرمز.'); return; }
+        // انتقل لخطوة إدخال الرمز (أو ابقَ فيها عند إعادة الإرسال)
+        document.getElementById('ident-label-2').textContent = ST.label || ST.ident;
+        setHeader('reset'); show('step2-reset'); setStep(3);
+        showMsg('ok', d.message||'أرسلنا رمز التفعيل عبر رسالة نصّيّة إلى رقمك.');
+        setTimeout(function(){ var f=document.getElementById('activation_code'); if(f) f.focus(); }, 60);
+      }).catch(function(){ if(isBtn) setLoading(el,false); showMsg('err','تعذّر الاتصال بالخادم.'); });
+  }
+  window.requestActivationCode = requestActivationCode;
 
   // STEP 1 — submit identifier
   document.getElementById('form-check').addEventListener('submit', function(e){
