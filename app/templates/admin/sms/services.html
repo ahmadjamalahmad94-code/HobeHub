@@ -37,8 +37,9 @@
 <style>
 .svc-toggle{position:relative;display:inline-block;width:54px;height:28px;flex-shrink:0;cursor:pointer}
 .svc-toggle input{opacity:0;width:0;height:0}
-.svc-slider{position:absolute;inset:0;background:#cbd5e1;border-radius:999px;transition:.2s;cursor:pointer}
-.svc-slider::before{content:"";position:absolute;height:22px;width:22px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 2px 4px rgba(0,0,0,.2)}
+.svc-slider{position:absolute;inset:0;background:#cbd5e1;border-radius:999px;transition:.2s;cursor:pointer;overflow:hidden}
+/* RTL: المفتاح مُطفأ = الزرّ يمين، مُفعّل = ينزلق يسارًا */
+.svc-slider::before{content:"";position:absolute;height:22px;width:22px;right:3px;left:auto;bottom:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 2px 4px rgba(0,0,0,.2)}
 .svc-toggle input:checked + .svc-slider{background:linear-gradient(135deg,#22c55e,#16a34a)}
 .svc-toggle input:checked + .svc-slider::before{transform:translateX(-26px)}
 .svc-row:hover{background:#fbfaf7}
