@@ -72,6 +72,13 @@ def _ensure_sms_schema():
         if not existing:
             execute_sql("INSERT INTO sms_settings (id, enabled) VALUES (1, 0)")
 
+        # هجرة: أعمدة مزوّد TweetSMS المبسّط (اسم مستخدم/كلمة مرور/المزوّد)
+        for _col in ("provider", "sms_username", "sms_password"):
+            try:
+                execute_sql(f"ALTER TABLE sms_settings ADD COLUMN {_col} TEXT NOT NULL DEFAULT ''")
+            except Exception:
+                pass  # العمود موجود مسبقًا
+
         # sms_services
         if is_sql:
             execute_sql("""
@@ -175,10 +182,69 @@ def sms_log_entry(recipient_phone, content, service_code="manual",
         pass
 
 
+_TWEETSMS_URL = "https://www.tweetsms.ps/api.php"
+_TWEETSMS_ERRORS = {
+    "-100": "بيانات ناقصة (اسم المستخدم/كلمة المرور/الرقم/النص/المرسل).",
+    "-110": "اسم المستخدم أو كلمة المرور غير صحيحة.",
+    "-113": "الرصيد غير كافٍ لدى TweetSMS.",
+    "-115": "اسم المرسل غير مفتوح لحسابك لدى TweetSMS.",
+    "-116": "اسم المرسل غير صالح.",
+    "-2":   "رقم غير صالح أو دولة غير مدعومة.",
+    "-999": "فشل الإرسال لدى مزوّد الرسائل.",
+}
+
+
+def _sms_provider(settings):
+    """المزوّد الحاليّ: 'tweetsms' (مبسّط: يوزر/باس/مرسل) أو 'custom' (api_url عامّ).
+    التوافق الرجعيّ: لو كان api_url مضبوطًا بلا provider نعتبره custom."""
+    p = (settings.get("provider") or "").strip().lower()
+    if p:
+        return p
+    return "custom" if (settings.get("api_url") or "").strip() else "tweetsms"
+
+
+def _sms_settings_configured(settings):
+    """هل المزوّد جاهز للإرسال؟ (بحسب نوعه)."""
+    if not int(settings.get("enabled") or 0):
+        return False
+    if _sms_provider(settings) == "tweetsms":
+        return bool((settings.get("sms_username") or "").strip()
+                    and (settings.get("sms_password") or "").strip()
+                    and (settings.get("sender_id") or "").strip())
+    return bool((settings.get("api_url") or "").strip())
+
+
+def _tweetsms_dispatch(settings, phone, text):
+    """يرسل عبر TweetSMS (GET user/pass/sender). مهمّ: TweetSMS يردّ HTTP 200 حتى
+    عند الأخطاء، فنحلّل نصّ الردّ: أوّل حقل = رمز النتيجة (1 = نجاح)."""
+    user = (settings.get("sms_username") or "").strip()
+    pw = (settings.get("sms_password") or "").strip()
+    sender = (settings.get("sender_id") or "").strip()
+    if not (user and pw and sender):
+        return False, "أكمل: اسم المستخدم وكلمة المرور واسم المرسل."
+    try:
+        import requests as _rq
+        params = {"comm": "sendsms", "user": user, "pass": pw,
+                  "to": phone, "message": text, "sender": sender}
+        r = _rq.get(_TWEETSMS_URL, params=params, timeout=15)
+        body = (r.text or "").strip()
+        first = (body.splitlines()[0] if body else "").strip()
+        code = (first.split(":")[0] if first else "").strip()
+        if code == "1":
+            return True, None
+        if code == "u":
+            return False, "حالة الرسالة غير معروفة لدى المزوّد."
+        return False, _TWEETSMS_ERRORS.get(code) or (f"ردّ المزوّد: {first[:80]}" if first else f"HTTP {r.status_code}")
+    except Exception as e:
+        return False, str(e)[:200]
+
+
 def _sms_http_dispatch(phone, text):
-    """يُرسل رسالة واحدة عبر مزوّد SMS المضبوط (api_url + قالب الجسم). يُرجع
-    (ok, error). القالب يدعم البدائل: {{phone}} {{text}} {{api_key}} {{sender}}."""
+    """يُرسل رسالة واحدة عبر المزوّد المضبوط. يُرجع (ok, error)."""
     settings = _get_sms_settings()
+    if _sms_provider(settings) == "tweetsms":
+        return _tweetsms_dispatch(settings, phone, text)
+    # ── مزوّد مخصّص (api_url + قالب): {{phone}} {{text}} {{api_key}} {{sender}} ──
     api_url = (settings.get("api_url") or "").strip()
     if not api_url:
         return False, "api_url غير مضبوط"
@@ -221,7 +287,7 @@ def send_sms(phone, text, *, service_code="manual", beneficiary_id=None, require
     if not phone:
         return {"ok": False, "configured": True, "message": "لا يوجد رقم جوال مسجّل للمشترك."}
     settings = _get_sms_settings()
-    configured = bool(int(settings.get("enabled") or 0) and (settings.get("api_url") or "").strip())
+    configured = _sms_settings_configured(settings)
     if not configured:
         sms_log_entry(phone, text, service_code, beneficiary_id, status="failed",
                       error_message="مزوّد SMS غير مفعّل/غير مضبوط")
@@ -295,29 +361,68 @@ def admin_sms_settings_page():
 @app.route("/admin/sms/settings/save", methods=["POST"])
 @admin_login_required
 def admin_sms_settings_save():
+    cur = _get_sms_settings()
     enabled = 1 if request.form.get("enabled") else 0
-    api_url = (request.form.get("api_url") or "").strip()
-    api_key = (request.form.get("api_key") or "").strip()
+    provider = (request.form.get("provider") or "tweetsms").strip().lower()
+    if provider not in ("tweetsms", "custom"):
+        provider = "tweetsms"
     sender_id = (request.form.get("sender_id") or "").strip()
-    method = (request.form.get("method") or "POST").strip().upper()
-    body_template = (request.form.get("body_template") or "").strip()
+    sms_username = (request.form.get("sms_username") or "").strip()
+    # كلمة المرور: إن تُركت فارغة نُبقي المحفوظة (لا نمسحها)
+    sms_password = (request.form.get("sms_password") or "").strip()
+    if not sms_password:
+        sms_password = cur.get("sms_password") or ""
+    # حقول المزوّد المخصّص (تبقى للتوافق)
+    api_url = (request.form.get("api_url") or cur.get("api_url") or "").strip()
+    api_key = (request.form.get("api_key") or cur.get("api_key") or "").strip()
+    method = (request.form.get("method") or cur.get("method") or "POST").strip().upper()
+    body_template = (request.form.get("body_template") or cur.get("body_template") or "").strip()
     if method not in ("POST", "GET"):
         method = "POST"
     try:
         execute_sql(
             """
             UPDATE sms_settings SET
-                enabled=%s, api_url=%s, api_key=%s, sender_id=%s,
-                method=%s, body_template=%s, updated_at=CURRENT_TIMESTAMP
+                enabled=%s, provider=%s, sender_id=%s,
+                sms_username=%s, sms_password=%s,
+                api_url=%s, api_key=%s, method=%s, body_template=%s,
+                updated_at=CURRENT_TIMESTAMP
             WHERE id=1
             """,
-            [enabled, api_url, api_key, sender_id, method, body_template],
+            [enabled, provider, sender_id, sms_username, sms_password,
+             api_url, api_key, method, body_template],
         )
-        log_action("sms_settings_save", "sms_settings", 1, "تحديث إعدادات SMS API")
+        log_action("sms_settings_save", "sms_settings", 1, f"تحديث إعدادات SMS ({provider})")
         flash("تم حفظ إعدادات SMS بنجاح.", "success")
     except Exception as e:
         flash(f"تعذّر الحفظ: {e}", "error")
     return redirect(url_for("admin_sms_settings_page"))
+
+
+@app.route("/admin/sms/check-balance", methods=["POST"])
+@admin_login_required
+def admin_sms_check_balance():
+    """فحص رصيد TweetSMS (chk_balance) — يتحقّق أيضًا من صحّة اسم المستخدم/كلمة المرور."""
+    settings = _get_sms_settings()
+    if _sms_provider(settings) != "tweetsms":
+        return jsonify({"ok": False, "message": "فحص الرصيد متاح لمزوّد TweetSMS فقط."}), 200
+    user = (settings.get("sms_username") or "").strip()
+    pw = (settings.get("sms_password") or "").strip()
+    if not (user and pw):
+        return jsonify({"ok": False, "message": "أدخل اسم المستخدم وكلمة المرور واحفظ أوّلًا."}), 200
+    try:
+        import requests as _rq
+        r = _rq.get(_TWEETSMS_URL, params={"comm": "chk_balance", "user": user, "pass": pw}, timeout=15)
+        body = (r.text or "").strip()
+        first = (body.splitlines()[0] if body else "").strip()
+        code = (first.split(":")[0] if first else "").strip()
+        if code in _TWEETSMS_ERRORS:
+            return jsonify({"ok": False, "message": _TWEETSMS_ERRORS[code]}), 200
+        if not first:
+            return jsonify({"ok": False, "message": f"ردّ فارغ (HTTP {r.status_code})."}), 200
+        return jsonify({"ok": True, "balance": first, "message": f"✅ الاتصال سليم — الرصيد: {first}"})
+    except Exception as e:
+        return jsonify({"ok": False, "message": f"تعذّر الاتصال: {str(e)[:120]}"}), 200
 
 
 # ────────────────────────────────────────────────────────────────
@@ -428,9 +533,10 @@ def admin_sms_send_test():
         sms_log_entry(phone, text, "test", status="failed", error_message="SMS مُعطّل في الإعدادات")
         flash("SMS مُعطّل في الإعدادات. فعّله أولاً.", "error")
         return redirect(url_for("admin_sms_dashboard"))
-    if not settings.get("api_url"):
-        sms_log_entry(phone, text, "test", status="failed", error_message="api_url غير مضبوط")
-        flash("الرجاء تعبئة api_url في الإعدادات أولاً.", "error")
+    if not _sms_settings_configured(settings):
+        miss = ("اسم المستخدم/كلمة المرور/اسم المرسل" if _sms_provider(settings) == "tweetsms" else "api_url")
+        sms_log_entry(phone, text, "test", status="failed", error_message=f"إعداد ناقص: {miss}")
+        flash(f"أكمل إعدادات المزوّد أولاً ({miss}).", "error")
         return redirect(url_for("admin_sms_dashboard"))
 
     # محاولة فعلية للإرسال عبر المرسِل الموحّد (بلا اشتراط تفعيل خدمة — هذا اختبار)

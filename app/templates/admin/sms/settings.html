@@ -1,88 +1,134 @@
 {% extends "admin/sms/_layout.html" %}
 {% block title %}إعدادات SMS{% endblock %}
-{% block page_title %}إعدادات SMS API{% endblock %}
+{% block page_title %}إعدادات الرسائل (SMS){% endblock %}
 {% block crumbs %}<a href="{{ url_for('admin_sms_dashboard') }}">الرسائل القصيرة</a><i class="fa-solid fa-chevron-left"></i><span>الإعدادات</span>{% endblock %}
 
 {% block sms_content %}
+{% set prov = settings.provider or ('custom' if settings.api_url else 'tweetsms') %}
 <section class="sms-hero">
-  <span class="sms-hero-ico"><i class="fa-solid fa-gear"></i></span>
-  <div><h2>إعدادات الربط مع مزوّد SMS</h2>
-    <p>اضبط API URL ومفتاح المصادقة وقالب الجسم. القالب يدعم {{ '{{phone}}' }} و {{ '{{text}}' }} و {{ '{{api_key}}' }}.</p>
+  <span class="sms-hero-ico"><i class="fa-solid fa-comment-sms"></i></span>
+  <div><h2>ربط الرسائل عبر TweetSMS</h2>
+    <p>أدخل فقط <b>اسم المستخدم</b> و<b>كلمة المرور</b> و<b>اسم المرسل</b> من حسابك في TweetSMS. الباقي مُجهّز تلقائيًّا.</p>
   </div>
 </section>
 
 <section class="d-card">
-  <div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-plug"></i>إعدادات الربط</h3></div>
+  <div class="d-card-head"><h3 class="d-card-title"><i class="fa-solid fa-plug"></i>بيانات الحساب</h3></div>
   <div class="d-card-body">
-    <form method="POST" action="{{ url_for('admin_sms_settings_save') }}">
+    <form method="POST" action="{{ url_for('admin_sms_settings_save') }}" id="sms-settings-form">
       {{ csrf_token_input()|safe if csrf_token_input is defined else '' }}
+      <input type="hidden" name="provider" id="provider" value="{{ prov }}">
 
-      <label style="display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--d-border);border-radius:10px;background:#fbfaf7;margin-bottom:14px;cursor:pointer">
+      <label style="display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--d-border);border-radius:10px;background:#fbfaf7;margin-bottom:16px;cursor:pointer">
         <input type="checkbox" name="enabled" value="1" {% if settings.enabled %}checked{% endif %} style="width:20px;height:20px;accent-color:#1f8f51">
         <div>
-          <strong style="font-size:14px;display:block">تفعيل SMS العام</strong>
-          <small style="color:var(--d-text-soft)">عند الإيقاف، لن يتم إرسال أي رسائل (حتى لو الخدمات مفعّلة).</small>
+          <strong style="font-size:14px;display:block">تفعيل الرسائل</strong>
+          <small style="color:var(--d-text-soft)">عند الإيقاف لن تُرسَل أي رسائل (حتى لو الخدمات مفعّلة).</small>
         </div>
       </label>
 
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-        <span style="font-size:12.5px;color:var(--d-text-soft)">قوالب جاهزة:</span>
-        <button type="button" id="preset-tweetsms" class="d-pill-btn d-pill-btn--ghost" style="padding:6px 14px;font-size:12.5px">
-          <i class="fa-solid fa-bolt" style="color:#c8951a"></i> TweetSMS (فلسطين)
-        </button>
-        <small style="color:var(--d-text-muted)">يملأ الرابط والقالب تلقائيًّا — أدخل مفتاحك واسم المُرسِل المعتمَد ثم فعّل واحفظ.</small>
+      {# ─── TweetSMS: ٣ حقول فقط ─── #}
+      <div id="tweetsms-fields" style="{% if prov == 'custom' %}display:none{% endif %}">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">
+          <div class="d-field-wrap">
+            <label class="d-label">اسم المستخدم <small style="color:var(--d-text-muted)">(User)</small></label>
+            <input class="d-field" type="text" name="sms_username" value="{{ settings.sms_username or '' }}" placeholder="اسم مستخدم TweetSMS" autocomplete="off" dir="ltr" style="text-align:left">
+          </div>
+          <div class="d-field-wrap">
+            <label class="d-label">كلمة المرور <small style="color:var(--d-text-muted)">(Password)</small></label>
+            <input class="d-field" type="password" name="sms_password" value="" autocomplete="new-password" dir="ltr" style="text-align:left"
+                   placeholder="{% if settings.sms_password %}••••••• (محفوظة — اتركها فارغة للإبقاء){% else %}كلمة مرور TweetSMS{% endif %}">
+          </div>
+          <div class="d-field-wrap">
+            <label class="d-label">اسم المرسل <small style="color:var(--d-text-muted)">(Sender)</small></label>
+            <input class="d-field" type="text" name="sender_id" value="{{ settings.sender_id or '' }}" placeholder="SolarDeye" dir="ltr" style="text-align:left">
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button type="button" id="btn-check-balance" class="d-pill-btn d-pill-btn--ghost" style="padding:7px 16px">
+            <i class="fa-solid fa-wallet" style="color:#1f8f51"></i> فحص الرصيد / اختبار الاتصال
+          </button>
+          <span id="balance-result" style="font-size:13px;font-weight:700"></span>
+        </div>
+        <p class="d-hint" style="margin-top:10px;color:var(--d-text-muted);font-size:12.5px">
+          <i class="fa-solid fa-circle-info"></i>
+          احفظ البيانات أوّلًا ثمّ اضغط «فحص الرصيد» للتأكّد. اسم المرسل يجب أن يكون <b>معتمَدًا</b> في حسابك لدى TweetSMS.
+        </p>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px">
-        <div class="d-field-wrap">
-          <label class="d-label">API URL <small style="color:var(--d-text-muted)">(endpoint للإرسال)</small></label>
-          <input class="d-field" type="url" name="api_url" value="{{ settings.api_url or '' }}" placeholder="https://api.sms-provider.com/send">
+      {# ─── مزوّد مخصّص (متقدّم) ─── #}
+      <div id="custom-fields" style="{% if prov != 'custom' %}display:none{% endif %};margin-top:6px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">
+          <div class="d-field-wrap">
+            <label class="d-label">API URL</label>
+            <input class="d-field" type="url" name="api_url" value="{{ settings.api_url or '' }}" placeholder="https://api.provider.com/send" dir="ltr" style="text-align:left">
+          </div>
+          <div class="d-field-wrap">
+            <label class="d-label">API Key / Token</label>
+            <input class="d-field" type="text" name="api_key" value="{{ settings.api_key or '' }}" placeholder="مفتاح المصادقة" autocomplete="off" dir="ltr" style="text-align:left">
+          </div>
+          <div class="d-field-wrap">
+            <label class="d-label">اسم المرسل (Sender)</label>
+            <input class="d-field" type="text" name="sender_id_custom" value="{{ settings.sender_id or '' }}" placeholder="Sender" dir="ltr" style="text-align:left" disabled>
+            <small style="color:var(--d-text-muted)">يُدار من حقل «اسم المرسل» أعلاه</small>
+          </div>
+          <div class="d-field-wrap">
+            <label class="d-label">HTTP Method</label>
+            <select class="d-field" name="method">
+              <option value="POST" {% if settings.method == 'POST' or not settings.method %}selected{% endif %}>POST</option>
+              <option value="GET" {% if settings.method == 'GET' %}selected{% endif %}>GET</option>
+            </select>
+          </div>
         </div>
-        <div class="d-field-wrap">
-          <label class="d-label">API Key / Token</label>
-          <input class="d-field" type="text" name="api_key" value="{{ settings.api_key or '' }}" placeholder="مفتاح المصادقة" autocomplete="off">
-        </div>
-        <div class="d-field-wrap">
-          <label class="d-label">Sender ID</label>
-          <input class="d-field" type="text" name="sender_id" value="{{ settings.sender_id or '' }}" placeholder="HobeHub">
-        </div>
-        <div class="d-field-wrap">
-          <label class="d-label">HTTP Method</label>
-          <select class="d-field" name="method">
-            <option value="POST" {% if settings.method == 'POST' or not settings.method %}selected{% endif %}>POST</option>
-            <option value="GET" {% if settings.method == 'GET' %}selected{% endif %}>GET</option>
-          </select>
-        </div>
-        <div class="d-field-wrap" style="grid-column:1/-1">
+        <div class="d-field-wrap" style="margin-top:12px">
           <label class="d-label">قالب الجسم (Body Template)
-            <small style="color:var(--d-text-muted)">— استخدم {{ '{{phone}}' }} و {{ '{{text}}' }} و {{ '{{api_key}}' }} و {{ '{{sender}}' }}</small>
+            <small style="color:var(--d-text-muted)">— {{ '{{phone}}' }} {{ '{{text}}' }} {{ '{{api_key}}' }} {{ '{{sender}}' }}</small>
           </label>
-          <textarea class="d-field" name="body_template" rows="4" placeholder='{"to":"{{phone}}","text":"{{text}}"}' style="font-family:monospace;direction:ltr;text-align:left">{{ settings.body_template or '' }}</textarea>
+          <textarea class="d-field" name="body_template" rows="3" placeholder='{"to":"{{phone}}","text":"{{text}}"}' style="font-family:monospace;direction:ltr;text-align:left">{{ settings.body_template or '' }}</textarea>
         </div>
       </div>
 
-      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
-        <a class="d-pill-btn d-pill-btn--ghost" href="{{ url_for('admin_sms_dashboard') }}">إلغاء</a>
-        <button class="d-pill-btn d-pill-btn--gold" type="submit"><i class="fa-solid fa-floppy-disk"></i> حفظ الإعدادات</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:18px;flex-wrap:wrap">
+        <button type="button" id="toggle-advanced" class="d-pill-btn d-pill-btn--ghost" style="padding:6px 12px;font-size:12px">
+          <i class="fa-solid fa-sliders"></i> <span id="toggle-advanced-label">{% if prov == 'custom' %}استخدام TweetSMS المبسّط{% else %}إعدادات مزوّد مخصّص (متقدّم){% endif %}</span>
+        </button>
+        <div style="display:flex;gap:10px">
+          <a class="d-pill-btn d-pill-btn--ghost" href="{{ url_for('admin_sms_dashboard') }}">إلغاء</a>
+          <button class="d-pill-btn d-pill-btn--gold" type="submit"><i class="fa-solid fa-floppy-disk"></i> حفظ الإعدادات</button>
+        </div>
       </div>
     </form>
   </div>
 </section>
+
 <script>
-{% raw %}
 (function(){
-  var btn=document.getElementById('preset-tweetsms');
-  if(!btn) return;
-  btn.addEventListener('click', function(){
-    var f=btn.closest('form'); if(!f) return;
-    var url=f.querySelector('[name="api_url"]'); if(url) url.value='https://www.tweetsms.ps/api.php';
-    var m=f.querySelector('[name="method"]'); if(m) m.value='GET';
-    var tpl=f.querySelector('[name="body_template"]');
-    if(tpl) tpl.value='{"comm":"sendsms","api_key":"{{api_key}}","to":"{{phone}}","message":"{{text}}","sender":"{{sender}}"}';
-    var en=f.querySelector('[name="enabled"]'); if(en) en.checked=true;
-    if(window.hobeAlert) hobeAlert('تمّ ملء إعدادات TweetSMS. أدخل مفتاح API واسم المُرسِل المعتمَد ثمّ احفظ.');
+  var provInput=document.getElementById('provider');
+  var tw=document.getElementById('tweetsms-fields');
+  var cu=document.getElementById('custom-fields');
+  var tgl=document.getElementById('toggle-advanced');
+  var tglLabel=document.getElementById('toggle-advanced-label');
+  function apply(p){
+    provInput.value=p;
+    if(p==='custom'){ tw.style.display='none'; cu.style.display=''; tglLabel.textContent='استخدام TweetSMS المبسّط'; }
+    else { tw.style.display=''; cu.style.display='none'; tglLabel.textContent='إعدادات مزوّد مخصّص (متقدّم)'; }
+  }
+  if(tgl) tgl.addEventListener('click', function(){ apply(provInput.value==='custom' ? 'tweetsms' : 'custom'); });
+
+  // فحص الرصيد / اختبار الاتصال
+  var bb=document.getElementById('btn-check-balance');
+  var br=document.getElementById('balance-result');
+  if(bb) bb.addEventListener('click', function(){
+    br.textContent=''; br.style.color=''; bb.disabled=true; var o=bb.innerHTML;
+    bb.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> جارٍ الفحص…';
+    var tok=(document.querySelector('input[name="_csrf_token"]')||{}).value || window.HOBEHUB_CSRF_TOKEN || '';
+    fetch('{{ url_for("admin_sms_check_balance") }}',{method:'POST',credentials:'same-origin',
+      headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':tok}})
+      .then(function(r){return r.json();}).then(function(d){
+        bb.disabled=false; bb.innerHTML=o;
+        br.textContent=d.message||''; br.style.color=d.ok?'#166534':'#b91c1c';
+      }).catch(function(){ bb.disabled=false; bb.innerHTML=o; br.textContent='تعذّر الاتصال'; br.style.color='#b91c1c'; });
   });
 })();
-{% endraw %}
 </script>
 {% endblock %}
