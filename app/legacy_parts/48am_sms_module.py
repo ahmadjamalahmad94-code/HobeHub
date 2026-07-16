@@ -175,6 +175,70 @@ def sms_log_entry(recipient_phone, content, service_code="manual",
         pass
 
 
+def _sms_http_dispatch(phone, text):
+    """يُرسل رسالة واحدة عبر مزوّد SMS المضبوط (api_url + قالب الجسم). يُرجع
+    (ok, error). القالب يدعم البدائل: {{phone}} {{text}} {{api_key}} {{sender}}."""
+    settings = _get_sms_settings()
+    api_url = (settings.get("api_url") or "").strip()
+    if not api_url:
+        return False, "api_url غير مضبوط"
+    try:
+        import requests as _rq, json as _json
+        api_key = settings.get("api_key") or ""
+        sender = settings.get("sender_id") or ""
+        method = (settings.get("method") or "POST").upper()
+        body_tpl = settings.get("body_template") or '{"to":"{{phone}}","text":"{{text}}"}'
+        payload = (body_tpl
+                   .replace("{{phone}}", phone)
+                   .replace("{{text}}", text)
+                   .replace("{{api_key}}", api_key)
+                   .replace("{{sender}}", sender))
+        try:
+            payload_obj = _json.loads(payload)
+        except Exception:
+            payload_obj = payload
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        if method == "GET":
+            r = _rq.get(api_url, params=payload_obj if isinstance(payload_obj, dict) else None,
+                        headers=headers, timeout=12)
+        else:
+            r = _rq.post(api_url,
+                         json=payload_obj if isinstance(payload_obj, dict) else None,
+                         data=None if isinstance(payload_obj, dict) else payload_obj,
+                         headers=headers, timeout=12)
+        if r.status_code >= 400:
+            return False, f"HTTP {r.status_code}: {(r.text or '')[:120]}"
+        return True, None
+    except Exception as e:
+        return False, str(e)[:200]
+
+
+def send_sms(phone, text, *, service_code="manual", beneficiary_id=None, require_service=True):
+    """المرسِل الموحّد للـ SMS: يحترم تفعيل المزوّد وتفعيل الخدمة، ويسجّل في
+    sms_log. يُرجع dict {ok, configured, message}. متاح كـ legacy global لبقيّة
+    الأقسام (مثل تفعيل حساب البوابة)."""
+    phone = (phone or "").strip()
+    if not phone:
+        return {"ok": False, "configured": True, "message": "لا يوجد رقم جوال مسجّل للمشترك."}
+    settings = _get_sms_settings()
+    configured = bool(int(settings.get("enabled") or 0) and (settings.get("api_url") or "").strip())
+    if not configured:
+        sms_log_entry(phone, text, service_code, beneficiary_id, status="failed",
+                      error_message="مزوّد SMS غير مفعّل/غير مضبوط")
+        return {"ok": False, "configured": False,
+                "message": "إرسال SMS غير مفعّل بعد — انقل الرمز للمشترك يدويًّا."}
+    if require_service and not _is_service_enabled(service_code):
+        sms_log_entry(phone, text, service_code, beneficiary_id, status="failed",
+                      error_message="الخدمة غير مفعّلة في «خدمات SMS»")
+        return {"ok": False, "configured": True,
+                "message": "خدمة SMS هذه غير مفعّلة — فعّلها من «رسائل SMS ← الخدمات»."}
+    ok, err = _sms_http_dispatch(phone, text)
+    sms_log_entry(phone, text, service_code, beneficiary_id,
+                  status="sent" if ok else "failed", error_message=err)
+    return {"ok": ok, "configured": True,
+            "message": (f"أُرسل عبر SMS إلى {phone}." if ok else f"تعذّر إرسال SMS: {err}")}
+
+
 def sms_stats():
     def _c(sql, params=None):
         try:
@@ -369,36 +433,9 @@ def admin_sms_send_test():
         flash("الرجاء تعبئة api_url في الإعدادات أولاً.", "error")
         return redirect(url_for("admin_sms_dashboard"))
 
-    # محاولة فعلية للإرسال (بسيطة)
-    status = "sent"
-    err = None
-    try:
-        import requests as _rq, json as _json
-        api_url = settings.get("api_url")
-        api_key = settings.get("api_key")
-        method = (settings.get("method") or "POST").upper()
-        body_tpl = settings.get("body_template") or '{"to":"{{phone}}","text":"{{text}}"}'
-        payload = body_tpl.replace("{{phone}}", phone).replace("{{text}}", text).replace("{{api_key}}", api_key or "")
-        try:
-            payload_obj = _json.loads(payload)
-        except Exception:
-            payload_obj = payload
-        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
-        if method == "GET":
-            r = _rq.get(api_url, params=payload_obj if isinstance(payload_obj, dict) else None,
-                        headers=headers, timeout=10)
-        else:
-            r = _rq.post(api_url,
-                         json=payload_obj if isinstance(payload_obj, dict) else None,
-                         data=None if isinstance(payload_obj, dict) else payload_obj,
-                         headers=headers, timeout=10)
-        if r.status_code >= 400:
-            status = "failed"
-            err = f"HTTP {r.status_code}: {r.text[:120]}"
-    except Exception as e:
-        status = "failed"
-        err = str(e)[:200]
-
+    # محاولة فعلية للإرسال عبر المرسِل الموحّد (بلا اشتراط تفعيل خدمة — هذا اختبار)
+    ok, err = _sms_http_dispatch(phone, text)
+    status = "sent" if ok else "failed"
     sms_log_entry(phone, text, "test", status=status, error_message=err)
     if status == "sent":
         flash(f"تم إرسال رسالة الاختبار إلى {phone}.", "success")

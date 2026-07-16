@@ -25,6 +25,14 @@
         </div>
       </label>
 
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <span style="font-size:12.5px;color:var(--d-text-soft)">قوالب جاهزة:</span>
+        <button type="button" id="preset-tweetsms" class="d-pill-btn d-pill-btn--ghost" style="padding:6px 14px;font-size:12.5px">
+          <i class="fa-solid fa-bolt" style="color:#c8951a"></i> TweetSMS (فلسطين)
+        </button>
+        <small style="color:var(--d-text-muted)">يملأ الرابط والقالب تلقائيًّا — أدخل مفتاحك واسم المُرسِل المعتمَد ثم فعّل واحفظ.</small>
+      </div>
+
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px">
         <div class="d-field-wrap">
           <label class="d-label">API URL <small style="color:var(--d-text-muted)">(endpoint للإرسال)</small></label>
@@ -47,7 +55,7 @@
         </div>
         <div class="d-field-wrap" style="grid-column:1/-1">
           <label class="d-label">قالب الجسم (Body Template)
-            <small style="color:var(--d-text-muted)">— استخدم {{ '{{phone}}' }} و {{ '{{text}}' }} و {{ '{{api_key}}' }}</small>
+            <small style="color:var(--d-text-muted)">— استخدم {{ '{{phone}}' }} و {{ '{{text}}' }} و {{ '{{api_key}}' }} و {{ '{{sender}}' }}</small>
           </label>
           <textarea class="d-field" name="body_template" rows="4" placeholder='{"to":"{{phone}}","text":"{{text}}"}' style="font-family:monospace;direction:ltr;text-align:left">{{ settings.body_template or '' }}</textarea>
         </div>
@@ -60,4 +68,21 @@
     </form>
   </div>
 </section>
+<script>
+{% raw %}
+(function(){
+  var btn=document.getElementById('preset-tweetsms');
+  if(!btn) return;
+  btn.addEventListener('click', function(){
+    var f=btn.closest('form'); if(!f) return;
+    var url=f.querySelector('[name="api_url"]'); if(url) url.value='https://www.tweetsms.ps/api.php';
+    var m=f.querySelector('[name="method"]'); if(m) m.value='GET';
+    var tpl=f.querySelector('[name="body_template"]');
+    if(tpl) tpl.value='{"comm":"sendsms","api_key":"{{api_key}}","to":"{{phone}}","message":"{{text}}","sender":"{{sender}}"}';
+    var en=f.querySelector('[name="enabled"]'); if(en) en.checked=true;
+    if(window.hobeAlert) hobeAlert('تمّ ملء إعدادات TweetSMS. أدخل مفتاح API واسم المُرسِل المعتمَد ثمّ احفظ.');
+  });
+})();
+{% endraw %}
+</script>
 {% endblock %}

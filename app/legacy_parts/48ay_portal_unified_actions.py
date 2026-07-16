@@ -121,6 +121,19 @@ def admin_portal_account_wipe_and_reset(portal_id):
 #
 # يمنع التشغيل إذا كان للمشترك حساب بوابة مسبقاً (حماية من التصفير بالغلط).
 # ════════════════════════════════════════════════════════════════════
+def _send_portal_activation_sms(bid, phone, code):
+    """يرسل رمز التفعيل عبر SMS (خدمة portal_activation_code) إن كان هناك رمز.
+    يُرجع dict نتيجة الإرسال أو None (لا رمز). فشل الإرسال لا يكسر التفعيل."""
+    if not code:
+        return None
+    try:
+        text = f"رمز تفعيل حساب البوابة الخاص بك: {code} — صالح ٧٢ ساعة."
+        return send_sms(phone, text, service_code="portal_activation_code",
+                        beneficiary_id=int(bid or 0))
+    except Exception as exc:
+        return {"ok": False, "configured": True, "message": f"تعذّر إرسال SMS: {exc}"}
+
+
 @app.route("/admin/beneficiaries/<int:bid>/create-portal-account", methods=["POST"])
 @login_required
 @permission_required("manage_portal_accounts", "manage_accounts")
@@ -176,6 +189,7 @@ def admin_beneficiary_create_portal_account(bid):
             "expires_hours": 72 if code else 0,
             "phone": ben.get("phone") or "",
             "full_name": ben.get("full_name") or "",
+            "sms": _send_portal_activation_sms(bid, ben.get("phone"), code),
         })
         return jsonify({
             "ok": False,
@@ -231,11 +245,12 @@ def admin_beneficiary_create_portal_account(bid):
 
     return jsonify({
         "ok": True,
-        "message": "تم إنشاء حساب البوابة. اعرض الكود للمشترك.",
+        "message": "تم إنشاء حساب البوابة.",
         "portal_id": new_id,
         "username": username,
         "code": code,
         "expires_hours": 72,
         "phone": ben.get("phone") or "",
         "full_name": ben.get("full_name") or "",
+        "sms": _send_portal_activation_sms(bid, ben.get("phone"), code),
     })

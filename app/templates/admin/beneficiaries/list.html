@@ -2300,6 +2300,11 @@ headers:{'Content-Type':'application/json'},
             if(!d.ok){ showToast(d.message||'فشل','error'); return; }
             showCode(d.code, name||phone);
             showToast(d.message||'تم الإنشاء','success');
+            // حالة إرسال الرمز عبر SMS للرقم المسجّل
+            if(d.sms){
+              if(d.sms.ok) showToast('📩 '+(d.sms.message||('أُرسل الرمز عبر SMS إلى '+(d.phone||phone))),'success');
+              else showToast('⚠️ '+(d.sms.message||'تعذّر إرسال الرمز عبر SMS — انقله يدويًّا'),'error');
+            }
             refreshPortalRows();
           }).catch(function(err){
             clearTimeout(tmo); restore();
