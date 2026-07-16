@@ -66,7 +66,21 @@ def set_card_approval_exempt(beneficiary_id, exempt: bool) -> None:
 
 
 def create_card_approval_request(beneficiary_id, category_code, *, usage_reason="", actor_username=""):
-    """ينشئ طلب موافقة معلّق (لا يُصدر بطاقة) ويُشعر الطرفين. يُرجع action_id أو 0."""
+    """ينشئ طلب موافقة معلّق (لا يُصدر بطاقة) ويُشعر الطرفين. يُرجع action_id أو 0.
+
+    قبل الإدراج نُلغي أيّ طلب بطاقة سابق **مفتوح** لنفس المشترك، كي يبقى له طلب
+    مفتوح واحد فقط (الطلب الأحدث يستبدل ما قبله)."""
+    bid = int(beneficiary_id or 0)
+    if bid:
+        try:
+            execute_sql(
+                "UPDATE radius_pending_actions "
+                "SET status='cancelled', error_message=%s, updated_at=CURRENT_TIMESTAMP "
+                "WHERE beneficiary_id=%s AND action_type='generate_user_cards' AND status='pending'",
+                ["أُلغيَ تلقائيًّا — استبدله المشترك بطلب بطاقة أحدث", bid],
+            )
+        except Exception:
+            pass
     payload = json.dumps(
         {"category_code": category_code, "usage_reason": usage_reason, "needs_approval": True},
         ensure_ascii=False,
