@@ -2049,6 +2049,20 @@ headers:{'Content-Type':'application/json'},
 <script>
 (function(){
   // ─── Helpers ───
+  // توكن CSRF + ترويسات موحّدة لكل طلبات POST داخل هذا البلوك. الدالّة العامّة
+  // csrfToken() محبوسة في نطاق <script> آخر، لذا نُعرّفها هنا. غياب الترويسة
+  // كان يجعل حارس CSRF يُعيد توجيه الطلب (فشل الإنشاء/التصفير/الحذف صامتًا).
+  function csrfToken(){
+    var el = document.querySelector('input[name="_csrf_token"]') || document.querySelector('input[name="csrf_token"]');
+    if(el && el.value) return el.value;
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return (meta && meta.content) || window.HOBEHUB_CSRF_TOKEN || '';
+  }
+  function csrfHeaders(extra){
+    var h = {'X-CSRFToken': csrfToken(), 'X-Requested-With': 'XMLHttpRequest'};
+    if(extra){ for(var k in extra){ h[k] = extra[k]; } }
+    return h;
+  }
   function showToast(text, type){
     var t=document.createElement('div');
     t.style.cssText='position:fixed;top:18px;left:50%;transform:translateX(-50%);padding:12px 22px;border-radius:12px;font-weight:800;font-size:13.5px;z-index:10001;box-shadow:0 8px 24px rgba(0,0,0,.18);color:#fff;'+
@@ -2123,7 +2137,7 @@ headers:{'Content-Type':'application/json'},
     var name=btn.dataset.name||'';
     if(!paId) return;
     if(!(await hcAsk('سيتم تصفير بيانات الدخول لـ "'+name+'" وتوليد رمز تفعيل جديد. متابعة؟'))) return;
-    fetch('/admin/portal-accounts/'+paId+'/reset',{method:'POST',credentials:'same-origin'})
+    fetch('/admin/portal-accounts/'+paId+'/reset',{method:'POST',credentials:'same-origin',headers:csrfHeaders()})
       .then(r=>r.json()).then(function(d){
         if(!d.ok){ showToast(d.message||'فشل','error'); return; }
         showCode(d.code, name);
@@ -2159,7 +2173,7 @@ headers:{'Content-Type':'application/json'},
     document.querySelectorAll('.reset-menu').forEach(m=>m.style.display='none');
     if(!paId) return;
     if(!(await hcAsk('تصفير بيانات الدخول لـ "'+name+'" وتوليد رمز تفعيل جديد فقط؟ (لن تُمسّ بيانات الاستخدام)'))) return;
-    fetch('/admin/portal-accounts/'+paId+'/reset',{method:'POST',credentials:'same-origin'})
+    fetch('/admin/portal-accounts/'+paId+'/reset',{method:'POST',credentials:'same-origin',headers:csrfHeaders()})
       .then(r=>r.json()).then(function(d){
         if(!d.ok){ showToast(d.message||'فشل','error'); return; }
         showCode(d.code, name);
@@ -2186,7 +2200,7 @@ headers:{'Content-Type':'application/json'},
     var btn=this; btn.disabled=true;
     var orig=btn.innerHTML;
     btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> جاري…';
-    fetch('/admin/portal-accounts/'+paId+'/wipe-and-reset',{method:'POST',credentials:'same-origin'})
+    fetch('/admin/portal-accounts/'+paId+'/wipe-and-reset',{method:'POST',credentials:'same-origin',headers:csrfHeaders()})
       .then(r=>r.json()).then(function(d){
         btn.disabled=false; btn.innerHTML=orig;
         if(!d.ok){ showToast(d.message||'فشل','error'); return; }
@@ -2221,7 +2235,7 @@ headers:{'Content-Type':'application/json'},
     fd.append('username',document.getElementById('par-edit-username').value||'');
     fd.append('password',document.getElementById('par-edit-password').value||'');
     fd.append('is_active',document.getElementById('par-edit-active').value);
-    fetch('/admin/portal-accounts/'+paId+'/set-credentials',{method:'POST',credentials:'same-origin',body:fd})
+    fetch('/admin/portal-accounts/'+paId+'/set-credentials',{method:'POST',credentials:'same-origin',headers:csrfHeaders(),body:fd})
       .then(r=>r.json()).then(function(d){
         if(d.ok){
           showToast(d.message,'success');
@@ -2245,7 +2259,7 @@ headers:{'Content-Type':'application/json'},
     var name=btn.dataset.name||'';
     if(!paId) return;
     if(!(await hcAsk('حذف حساب بوابة "'+name+'"؟ المستفيد يبقى لكن يفقد دخول البوابة.'))) return;
-    fetch('/admin/portal-accounts/'+paId+'/delete',{method:'POST',credentials:'same-origin'})
+    fetch('/admin/portal-accounts/'+paId+'/delete',{method:'POST',credentials:'same-origin',headers:csrfHeaders()})
       .then(r=>r.json()).then(function(d){
         showToast(d.message||(d.ok?'تم':'فشل'), d.ok?'success':'error');
         if(d.ok) refreshPortalRows();
@@ -2267,26 +2281,37 @@ headers:{'Content-Type':'application/json'},
       var origHtml=btn.innerHTML;
       btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i>';
       function restore(){ btn.disabled=false; btn.innerHTML=origHtml; }
-      var ctrl=('AbortController' in window)?new AbortController():null;
-      var tmo=setTimeout(function(){ if(ctrl) ctrl.abort(); }, 20000);  // مهلة كي لا يعلّق للأبد
-      var fd=new FormData();
-      fd.append('username', phone||name);
-      if(csrfToken()) fd.append('_csrf_token', csrfToken());
-      fetch('/admin/beneficiaries/'+bid+'/create-portal-account',{method:'POST',credentials:'same-origin',
-        headers:{'X-CSRFToken':csrfToken(),'X-Requested-With':'XMLHttpRequest'},body:fd,signal:ctrl?ctrl.signal:undefined})
-        .then(function(r){ return r.text().then(function(t){ try{ return JSON.parse(t); }catch(_){ throw new Error('srv'+r.status); } }); })
-        .then(function(d){
-          clearTimeout(tmo); restore();
-          if(!d.ok){ showToast(d.message||'فشل','error'); return; }
-          showCode(d.code, name||phone);
-          showToast(d.message||'تم الإنشاء','success');
-          refreshPortalRows();
-        }).catch(function(err){
-          clearTimeout(tmo); restore();
-          var m = (err&&err.name==='AbortError') ? 'انتهت المهلة — الخادم لم يستجب' :
-                  (err&&/^srv/.test(err.message||'')) ? ('خطأ خادم ('+(err.message.slice(3))+')') : 'فشل الاتصال';
-          showToast(m,'error');
-        });
+      // توكن CSRF يُحسب سطريًّا هنا — لا نعتمد على دالّة csrfToken() الخارجة عن
+      // نطاق هذا البلوك (كان استدعاؤها يرمي ReferenceError فيعلّق الزرّ للأبد).
+      var tok=(document.querySelector('input[name="_csrf_token"]')||{}).value
+              || (document.querySelector('meta[name="csrf-token"]')||{}).content
+              || window.HOBEHUB_CSRF_TOKEN || '';
+      try {
+        var ctrl=('AbortController' in window)?new AbortController():null;
+        var tmo=setTimeout(function(){ if(ctrl) ctrl.abort(); }, 20000);  // مهلة كي لا يعلّق للأبد
+        var fd=new FormData();
+        fd.append('username', phone||name);
+        if(tok) fd.append('_csrf_token', tok);
+        fetch('/admin/beneficiaries/'+bid+'/create-portal-account',{method:'POST',credentials:'same-origin',
+          headers:{'X-CSRFToken':tok,'X-Requested-With':'XMLHttpRequest'},body:fd,signal:ctrl?ctrl.signal:undefined})
+          .then(function(r){ return r.text().then(function(t){ try{ return JSON.parse(t); }catch(_){ throw new Error('srv'+r.status); } }); })
+          .then(function(d){
+            clearTimeout(tmo); restore();
+            if(!d.ok){ showToast(d.message||'فشل','error'); return; }
+            showCode(d.code, name||phone);
+            showToast(d.message||'تم الإنشاء','success');
+            refreshPortalRows();
+          }).catch(function(err){
+            clearTimeout(tmo); restore();
+            var m = (err&&err.name==='AbortError') ? 'انتهت المهلة — الخادم لم يستجب' :
+                    (err&&/^srv/.test(err.message||'')) ? ('خطأ خادم ('+(err.message.slice(3))+')') : 'فشل الاتصال';
+            showToast(m,'error');
+          });
+      } catch(ex) {
+        // أي خطأ متزامن (قبل انطلاق الطلب) يجب ألّا يترك الزرّ يلفّ للأبد
+        restore();
+        showToast('تعذّر إرسال الطلب — حدّث الصفحة وحاول ثانية','error');
+      }
     });
   });
 })();
