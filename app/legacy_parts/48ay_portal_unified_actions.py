@@ -26,7 +26,7 @@ def _portal_helpers():
 # ════════════════════════════════════════════════════════════════════
 @app.route("/admin/portal-accounts/<int:portal_id>/wipe-and-reset", methods=["POST"])
 @login_required
-@permission_required("manage_accounts")
+@permission_required("manage_portal_accounts", "manage_accounts")
 def admin_portal_account_wipe_and_reset(portal_id):
     row = query_one(
         "SELECT pa.id, pa.beneficiary_id, b.full_name "
@@ -123,7 +123,7 @@ def admin_portal_account_wipe_and_reset(portal_id):
 # ════════════════════════════════════════════════════════════════════
 @app.route("/admin/beneficiaries/<int:bid>/create-portal-account", methods=["POST"])
 @login_required
-@permission_required("manage_accounts")
+@permission_required("manage_portal_accounts", "manage_accounts")
 def admin_beneficiary_create_portal_account(bid):
     ben = query_one(
         "SELECT id, full_name, phone FROM beneficiaries WHERE id=%s",

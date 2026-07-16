@@ -61,7 +61,7 @@ def admin_timer_alias():
 
 @app.route("/admin/portal-accounts", methods=["GET", "POST"])
 @admin_login_required
-@permission_required("manage_accounts")
+@permission_required("manage_portal_accounts", "manage_accounts")
 def admin_portal_accounts_page():
     if request.method == "POST":
         beneficiary_id = int(clean_csv_value(request.form.get("beneficiary_id", "0")) or "0")

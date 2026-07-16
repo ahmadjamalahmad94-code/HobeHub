@@ -216,7 +216,7 @@ def _portal_accounts_phase1_view():
 
 if "admin_portal_accounts_page" in app.view_functions:
     @login_required
-    @permission_required("manage_accounts")
+    @permission_required("manage_portal_accounts", "manage_accounts")
     def _phase1_portal_accounts():
         return _portal_accounts_phase1_view()
     app.view_functions["admin_portal_accounts_page"] = _phase1_portal_accounts
@@ -227,7 +227,7 @@ if "admin_portal_accounts_page" in app.view_functions:
 # ────────────────────────────────────────────────────────────────
 @app.route("/admin/portal-accounts/list-ajax")
 @login_required
-@permission_required("manage_accounts")
+@permission_required("manage_portal_accounts", "manage_accounts")
 def admin_portal_accounts_list_ajax():
     q = clean_csv_value(request.args.get("q") or "")
     inside = _fetch_portal_accounts(q) or []
@@ -261,7 +261,7 @@ def admin_portal_accounts_list_ajax():
 # ────────────────────────────────────────────────────────────────
 @app.route("/admin/portal-accounts/<int:portal_id>/reset", methods=["POST"])
 @login_required
-@permission_required("manage_accounts")
+@permission_required("manage_portal_accounts", "manage_accounts")
 def admin_portal_account_reset(portal_id):
     row = query_one("SELECT * FROM beneficiary_portal_accounts WHERE id=%s", [portal_id])
     if not row:
@@ -297,7 +297,7 @@ def admin_portal_account_reset(portal_id):
 # ────────────────────────────────────────────────────────────────
 @app.route("/admin/portal-accounts/<int:portal_id>/credentials")
 @login_required
-@permission_required("manage_accounts")
+@permission_required("manage_portal_accounts", "manage_accounts")
 def admin_portal_account_credentials(portal_id):
     row = query_one(
         "SELECT pa.username, pa.password_plain, pa.must_set_password, b.full_name, b.phone "
@@ -324,7 +324,7 @@ def admin_portal_account_credentials(portal_id):
 # ────────────────────────────────────────────────────────────────
 @app.route("/admin/portal-accounts/<int:portal_id>/send-sms", methods=["POST"])
 @login_required
-@permission_required("manage_accounts")
+@permission_required("manage_portal_accounts", "manage_accounts")
 def admin_portal_account_send_sms(portal_id):
     row = query_one(
         "SELECT pa.id, pa.activation_code_expires_at, b.phone, b.full_name "
@@ -370,7 +370,7 @@ def admin_portal_account_send_sms(portal_id):
 # ────────────────────────────────────────────────────────────────
 @app.route("/admin/portal-accounts/<int:portal_id>/delete", methods=["POST"])
 @login_required
-@permission_required("manage_accounts")
+@permission_required("manage_portal_accounts", "manage_accounts")
 def admin_portal_account_delete(portal_id):
     row = query_one("SELECT username, beneficiary_id FROM beneficiary_portal_accounts WHERE id=%s", [portal_id])
     if not row:
@@ -388,7 +388,7 @@ def admin_portal_account_delete(portal_id):
 # ────────────────────────────────────────────────────────────────
 @app.route("/admin/portal-accounts/move-in", methods=["POST"])
 @login_required
-@permission_required("manage_accounts")
+@permission_required("manage_portal_accounts", "manage_accounts")
 def admin_portal_account_move_in():
     try:
         beneficiary_id = int(clean_csv_value(request.form.get("beneficiary_id", "0")) or "0")

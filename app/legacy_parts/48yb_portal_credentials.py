@@ -4,7 +4,7 @@ from flask import jsonify, request
 
 @app.route("/admin/portal-accounts/<int:portal_id>/set-credentials", methods=["POST"])
 @login_required
-@permission_required("manage_accounts")
+@permission_required("manage_portal_accounts", "manage_accounts")
 def admin_portal_account_set_credentials(portal_id):
     row = query_one("SELECT id, username FROM beneficiary_portal_accounts WHERE id=%s", [portal_id])
     if not row:

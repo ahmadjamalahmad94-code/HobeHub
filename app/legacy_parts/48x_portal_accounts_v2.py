@@ -36,7 +36,7 @@ def _portal_accounts_v2_view():
 
 if "admin_portal_accounts_page" in app.view_functions:
     @login_required
-    @permission_required("manage_accounts")
+    @permission_required("manage_portal_accounts", "manage_accounts")
     def _new_portal_accounts():
         return _portal_accounts_v2_view()
     app.view_functions["admin_portal_accounts_page"] = _new_portal_accounts
@@ -47,7 +47,7 @@ if "admin_portal_accounts_page" in app.view_functions:
 # ════════════════════════════════════════════════
 @app.route("/admin/portal-accounts/create", methods=["POST"])
 @login_required
-@permission_required("manage_accounts")
+@permission_required("manage_portal_accounts", "manage_accounts")
 def admin_portal_accounts_create():
     try:
         beneficiary_id = int(clean_csv_value(request.form.get("beneficiary_id", "0")) or "0")
@@ -123,7 +123,7 @@ def admin_portal_accounts_create():
 # ════════════════════════════════════════════════
 @app.route("/admin/portal-accounts/<int:portal_id>/update", methods=["POST"])
 @login_required
-@permission_required("manage_accounts")
+@permission_required("manage_portal_accounts", "manage_accounts")
 def admin_portal_accounts_update(portal_id):
     row = query_one(
         "SELECT * FROM beneficiary_portal_accounts WHERE id=%s LIMIT 1", [portal_id]

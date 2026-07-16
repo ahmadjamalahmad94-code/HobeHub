@@ -52,6 +52,7 @@
         <div class="act-menu">
           <a class="act-menu-item" href="/admin/users/{{ r.id }}/profile"><i class="fa-solid fa-id-card-clip" style="color:#0891b2"></i> الملف الكامل</a>
           <button type="button" class="act-menu-item" data-sp-open="{{ r.id }}" data-sp-name="{{ r.full_name or r.id }}"><i class="fa-solid fa-user-shield" style="color:#c8951a"></i> سياسة البطاقات الخاصّة</button>
+          {% if has_permission('manage_portal_accounts') or has_permission('manage_accounts') %}
           {% if r.portal_account_id %}
           <button type="button" class="act-menu-item portal-manage-btn"
                   data-bid="{{ r.id }}" data-name="{{ r.full_name or r.id }}" data-phone="{{ r.phone or '' }}"
@@ -60,6 +61,7 @@
           {% else %}
           <button type="button" class="act-menu-item create-portal-row-btn"
                   data-bid="{{ r.id }}" data-name="{{ r.full_name or r.id }}" data-phone="{{ r.phone or '' }}"><i class="fa-solid fa-user-plus" style="color:#c8951a"></i> إنشاء حساب بوابة</button>
+          {% endif %}
           {% endif %}
           <a class="act-menu-item" href="{{ url_for('admin_request_center', beneficiary_id=r.id) }}"><i class="fa-solid fa-inbox" style="color:#1c52a8"></i> كل الطلبات</a>
           {% if r.can_switch_access %}

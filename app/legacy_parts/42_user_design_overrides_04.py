@@ -65,4 +65,4 @@ app.view_functions["user_internet_access_page"] = user_login_required(_designed_
 app.view_functions["user_internet_request_page"] = user_login_required(_designed_user_internet_request_page)
 app.view_functions["user_internet_my_requests_page"] = user_login_required(_designed_user_internet_my_requests_page)
 app.view_functions["user_internet_my_access_page"] = user_login_required(_designed_user_internet_access_page)
-app.view_functions["admin_portal_accounts_page"] = admin_login_required(permission_required("manage_accounts")(_patched_admin_portal_accounts_page))
+app.view_functions["admin_portal_accounts_page"] = admin_login_required(permission_required("manage_portal_accounts", "manage_accounts")(_patched_admin_portal_accounts_page))

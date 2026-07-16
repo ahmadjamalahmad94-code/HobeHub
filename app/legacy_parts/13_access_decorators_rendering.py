@@ -66,16 +66,39 @@ def user_owns_beneficiary(param_name="beneficiary_id"):
     return decorator
 
 
-def permission_required(permission_name):
+def _request_wants_json():
+    """طلب AJAX/API — نردّ JSON بدل إعادة توجيه HTML (وإلّا رأى العميل «خطأ 200»)."""
+    try:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return True
+        if (request.path or "").startswith("/api/"):
+            return True
+        accept = request.headers.get("Accept") or ""
+        if "application/json" in accept and "text/html" not in accept:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def permission_required(*permission_names):
+    """يقبل صلاحيّة واحدة أو أكثر (منطق OR): يكفي امتلاك إحداها. يردّ JSON 401/403
+    لطلبات AJAX كي تعرض الواجهة رسالة واضحة بدل «خطأ 200»."""
     def decorator(view):
         @wraps(view)
         def wrapped(*args, **kwargs):
             if session.get("portal_type") == "beneficiary":
+                if _request_wants_json():
+                    return jsonify({"ok": False, "message": "هذه العملية مخصصة للإدارة فقط."}), 403
                 flash("هذه الصفحة مخصصة للإدارة فقط.", "error")
                 return redirect(url_for("user_dashboard"))
             if not session.get("account_id"):
+                if _request_wants_json():
+                    return jsonify({"ok": False, "message": "انتهت الجلسة. سجّل الدخول من جديد."}), 401
                 return redirect(url_for("login"))
-            if not has_permission(permission_name):
+            if not any(has_permission(p) for p in permission_names):
+                if _request_wants_json():
+                    return jsonify({"ok": False, "message": "غير مصرّح لك بهذه العملية — راجع مالك الحساب لمنحك الصلاحية اللازمة."}), 403
                 flash("غير مصرح لك بهذه العملية.", "error")
                 return redirect(url_for("dashboard"))
             return view(*args, **kwargs)
