@@ -44,15 +44,19 @@
             <input class="d-field" type="text" name="sender_id" value="{{ settings.sender_id or '' }}" placeholder="SolarDeye" dir="ltr" style="text-align:left">
           </div>
         </div>
-        <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <button type="button" id="btn-check-balance" class="d-pill-btn d-pill-btn--ghost" style="padding:7px 16px">
-            <i class="fa-solid fa-wallet" style="color:#1f8f51"></i> فحص الرصيد / اختبار الاتصال
+        <div style="margin-top:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <div id="balance-box" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:12px;background:#fbfaf7;border:1px solid var(--d-border);font-size:13.5px;font-weight:800">
+            <i class="fa-solid fa-wallet" style="color:#1f8f51"></i>
+            <span id="balance-result">جارٍ التحميل…</span>
+          </div>
+          <button type="button" id="btn-check-balance" class="d-pill-btn d-pill-btn--ghost" style="padding:6px 14px;font-size:12.5px">
+            <i class="fa-solid fa-rotate"></i> تحديث الآن
           </button>
-          <span id="balance-result" style="font-size:13px;font-weight:700"></span>
+          <span id="balance-updated" style="font-size:11.5px;color:var(--d-text-muted)"></span>
         </div>
         <p class="d-hint" style="margin-top:10px;color:var(--d-text-muted);font-size:12.5px">
           <i class="fa-solid fa-circle-info"></i>
-          احفظ البيانات أوّلًا ثمّ اضغط «فحص الرصيد» للتأكّد. اسم المرسل يجب أن يكون <b>معتمَدًا</b> في حسابك لدى TweetSMS.
+          يُعرض الرصيد تلقائيًّا ويتحدّث كل ٣٠ ثانية. اسم المرسل يجب أن يكون <b>معتمَدًا</b> في حسابك لدى TweetSMS.
         </p>
       </div>
 
@@ -137,20 +141,36 @@
   }
   if(tgl) tgl.addEventListener('click', function(){ apply(provInput.value==='custom' ? 'tweetsms' : 'custom'); });
 
-  // فحص الرصيد / اختبار الاتصال
+  // ─── الرصيد: عرض تلقائيّ + تحديث كل ٣٠ ثانية ───
   var bb=document.getElementById('btn-check-balance');
   var br=document.getElementById('balance-result');
-  if(bb) bb.addEventListener('click', function(){
-    br.textContent=''; br.style.color=''; bb.disabled=true; var o=bb.innerHTML;
-    bb.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> جارٍ الفحص…';
+  var bu=document.getElementById('balance-updated');
+  var configured = {{ 'true' if (settings.enabled and settings.sms_username and prov == 'tweetsms') else 'false' }};
+  var busy=false;
+  function fetchBalance(){
+    if(busy) return;
+    // لا تُحدّث إن كان المزوّد مخصّصًا (البطاقة تختفي أصلًا)
+    if(provInput.value !== 'tweetsms'){ return; }
+    busy=true; if(bb) bb.disabled=true;
+    br.textContent='جارٍ التحميل…'; br.style.color='';
     var tok=(document.querySelector('input[name="_csrf_token"]')||{}).value || window.HOBEHUB_CSRF_TOKEN || '';
     fetch('{{ url_for("admin_sms_check_balance") }}',{method:'POST',credentials:'same-origin',
       headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':tok}})
       .then(function(r){return r.json();}).then(function(d){
-        bb.disabled=false; bb.innerHTML=o;
-        br.textContent=d.message||''; br.style.color=d.ok?'#166534':'#b91c1c';
-      }).catch(function(){ bb.disabled=false; bb.innerHTML=o; br.textContent='تعذّر الاتصال'; br.style.color='#b91c1c'; });
-  });
+        busy=false; if(bb) bb.disabled=false;
+        if(d.ok && d.balance!==undefined){ br.textContent='الرصيد: '+d.balance; br.style.color='#166534'; }
+        else { br.textContent=d.message||'تعذّر جلب الرصيد'; br.style.color='#b91c1c'; }
+        var t=new Date(); if(bu) bu.textContent='آخر تحديث '+t.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      }).catch(function(){ busy=false; if(bb) bb.disabled=false; br.textContent='تعذّر الاتصال'; br.style.color='#b91c1c'; });
+  }
+  if(bb) bb.addEventListener('click', fetchBalance);
+  if(configured){
+    fetchBalance();
+    setInterval(function(){ if(!document.hidden) fetchBalance(); }, 30000);
+  } else {
+    br.textContent='احفظ اسم المستخدم وكلمة المرور واسم المرسل ثمّ فعّل الرسائل لعرض الرصيد.';
+    br.style.color='var(--d-text-muted)'; br.style.fontWeight='600';
+  }
 })();
 </script>
 {% endblock %}
