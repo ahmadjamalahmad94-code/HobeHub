@@ -373,9 +373,11 @@ def login_request_activation_code():
     except Exception:
         norm_user = ident
 
+    _ben_cols = ("user_type", "university_internet_method", "freelancer_internet_method")
     portal = query_one(
         """
-        SELECT pa.*, b.full_name, b.phone, b.id AS b_id
+        SELECT pa.*, b.full_name, b.phone, b.id AS b_id,
+               b.user_type, b.university_internet_method, b.freelancer_internet_method
         FROM beneficiary_portal_accounts pa
         JOIN beneficiaries b ON b.id = pa.beneficiary_id
         WHERE pa.username=%s OR b.phone=%s
@@ -384,6 +386,36 @@ def login_request_activation_code():
         [norm_user, ident],
     )
 
+    # ─── صفّ المستفيد لفحوص السياسة (قبل أي تعديل) ───
+    if portal:
+        ben_row = portal
+        check_bid = int(portal.get("b_id") or portal.get("beneficiary_id") or 0)
+    else:
+        ben_row = query_one(
+            "SELECT id, full_name, phone, user_type, university_internet_method, "
+            "freelancer_internet_method FROM beneficiaries WHERE phone=%s LIMIT 1",
+            [ident],
+        )
+        if not ben_row:
+            return jsonify({"ok": False, "message": "لم نجد هذا الرقم لدينا. تحقّق من الإدخال أو راجع الإدارة."}), 404
+        check_bid = int(ben_row["id"])
+
+    _sms_cfg = _get_sms_settings()
+    # سياسة (١): التفعيل الذاتيّ متاح لمستخدمي البطاقات فقط (قابل للتغيير من الإعدادات)
+    if int(_sms_cfg.get("activation_cards_only") or 0):
+        try:
+            from app.dashboard.services import get_beneficiary_access_mode
+            _mode = get_beneficiary_access_mode(ben_row)
+        except Exception:
+            _mode = "cards"
+        if _mode != "cards":
+            return jsonify({"ok": False, "message": "التفعيل الذاتيّ متاح حاليًّا لمستخدمي البطاقات فقط. يرجى مراجعة الإدارة."}), 403
+    # سياسة (٢): الحدّ الأقصى لرسائل التفعيل لكل مشترك (0 = بلا حدّ)
+    _max = int(_sms_cfg.get("activation_max_sends") or 0)
+    if _max > 0 and count_activation_sms_sent(beneficiary_id=check_bid) >= _max:
+        return jsonify({"ok": False, "message": f"بلغتَ الحدّ الأقصى المسموح لرسائل التفعيل ({_max}). يرجى مراجعة الإدارة."}), 429
+
+    username = norm_user or (ben_row.get("phone") or ident)
     if portal:
         access_state = (portal.get("portal_access_state") or "active").strip().lower()
         if access_state == "disabled":
@@ -397,7 +429,7 @@ def login_request_activation_code():
             wait = int(_ACTIVATION_RESEND_COOLDOWN_SEC - elapsed)
             return jsonify({"ok": False, "message": f"أرسلنا رمزًا مؤخرًا. انتظر {wait} ثانية ثم أعد المحاولة."}), 429
         account_id = portal["id"]
-        bid = int(portal.get("b_id") or portal.get("beneficiary_id") or 0)
+        bid = check_bid
         phone = portal.get("phone") or ident
         execute_sql(
             "UPDATE beneficiary_portal_accounts SET is_active=TRUE, portal_membership_active=TRUE, "
@@ -405,12 +437,8 @@ def login_request_activation_code():
             [account_id],
         )
     else:
-        ben = query_one("SELECT id, full_name, phone FROM beneficiaries WHERE phone=%s LIMIT 1", [ident])
-        if not ben:
-            return jsonify({"ok": False, "message": "لم نجد هذا الرقم لدينا. تحقّق من الإدخال أو راجع الإدارة."}), 404
-        bid = int(ben["id"])
-        phone = ben.get("phone") or ident
-        username = norm_user or phone
+        bid = check_bid
+        phone = ben_row.get("phone") or ident
         dup = query_one("SELECT id FROM beneficiary_portal_accounts WHERE username=%s", [username])
         if dup:
             account_id = dup["id"]

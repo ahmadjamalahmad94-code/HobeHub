@@ -78,6 +78,12 @@ def _ensure_sms_schema():
                 execute_sql(f"ALTER TABLE sms_settings ADD COLUMN {_col} TEXT NOT NULL DEFAULT ''")
             except Exception:
                 pass  # العمود موجود مسبقًا
+        # هجرة: ضوابط التفعيل الذاتيّ (حدّ أقصى للرسائل + قصر على مستخدمي البطاقات)
+        for _col, _default in (("activation_max_sends", 0), ("activation_cards_only", 1)):
+            try:
+                execute_sql(f"ALTER TABLE sms_settings ADD COLUMN {_col} INTEGER NOT NULL DEFAULT {_default}")
+            except Exception:
+                pass
 
         # sms_services
         if is_sql:
@@ -305,6 +311,28 @@ def send_sms(phone, text, *, service_code="manual", beneficiary_id=None, require
             "message": (f"أُرسل عبر SMS إلى {phone}." if ok else f"تعذّر إرسال SMS: {err}")}
 
 
+def count_activation_sms_sent(beneficiary_id=None, phone=None):
+    """عدد رسائل رمز التفعيل المُرسَلة بنجاح لمشترك (لفرض الحدّ الأقصى)."""
+    try:
+        if beneficiary_id:
+            row = query_one(
+                "SELECT COUNT(*) AS c FROM sms_log WHERE beneficiary_id=%s "
+                "AND service_code='portal_activation_code' AND status='sent'",
+                [int(beneficiary_id)],
+            )
+        elif phone:
+            row = query_one(
+                "SELECT COUNT(*) AS c FROM sms_log WHERE recipient_phone=%s "
+                "AND service_code='portal_activation_code' AND status='sent'",
+                [phone],
+            )
+        else:
+            return 0
+        return int((row or {}).get("c") or 0)
+    except Exception:
+        return 0
+
+
 def sms_stats():
     def _c(sql, params=None):
         try:
@@ -379,6 +407,12 @@ def admin_sms_settings_save():
     body_template = (request.form.get("body_template") or cur.get("body_template") or "").strip()
     if method not in ("POST", "GET"):
         method = "POST"
+    # ضوابط التفعيل الذاتيّ
+    try:
+        activation_max_sends = max(int(request.form.get("activation_max_sends") or 0), 0)
+    except ValueError:
+        activation_max_sends = 0
+    activation_cards_only = 1 if request.form.get("activation_cards_only") else 0
     try:
         execute_sql(
             """
@@ -386,11 +420,13 @@ def admin_sms_settings_save():
                 enabled=%s, provider=%s, sender_id=%s,
                 sms_username=%s, sms_password=%s,
                 api_url=%s, api_key=%s, method=%s, body_template=%s,
+                activation_max_sends=%s, activation_cards_only=%s,
                 updated_at=CURRENT_TIMESTAMP
             WHERE id=1
             """,
             [enabled, provider, sender_id, sms_username, sms_password,
-             api_url, api_key, method, body_template],
+             api_url, api_key, method, body_template,
+             activation_max_sends, activation_cards_only],
         )
         log_action("sms_settings_save", "sms_settings", 1, f"تحديث إعدادات SMS ({provider})")
         flash("تم حفظ إعدادات SMS بنجاح.", "success")

@@ -88,6 +88,28 @@
         </div>
       </div>
 
+      {# ─── ضوابط التفعيل الذاتيّ من بوّابة المشترك ─── #}
+      <div style="margin-top:18px;padding-top:16px;border-top:1px dashed var(--d-border)">
+        <h4 style="margin:0 0 12px;font-size:14px;font-weight:900;color:var(--d-black)">
+          <i class="fa-solid fa-user-shield" style="color:#c8951a"></i> التفعيل الذاتيّ (زرّ «طلب رمز التفعيل» في بوّابة الدخول)
+        </h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;align-items:end">
+          <div class="d-field-wrap">
+            <label class="d-label">الحدّ الأقصى لرسائل التفعيل لكل مشترك</label>
+            <input class="d-field" type="number" name="activation_max_sends" min="0" step="1"
+                   value="{{ settings.activation_max_sends or 0 }}" dir="ltr" style="text-align:left" placeholder="0">
+            <small style="color:var(--d-text-muted)">0 = بلا حدّ. مثال: 3 يعني ٣ رسائل تفعيل كحدّ أقصى لكل مشترك.</small>
+          </div>
+          <label style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--d-border);border-radius:10px;background:#fbfaf7;cursor:pointer">
+            <input type="checkbox" name="activation_cards_only" value="1" {% if settings.activation_cards_only %}checked{% endif %} style="width:20px;height:20px;accent-color:#1f8f51">
+            <div>
+              <strong style="font-size:13.5px;display:block">مستخدمو البطاقات فقط</strong>
+              <small style="color:var(--d-text-soft)">قصر التفعيل الذاتيّ على مستفيدي البطاقات (مؤقتًا).</small>
+            </div>
+          </label>
+        </div>
+      </div>
+
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:18px;flex-wrap:wrap">
         <button type="button" id="toggle-advanced" class="d-pill-btn d-pill-btn--ghost" style="padding:6px 12px;font-size:12px">
           <i class="fa-solid fa-sliders"></i> <span id="toggle-advanced-label">{% if prov == 'custom' %}استخدام TweetSMS المبسّط{% else %}إعدادات مزوّد مخصّص (متقدّم){% endif %}</span>
