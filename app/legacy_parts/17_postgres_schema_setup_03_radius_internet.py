@@ -29,6 +29,7 @@ def _setup_postgres_radius_internet_schema(cur):
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS workday_end_time TEXT DEFAULT '16:00'")
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'Asia/Gaza'")
     cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS long_card_approval_codes TEXT DEFAULT 'three_hours,four_hours'")
+    cur.execute("ALTER TABLE radius_api_settings ADD COLUMN IF NOT EXISTS card_approval_timeout_minutes INTEGER DEFAULT 15")
     cur.execute("""CREATE TABLE IF NOT EXISTS card_approval_exemptions (
         beneficiary_id INTEGER PRIMARY KEY,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

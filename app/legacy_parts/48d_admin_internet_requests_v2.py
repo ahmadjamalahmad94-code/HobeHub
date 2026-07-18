@@ -55,6 +55,12 @@ def admin_request_center():
     """Unified request center. Specialized detail pages stay available for execution."""
     from app.services.request_center import get_request_center
 
+    # رفض تلقائيّ للطلبات المعلّقة التي تجاوزت المهلة (مكبوح داخليًّا)
+    try:
+        expire_stale_card_approval_requests()
+    except Exception:
+        pass
+
     data = get_request_center(
         {
             "type": clean_csv_value(request.args.get("type")) or "all",

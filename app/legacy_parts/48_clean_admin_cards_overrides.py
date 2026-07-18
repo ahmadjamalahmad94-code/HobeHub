@@ -89,11 +89,15 @@ def _clean_admin_cards_settings_page():
             flash("منطقة زمنيّة غير صالحة.", "error")
             return redirect(url_for("admin_cards_settings_page"))
         approval_codes = clean_csv_value(request.form.get("long_card_approval_codes"))
+        _tmo_raw = clean_csv_value(request.form.get("card_approval_timeout_minutes"))
+        approval_timeout = int(_tmo_raw) if (_tmo_raw and _tmo_raw.lstrip("-").isdigit()) else 15
+        if approval_timeout < 0:
+            approval_timeout = 0
         execute_sql(
             "UPDATE radius_api_settings SET router_login_url=%s, workday_start_time=%s, "
             "workday_end_time=%s, timezone=%s, long_card_approval_codes=%s, "
-            "updated_at=CURRENT_TIMESTAMP WHERE id=1",
-            [router_login_url, workday_start_time, workday_end_time, tz_name, approval_codes],
+            "card_approval_timeout_minutes=%s, updated_at=CURRENT_TIMESTAMP WHERE id=1",
+            [router_login_url, workday_start_time, workday_end_time, tz_name, approval_codes, approval_timeout],
         )
         try:
             refresh_app_timezone()  # حدّث ذاكرة المنطقة الزمنيّة فورًا
@@ -173,6 +177,9 @@ def _clean_admin_cards_settings_page():
         approval_selected_codes=(settings_row.get("long_card_approval_codes")
                                  if settings_row.get("long_card_approval_codes") is not None
                                  else "three_hours,four_hours"),
+        approval_timeout_minutes=(settings_row.get("card_approval_timeout_minutes")
+                                  if settings_row.get("card_approval_timeout_minutes") is not None
+                                  else 15),
         current_tz=current_tz,
         tz_options=tz_options,
         server_now=server_now,

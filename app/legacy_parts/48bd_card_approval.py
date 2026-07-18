@@ -225,3 +225,94 @@ def admin_card_approval_reject(action_id):
             pass
     log_action("reject_long_card", "radius_pending_actions", action_id, f"user={bid} reason={reason}")
     return _appr_respond(True, "تم رفض الطلب وإشعار المشترك.")
+
+
+# ════════════════════════════════════════════════════════════════════
+# انتهاء مهلة الطلبات: أي طلب بطاقة طويلة معلّق تجاوز مهلة القبول يُرفض تلقائيًّا
+# ════════════════════════════════════════════════════════════════════
+import time as _appr_time
+
+_APPROVAL_TIMEOUT_DEFAULT_MIN = 15
+_appr_sweep_last = [0.0]  # حامل قابل للتعديل (throttle عبر الطلبات)
+
+
+def card_approval_timeout_minutes() -> int:
+    """مهلة قبول الطلب بالدقائق من الإعدادات (0 = مُعطّل، بلا رفض تلقائيّ)."""
+    row = get_radius_settings_row() or {}
+    val = row.get("card_approval_timeout_minutes")
+    if val is None:
+        return _APPROVAL_TIMEOUT_DEFAULT_MIN
+    try:
+        m = int(val)
+    except (TypeError, ValueError):
+        return _APPROVAL_TIMEOUT_DEFAULT_MIN
+    return m if m > 0 else 0
+
+
+def expire_stale_card_approval_requests(force: bool = False) -> int:
+    """يرفض تلقائيًّا الطلبات المعلّقة التي تجاوزت المهلة. مكبوح (مرّة/≥20ث) كي
+    لا يثقل المسارات كثيرة الاستدعاء. يُرجع عدد الطلبات المرفوضة."""
+    now = _appr_time.time()
+    if not force and (now - _appr_sweep_last[0]) < 20:
+        return 0
+    _appr_sweep_last[0] = now
+
+    minutes = card_approval_timeout_minutes()
+    if minutes <= 0:
+        return 0
+
+    try:
+        sqlite = is_sqlite_database_url()
+    except Exception:
+        sqlite = False
+    if sqlite:
+        where_time = "requested_at <= datetime('now', %s)"
+        tparam = f"-{minutes} minutes"
+    else:
+        where_time = "requested_at <= (NOW() - (%s * INTERVAL '1 minute'))"
+        tparam = minutes
+
+    try:
+        rows = query_all(
+            "SELECT id, beneficiary_id, payload_json FROM radius_pending_actions "
+            "WHERE status='pending' AND action_type='generate_user_cards' AND " + where_time,
+            [tparam],
+        ) or []
+    except Exception:
+        return 0
+
+    reason = f"رُفض تلقائيًّا — انتهت مهلة قبول الطلب ({minutes} دقيقة)"
+    done = 0
+    for r in rows:
+        aid = r.get("id")
+        # حرس تسابُق: لا نرفض إلا إن بقي معلّقًا
+        try:
+            upd = execute_sql(
+                "UPDATE radius_pending_actions SET status='cancelled', executed_by_username='system', "
+                "executed_at=CURRENT_TIMESTAMP, error_message=%s, updated_at=CURRENT_TIMESTAMP "
+                "WHERE id=%s AND status='pending'",
+                [reason, aid],
+            )
+        except Exception:
+            continue
+        done += 1
+        bid = int(r.get("beneficiary_id") or 0)
+        cat_label = _category_label_for(_approval_payload(r).get("category_code"))
+        if bid:
+            try:
+                from app.services.notification_service import create_beneficiary_notification
+                create_beneficiary_notification(
+                    bid,
+                    title=f"انتهت مهلة طلبك — بطاقة {cat_label}",
+                    body=f"لم تتم الموافقة خلال {minutes} دقيقة فانتهت مهلة الطلب. يمكنك إعادة الطلب أو طلب بطاقة أقصر فورًا.",
+                    event_type="generate_user_cards", status="failed",
+                    source_type="radius_pending_actions", source_id=int(aid),
+                    action_url="/card",
+                )
+            except Exception:
+                pass
+        try:
+            log_action("expire_long_card", "radius_pending_actions", aid, f"user={bid} timeout={minutes}m")
+        except Exception:
+            pass
+    return done

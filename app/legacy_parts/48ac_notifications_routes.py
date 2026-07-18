@@ -40,6 +40,11 @@ def admin_notifications_center():
 @app.route("/admin/notifications/count", methods=["GET"])
 @admin_login_required
 def admin_notifications_count():
+    # نبض دوريّ للإدارة: نغتنمه لرفض الطلبات المعلّقة المتجاوزة للمهلة (مكبوح)
+    try:
+        expire_stale_card_approval_requests()
+    except Exception:
+        pass
     return jsonify({"ok": True, "count": notification_count_for_session(session)})
 
 

@@ -138,6 +138,15 @@
             {% endfor %}
           </div>
         </div>
+        <div class="cs-field" style="margin-top:6px">
+          <label>مهلة قبول الطلب (بالدقائق)</label>
+          <input type="number" name="card_approval_timeout_minutes" min="0" step="1"
+                 value="{{ approval_timeout_minutes }}" dir="ltr" style="max-width:160px;text-align:left"
+                 class="cs-input">
+          <small style="display:block;color:var(--d-text-muted);margin-top:4px">
+            إن لم تتمّ الموافقة خلال هذه المهلة يُرفض الطلب تلقائيًّا ويُشعَر المشترك. <b>0 = بلا مهلة</b> (يبقى معلّقًا). الافتراضيّ ١٥ دقيقة.
+          </small>
+        </div>
       </div>
 
       <div class="cs-actions">

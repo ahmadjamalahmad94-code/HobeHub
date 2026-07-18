@@ -62,6 +62,10 @@ def _setup_sqlite_radius_schema(cur):
     except Exception:
         pass
     try:
+        cur.execute("ALTER TABLE radius_api_settings ADD COLUMN card_approval_timeout_minutes INTEGER DEFAULT 15")
+    except Exception:
+        pass
+    try:
         cur.execute("""CREATE TABLE IF NOT EXISTS card_approval_exemptions (
             beneficiary_id INTEGER PRIMARY KEY,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
