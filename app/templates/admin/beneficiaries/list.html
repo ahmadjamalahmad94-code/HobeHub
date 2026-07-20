@@ -426,7 +426,7 @@
       <div class="qe-field full"><label>طريقة التسليم</label>
         <div class="delivery-toggle">
           <div class="delivery-opt is-selected" data-mode="paper"><i class="fa-solid fa-print"></i><span class="lbl">بطاقة ورقية</span><span class="sub">طباعتها فورًا</span></div>
-          <div class="delivery-opt" data-mode="sms"><i class="fa-solid fa-message"></i><span class="lbl">إرسال SMS</span><span class="sub">يتفعّل لاحقًا</span></div>
+          <div class="delivery-opt" data-mode="sms"><i class="fa-solid fa-message"></i><span class="lbl">إرسال SMS</span><span class="sub">لرقم المشترك</span></div>
         </div>
         <input type="hidden" name="delivery_mode" id="ic-delivery" value="paper">
       </div>
@@ -978,7 +978,13 @@
           loadRows(readState(),false);
           if(d.card_username){
             // بطاقة حيّة مُولَّدة على الريديوس — اعرض بياناتها للمشترك (ابقِ النافذة).
-            icShowMsg('success','✓ تم التوليد على الريديوس — اليوزر: '+d.card_username+'  ·  كلمة المرور: '+(d.card_password||'—'));
+            var baseMsg = '✓ تم التوليد على الريديوس — اليوزر: '+d.card_username+'  ·  كلمة المرور: '+(d.card_password||'—');
+            if(d.sms){
+              baseMsg += (d.sms.ok ? '  ·  📩 أُرسلت البطاقة عبر SMS' : '  ·  ⚠️ '+(d.sms.message||'تعذّر إرسال SMS'));
+              icShowMsg(d.sms.ok ? 'success' : 'error', baseMsg);
+            } else {
+              icShowMsg('success', baseMsg);
+            }
             if(icSave) icSave.disabled = false;
           } else {
             icClose(); showToast(d.message || 'تم إصدار البطاقة', 'success');

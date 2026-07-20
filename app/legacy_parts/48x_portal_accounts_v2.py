@@ -284,11 +284,26 @@ def admin_beneficiary_issue_card(beneficiary_id):
         # نجاح بلا بيانات حيّة = طُوِّب للتنفيذ اليدوي (الكتابة على الريديوس مقفلة).
         msg = getattr(disp, "message", "") or f"سُجِّل طلب بطاقة {card_type_label} (سيُنفَّذ عند تفعيل الكتابة)."
 
+    # ── تسليم SMS: أرسل بيانات البطاقة (يوزر/باسوورد) للمشترك عبر خدمة card_issued ──
+    sms_result = None
+    if (not is_paper) and delivery_mode == "sms" and card_user:
+        phone = (ben.get("phone") or "").strip()
+        card_text = (
+            f"بطاقة {card_type_label}:\n"
+            f"المستخدم: {card_user}\n"
+            f"كلمة المرور: {card_pass or '—'}"
+        )
+        try:
+            sms_result = send_sms(phone, card_text, service_code="card_issued",
+                                  beneficiary_id=beneficiary_id)
+        except Exception as exc:  # noqa: BLE001
+            sms_result = {"ok": False, "configured": True, "message": f"تعذّر إرسال SMS: {safe(str(exc))}"}
+
     return jsonify({
         "ok": True,
         "message": msg,
         "card_username": card_user,
         "card_password": card_pass,
         "delivery_mode": delivery_mode,
-        "sms_pending": (delivery_mode == "sms"),
+        "sms": sms_result,
     })
