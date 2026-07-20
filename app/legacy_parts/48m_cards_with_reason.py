@@ -107,6 +107,47 @@ def _user_cards_dashboard_v2():
     )
 
 
+_CARD_REQUEST_COOLDOWN_SEC = 30
+
+
+def _card_request_cooldown_remaining(beneficiary_id):
+    """ثوانٍ متبقّية من مهلة منع التكرار (0 = مسموح). يقيس منذ آخر طلب/بطاقة
+    لنفس المشترك مقارنةً بساعة قاعدة البيانات (تفادي انزياح UTC/محلّي)."""
+    try:
+        row = query_one(
+            "SELECT CURRENT_TIMESTAMP AS db_now, "
+            "(SELECT MAX(requested_at) FROM radius_pending_actions "
+            "  WHERE beneficiary_id=%s AND action_type='generate_user_cards') AS last_pending, "
+            "(SELECT MAX(usage_time) FROM beneficiary_usage_logs WHERE beneficiary_id=%s) AS last_usage",
+            [int(beneficiary_id), int(beneficiary_id)],
+        ) or {}
+    except Exception:
+        return 0
+
+    from datetime import datetime as _dt
+
+    def _naive(ts):
+        if not ts:
+            return None
+        try:
+            if isinstance(ts, str):
+                ts = _dt.fromisoformat(ts.replace("Z", "").replace("T", " ").split(".")[0].strip())
+            if getattr(ts, "tzinfo", None) is not None:
+                ts = ts.replace(tzinfo=None)
+            return ts
+        except Exception:
+            return None
+
+    db_now = _naive(row.get("db_now"))
+    last = max([t for t in (_naive(row.get("last_pending")), _naive(row.get("last_usage"))) if t], default=None)
+    if not db_now or not last:
+        return 0
+    elapsed = (db_now - last).total_seconds()
+    if 0 <= elapsed < _CARD_REQUEST_COOLDOWN_SEC:
+        return int(_CARD_REQUEST_COOLDOWN_SEC - elapsed) or 1
+    return 0
+
+
 def _user_cards_request_v2():
     """طلب بطاقة من بوابة المشترك — **توليد فوري حيّ عبر RADIUS أوّلًا**،
     ويقبل usage_reason ويسجّله في beneficiary_usage_logs.
@@ -130,6 +171,12 @@ def _user_cards_request_v2():
         return redirect(url_for("user_login"))
     if not category_code:
         flash("الرجاء اختيار فئة البطاقة.", "error")
+        return redirect(url_for("user_cards_dashboard"))
+
+    # منع التكرار السريع: مهلة قصيرة بين طلبات البطاقة لنفس المشترك
+    _wait = _card_request_cooldown_remaining(beneficiary_id)
+    if _wait > 0:
+        flash(f"لقد أرسلت طلبًا للتوّ. انتظر {_wait} ثانية قبل إرسال طلب جديد.", "warning")
         return redirect(url_for("user_cards_dashboard"))
 
     note = "توليد فوري من بوابة المشترك"
