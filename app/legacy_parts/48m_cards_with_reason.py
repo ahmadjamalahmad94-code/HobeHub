@@ -107,7 +107,18 @@ def _user_cards_dashboard_v2():
     )
 
 
-_CARD_REQUEST_COOLDOWN_SEC = 30
+_CARD_REQUEST_COOLDOWN_SEC = 10 * 60  # 10 دقائق
+
+
+def _fmt_cooldown_wait(seconds):
+    """صياغة المدّة المتبقّية بالعربيّة (دقائق/ثوانٍ)."""
+    seconds = int(seconds)
+    m, s = divmod(seconds, 60)
+    if m and s:
+        return f"{m} دقيقة و{s} ثانية"
+    if m:
+        return f"{m} دقيقة"
+    return f"{s} ثانية"
 
 
 def _card_request_cooldown_remaining(beneficiary_id):
@@ -176,7 +187,7 @@ def _user_cards_request_v2():
     # منع التكرار السريع: مهلة قصيرة بين طلبات البطاقة لنفس المشترك
     _wait = _card_request_cooldown_remaining(beneficiary_id)
     if _wait > 0:
-        flash(f"لقد أرسلت طلبًا للتوّ. انتظر {_wait} ثانية قبل إرسال طلب جديد.", "warning")
+        flash(f"لقد أرسلت طلبًا مؤخّرًا. انتظر {_fmt_cooldown_wait(_wait)} قبل إرسال طلب جديد.", "warning")
         return redirect(url_for("user_cards_dashboard"))
 
     note = "توليد فوري من بوابة المشترك"
